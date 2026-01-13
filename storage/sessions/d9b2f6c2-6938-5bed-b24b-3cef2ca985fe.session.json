@@ -1,0 +1,18 @@
+{
+  "id": "d9b2f6c2-6938-5bed-b24b-3cef2ca985fe",
+  "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\test_agent_nexus",
+  "created_at": "2026-01-09T18:06:02.317373+00:00",
+  "state": "presentation_complete",
+  "observation_ids": [
+    "obs_1767981962336"
+  ],
+  "question_ids": [
+    "q_1767981962339"
+  ],
+  "pattern_ids": [
+    "p_1767981962342"
+  ],
+  "completed_at": "2026-01-10T00:06:02.346133",
+  "saved_at": "2026-01-10T00:06:02.346133",
+  "storage_version": "1.0"
+}

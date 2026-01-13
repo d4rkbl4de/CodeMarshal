@@ -1,0 +1,22 @@
+{
+  "id": "p_1767974322231",
+  "data": {
+    "patterns": [
+      {
+        "type": "file_count",
+        "value": 8246,
+        "unit": "files"
+      },
+      {
+        "type": "directory_count",
+        "value": 818,
+        "unit": "directories"
+      }
+    ],
+    "summary": "Numeric patterns extracted from observations"
+  },
+  "phase": "patterns_complete",
+  "timestamp": "2026-01-09T21:58:42.231587",
+  "session_id": "268bd21b-485a-5b9c-8116-3ac9e4159938",
+  "type": "numeric_pattern"
+}

@@ -1,0 +1,118 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.inlayHints.variableTypes": false,
+    "python.analysis.inlayHints.functionReturnTypes": false,
+    "python.analysis.inlayHints.pytestParameters": false,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        },
+        "editor.defaultFormatter": "ms-python.python",
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": true,
+    "python.linting.lintOnSave": true,
+    "python.linting.flake8Args": [
+        "--max-line-length=100",
+        "--ignore=E203,W503",
+        "--select=E,W,F,C,N"
+    ],
+    "python.linting.mypyArgs": [
+        "--strict",
+        "--no-implicit-optional",
+        "--warn-unused-configs",
+        "--warn-redundant-casts",
+        "--warn-unused-ignores",
+        "--warn-return-any",
+        "--warn-unreachable"
+    ],
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": [
+        "-v",
+        "--tb=short",
+        "--strict-markers",
+        "--strict-config"
+    ],
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/.mypy_cache": true,
+        "**/.coverage": true,
+        "**/.hypothesis": true,
+        "**/.tox": true,
+        "**/.eggs": true,
+        "**/*.egg-info": true,
+        "**/.venv": true,
+        "**/venv": true,
+        "**/.env": true,
+        "**/.env.*": true
+    },
+    "search.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/.mypy_cache": true,
+        "**/.git": true,
+        "**/.venv": true,
+        "**/venv": true,
+        "**/.eggs": true,
+        "**/*.egg-info": true
+    },
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/core",
+        "${workspaceFolder}/storage",
+        "${workspaceFolder}/observations",
+        "${workspaceFolder}/inquiry",
+        "${workspaceFolder}/lens",
+        "${workspaceFolder}/bridge",
+        "${workspaceFolder}/integrity",
+        "${workspaceFolder}/tests"
+    ],
+    "editor.minimap.enabled": false,
+    "editor.renderWhitespace": "boundary",
+    "editor.renderControlCharacters": false,
+    "editor.folding": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.rulers": [
+        100
+    ],
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.analysis.autoSearchPaths": true,
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "warning",
+        "reportMissingModuleSource": "none"
+    },
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "cursorpyright.analysis.autoImportCompletions": true,
+    "cursorpyright.analysis.autoSearchPaths": true,
+    "cursorpyright.analysis.diagnosticMode": "workspace",
+    "cursorpyright.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "warning",
+        "reportMissingModuleSource": "none"
+    },
+    "cursorpyright.analysis.extraPaths": [
+        "${workspaceFolder}/core",
+        "${workspaceFolder}/storage",
+        "${workspaceFolder}/observations",
+        "${workspaceFolder}/inquiry",
+        "${workspaceFolder}/lens",
+        "${workspaceFolder}/bridge",
+        "${workspaceFolder}/integrity",
+        "${workspaceFolder}/tests"
+    ],
+    "cursorpyright.analysis.inlayHints.functionReturnTypes": false,
+    "cursorpyright.analysis.inlayHints.variableTypes": false,
+    "cursorpyright.analysis.typeCheckingMode": "strict"
+}
