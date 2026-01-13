@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# CodeMarshal specific
+storage/observations/
+storage/patterns/
+storage/questions/
+storage/sessions/
+storage/snapshots/
+.codemarshal/witness/snapshots/
+deployment_logs/*.log
+*.log
+*.prof
+init_profile.txt
+
+# Test files (keep tests/ directory structure, but not large test data)
+test_agent_nexus/
+test_violations/
+agent_nexus.yaml
+agent_nexus_test.yaml
+agent_nexus_test.log
+
+# Cache
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+
+# Coverage
+.coverage
+.coverage.*
+.cache
+nosetests.json
+coverage.xml
+*.cover
+.hypothesis/
+
+# Large files
+*.large
+*.h5
+*.pkl
+*.pickle

@@ -29,7 +29,7 @@ class ObserveResult:
     intent_record: Optional[Dict[str, Any]] = None
     limitations: Optional[Dict[str, List[str]]] = None
     truth_preservation_guarantee: bool = False
-    warnings: List[str] = None
+    warnings: Optional[List[str]] = None
     error_message: Optional[str] = None
     
     def __post_init__(self):
