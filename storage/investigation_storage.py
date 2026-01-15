@@ -95,7 +95,7 @@ class InvestigationStorage:
             return obs_id
         except TransactionalStorageError as e:
             # Log the failure but don't crash
-            print(f"⚠️ Observation save failed: {e}", flush=True)
+            print(f"[WARNING] Observation save failed: {e}", flush=True)
             # Try to save with minimal data
             minimal_data = {
                 'id': observation_data.get('id', 'unknown'),

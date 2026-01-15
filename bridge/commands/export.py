@@ -132,9 +132,14 @@ class ExportAuthorization:
         # 1. Check session is active and exportable
         if not session_context.active:
             return False, "No active investigation to export", None
-        
-        if session_id != request.session_id:
-            return False, "Session ID mismatch", None
+
+        # Best-effort session ID validation (do not guess)
+        if hasattr(session_context, 'snapshot_id'):
+            try:
+                if str(session_context.snapshot_id) != request.session_id:
+                    return False, "Session ID mismatch", None
+            except Exception:
+                return False, "Session ID mismatch", None
         
         # 2. Check export type is available
         type_available, type_error = cls._check_type_availability(
@@ -169,12 +174,15 @@ class ExportAuthorization:
         session_context: SessionContext
     ) -> tuple[bool, Optional[str]]:
         """Check if the requested export type exists in the session."""
+        has_observations = bool(getattr(session_context, 'has_observations', False))
+        has_notes = bool(getattr(session_context, 'has_notes', False))
+        has_patterns = bool(getattr(session_context, 'has_patterns', False))
         availability_map = {
-            ExportType.OBSERVATIONS: session_context.has_observations,
-            ExportType.NOTES: session_context.has_notes,
-            ExportType.PATTERNS: session_context.has_patterns,
+            ExportType.OBSERVATIONS: has_observations,
+            ExportType.NOTES: has_notes,
+            ExportType.PATTERNS: has_patterns,
             ExportType.SESSION: True,  # Always available if session exists
-            ExportType.CONSTITUTIONAL: session_context.has_observations,  # Needs something to analyze
+            ExportType.CONSTITUTIONAL: has_observations,  # Needs something to analyze
         }
         
         is_available = availability_map.get(export_type, False)
@@ -222,7 +230,7 @@ class ExportAuthorization:
             "uncertainty_markers_included": request.type in [ExportType.PATTERNS, ExportType.CONSTITUTIONAL],
             "timestamp": request.timestamp,
             "export_context": {
-                "session_stage": session_context.current_stage.value,
+                "session_stage": session_context.current_stage,
                 "observation_count": session_context.observation_count,
                 "note_count": session_context.note_count,
             },
@@ -368,16 +376,9 @@ def execute_export(
     # 4. Delegate to integration layer for actual export
     try:
         # Import here to maintain separation of concerns
-        from bridge.integration.export_formats import create_exporter
+        from bridge.integration.export_formats import get_exporter
         
-        exporter = create_exporter(
-            export_type=request.type.value,
-            export_format=request.format.value,
-            session_id=request.session_id,
-            scope=request.scope,
-            parameters=request.parameters,
-            disclosures=disclosures,
-        )
+        exporter = get_exporter(request.format.value)
         
         export_id = exporter.prepare_export()
         

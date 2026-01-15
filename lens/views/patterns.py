@@ -36,6 +36,7 @@ from lens.philosophy import (
     ClarityRule,
     NavigationRule
 )
+from lens.philosophy.single_focus import MockInterfaceIntent
 from inquiry.session.context import SessionContext
 
 # NOT ALLOWED: from inquiry.patterns import *
@@ -292,11 +293,6 @@ class PatternsView:
     4. Rank patterns by importance ❌
     5. Suggest actions based on patterns ❌
     6. Hide low-confidence patterns ❌
-    
-    Article 3 Violation Example:
-    If this view groups "similar" patterns, that's interpretation.
-    If it highlights "important" metrics, that's distortion.
-    If it omits uncertain patterns, that's obscuring.
     """
     
     # Class constants for display
@@ -364,7 +360,9 @@ class PatternsView:
     def _apply_philosophy_rules(self) -> None:
         """Apply lens philosophy rules to this view."""
         # Article 5: Single-Focus Interface
-        SingleFocusRule.enforce("patterns")
+        SingleFocusRule().validate_interface_intent(
+            MockInterfaceIntent(primary_focus=None)
+        )
         
         # Article 6: Linear Investigation
         # Patterns only shown after observations

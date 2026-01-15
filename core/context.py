@@ -108,6 +108,9 @@ class RuntimeContext:
     network_enabled: bool = False  # Article 12: Local Operation
     mutation_allowed: bool = False  # Article 9: Immutable Observations
     runtime_imports_allowed: bool = False  # Article 1: Observation Purity
+
+    # Optional runtime parameters used for orchestration (e.g., streaming)
+    parameters: Dict[str, Any] = field(default_factory=dict)
     
     # Session identification
     session_id: uuid.UUID = field(default_factory=uuid.uuid4)
@@ -164,6 +167,9 @@ class RuntimeContext:
             ExecutionMode.from_string(self.execution_mode)
         except ValueError as e:
             raise ValueError(f"Invalid execution mode: {self.execution_mode}") from e
+        
+        if not isinstance(self.parameters, dict):
+            raise ValueError("parameters must be a dict")
         
         # Validate timestamps are timezone-aware
         if self.start_timestamp.tzinfo is None:
@@ -318,6 +324,7 @@ class RuntimeContext:
             'network_enabled': self.network_enabled,
             'mutation_allowed': self.mutation_allowed,
             'runtime_imports_allowed': self.runtime_imports_allowed,
+            'parameters': dict(self.parameters),
             'session_id': self.session_id,
             'start_timestamp': self.start_timestamp,
             'python_version': self.python_version,
@@ -350,6 +357,7 @@ class RuntimeContext:
             "network_enabled": self.network_enabled,
             "mutation_allowed": self.mutation_allowed,
             "runtime_imports_allowed": self.runtime_imports_allowed,
+            "parameters": dict(self.parameters),
             "session_id": self.session_id_str,
             "start_timestamp": self.start_timestamp_iso,
             "python_version": {
@@ -397,6 +405,10 @@ class RuntimeContext:
         for flag in ["network_enabled", "mutation_allowed", "runtime_imports_allowed"]:
             if flag in data:
                 converted_data[flag] = bool(data[flag])
+        
+        # Convert parameters
+        if "parameters" in data and isinstance(data["parameters"], dict):
+            converted_data["parameters"] = dict(data["parameters"])
         
         # Convert session_id to UUID
         if "session_id" in data:

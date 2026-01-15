@@ -29,6 +29,7 @@ from lens.philosophy import (
     ClarityRule,
     NavigationRule
 )
+from lens.philosophy.single_focus import MockInterfaceIntent
 from inquiry.session.context import SessionContext
 from inquiry.notebook import NotebookManager
 
@@ -335,7 +336,9 @@ class OverviewView:
     def _apply_philosophy_rules(self) -> None:
         """Apply lens philosophy rules to this view."""
         # Article 5: Single-Focus Interface
-        SingleFocusRule.enforce("overview")
+        SingleFocusRule().validate_interface_intent(
+            MockInterfaceIntent(primary_focus=None)
+        )
         
         # Article 6: Linear Investigation
         # Overview comes first in investigation

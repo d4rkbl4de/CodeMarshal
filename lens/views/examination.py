@@ -30,10 +30,10 @@ from lens.philosophy import (
     ClarityRule,
     NavigationRule
 )
+from lens.philosophy.single_focus import MockInterfaceIntent
 from inquiry.session.context import SessionContext
 
 # NOT ALLOWED: observations.*, patterns.*, bridge.commands.*
-
 
 class ObservationType(Enum):
     """Types of observations that can be examined."""
@@ -219,10 +219,10 @@ class ExaminationView:
     4. Grouping by category (not pattern)
     
     What this view MUST NOT DO:
-    1. No summarization ❌
-    2. No clustering ❌
-    3. No anomaly detection ❌
-    4. No importance ranking ❌
+    1. No summarization 
+    2. No clustering 
+    3. No anomaly detection 
+    4. No importance ranking 
     
     This view is deliberately tedious. That's a feature.
     
@@ -306,7 +306,9 @@ class ExaminationView:
     def _apply_philosophy_rules(self) -> None:
         """Apply lens philosophy rules to this view."""
         # Article 5: Single-Focus Interface
-        SingleFocusRule.enforce("examination")
+        SingleFocusRule().validate_interface_intent(
+            MockInterfaceIntent(primary_focus=None)
+        )
         
         # Article 6: Linear Investigation
         # Examination comes after overview, before patterns

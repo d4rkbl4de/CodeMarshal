@@ -4,7 +4,7 @@ Result objects for CLI commands.
 
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from typing import cast
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class ObserveResult:
     warnings: Optional[List[str]] = None
     error_message: Optional[str] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Initialize mutable defaults after construction
         if self.warnings is None:
             object.__setattr__(self, 'warnings', [])

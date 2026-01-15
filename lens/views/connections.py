@@ -30,10 +30,10 @@ from lens.philosophy import (
     ClarityRule,
     NavigationRule
 )
+from lens.philosophy.single_focus import MockInterfaceIntent
 from inquiry.session.context import SessionContext
 
 # NOT ALLOWED: observations.*, patterns.*, bridge.commands.*
-
 
 class ConnectionType(Enum):
     """Types of explicitly stated connections."""
@@ -359,7 +359,9 @@ class ConnectionsView:
     def _apply_philosophy_rules(self) -> None:
         """Apply lens philosophy rules to this view."""
         # Article 5: Single-Focus Interface
-        SingleFocusRule.enforce("connections")
+        SingleFocusRule().validate_interface_intent(
+            MockInterfaceIntent(primary_focus=None)
+        )
         
         # Article 6: Linear Investigation
         # Connections come after examination, before thinking

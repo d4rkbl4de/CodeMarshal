@@ -286,7 +286,7 @@ class TransactionalWriter:
                 )
             
             # Write atomically
-            self._write_atomically(target_path, observation_data, transaction)
+            self._write_atomically(target_path, observation_data)
             
             # Verify write
             self._verify_write(target_path, checksum)
@@ -307,12 +307,11 @@ class TransactionalWriter:
     def _write_atomically(self, 
                          target_path: Path, 
                          data: Dict[str, Any],
-                         transaction: WriteTransaction) -> None:
+                         backup_path: Optional[Path] = None) -> None:
         """Write data atomically with proper fsync."""
         # Use atomic_write from storage.atomic
         try:
-            atomic_write(target_path, json.dumps(data, indent=2, default=str))
-            transaction.temp_path = target_path.with_suffix('.tmp')
+            atomic_write(target_path, data)
         except AtomicWriteError as e:
             raise TransactionalStorageError(f"Atomic write failed: {e}") from e
     
@@ -325,6 +324,11 @@ class TransactionalWriter:
         try:
             with open(target_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+
+            if not isinstance(data, dict):
+                raise TransactionalStorageError(
+                    f"Write verification failed: expected JSON object, got {type(data).__name__}"
+                )
             
             actual_checksum = self._calculate_checksum(data)
             if actual_checksum != expected_checksum:
@@ -365,8 +369,11 @@ class TransactionalWriter:
     
     def _calculate_checksum(self, data: Dict[str, Any]) -> str:
         """Calculate SHA-256 checksum of data."""
-        # Normalize JSON for consistent hashing
-        json_str = json.dumps(data, sort_keys=True, default=str)
+        # Normalize JSON for consistent hashing.
+        # Exclude the checksum field itself to avoid self-referential mismatch.
+        normalized = dict(data)
+        normalized.pop('checksum', None)
+        json_str = json.dumps(normalized, sort_keys=True, default=str)
         return hashlib.sha256(json_str.encode('utf-8')).hexdigest()
     
     def verify_all_observations(self) -> List[CorruptionEvidence]:

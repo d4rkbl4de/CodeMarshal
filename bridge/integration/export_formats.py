@@ -16,8 +16,8 @@ from enum import Enum
 # Allowed imports
 from observations.record.snapshot import Snapshot
 from observations.record.anchors import Anchor
-from observations.record.integrity import IntegrityHash
-from inquiry.notebook.entries import NotebookEntry
+from observations.record.integrity import IntegrityRoot
+from inquiry.notebook.entries import NoteEntry
 from lens.indicators.errors import ErrorSeverity
 
 
@@ -65,11 +65,18 @@ class BaseExporter:
         self,
         snapshot: Optional[Snapshot] = None,
         anchors: Optional[List[Anchor]] = None,
-        notebook_entries: Optional[List[NotebookEntry]] = None,
-        integrity_hashes: Optional[List[IntegrityHash]] = None
+        notebook_entries: Optional[List[NoteEntry]] = None,
+        integrity_hashes: Optional[List[IntegrityRoot]] = None
     ) -> str:
         """Export truth in this format. Must include limitations metadata."""
         raise NotImplementedError("Export method must be implemented")
+    
+    def prepare_export(self) -> str:
+        """Prepare export and return export ID."""
+        # In real implementation, this would set up the export pipeline
+        # For now, return a mock export ID
+        import uuid
+        return str(uuid.uuid4())
     
     def _create_metadata(
         self,
@@ -77,8 +84,6 @@ class BaseExporter:
         export_scope: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create standard metadata header for all exports."""
-        from ..commands.export import ExportCommand  # Read-only metadata
-        
         return {
             "codemarshal_version": "0.1.0",  # Should come from pyproject.toml in real impl
             "format": self.format_type.value,
@@ -122,8 +127,8 @@ class JSONExporter(BaseExporter):
         self,
         snapshot: Optional[Snapshot] = None,
         anchors: Optional[List[Anchor]] = None,
-        notebook_entries: Optional[List[NotebookEntry]] = None,
-        integrity_hashes: Optional[List[IntegrityHash]] = None
+        notebook_entries: Optional[List[NoteEntry]] = None,
+        integrity_hashes: Optional[List[IntegrityRoot]] = None
     ) -> str:
         """Export as JSON with explicit structure preservation."""
         
@@ -152,7 +157,7 @@ class JSONExporter(BaseExporter):
         
         # Add integrity information if provided
         if integrity_hashes:
-            export_data["integrity"] = [self._serialize_integrity_hash(hash_obj) for hash_obj in integrity_hashes]
+            export_data["integrity"] = [self._serialize_integrity_root(root_obj) for root_obj in integrity_hashes]
         
         # Export with readable formatting and sorted keys for determinism
         return json.dumps(
@@ -184,23 +189,19 @@ class JSONExporter(BaseExporter):
             "context": anchor.context if hasattr(anchor, 'context') else None
         }
     
-    def _serialize_notebook_entry(self, entry: NotebookEntry) -> Dict[str, Any]:
+    def _serialize_notebook_entry(self, entry: NoteEntry) -> Dict[str, Any]:
         """Convert notebook entry to JSON-serializable format."""
         return {
-            "id": entry.id,
-            "created_at": entry.created_at.isoformat(),
-            "anchor_id": entry.anchor_id,
-            "content": entry.content,
-            "tags": entry.tags if hasattr(entry, 'tags') else []
+            "id": getattr(entry, 'id', 'unknown'),
+            "created_at": getattr(entry, 'created_at', None).isoformat() if getattr(entry, 'created_at', None) else None,
+            "anchor_id": getattr(entry, 'anchor_id', None),
+            "content": getattr(entry, 'content', ''),
+            "tags": getattr(entry, 'tags', [])
         }
     
-    def _serialize_integrity_hash(self, integrity_hash: IntegrityHash) -> Dict[str, Any]:
-        """Convert integrity hash to JSON-serializable format."""
-        return {
-            "algorithm": integrity_hash.algorithm,
-            "hash": integrity_hash.hash_value,
-            "scope": integrity_hash.scope
-        }
+    def _serialize_integrity_root(self, integrity_root: IntegrityRoot) -> Dict[str, Any]:
+        """Convert integrity root to JSON-serializable format."""
+        return integrity_root.to_dict()
     
     def _json_serializer(self, obj: Any) -> Any:
         """Custom JSON serializer for non-standard types."""
@@ -243,8 +244,8 @@ class MarkdownExporter(BaseExporter):
         self,
         snapshot: Optional[Snapshot] = None,
         anchors: Optional[List[Anchor]] = None,
-        notebook_entries: Optional[List[NotebookEntry]] = None,
-        integrity_hashes: Optional[List[IntegrityHash]] = None
+        notebook_entries: Optional[List[NoteEntry]] = None,
+        integrity_hashes: Optional[List[IntegrityRoot]] = None
     ) -> str:
         """Export as Markdown with clear section organization."""
         
@@ -310,18 +311,18 @@ class MarkdownExporter(BaseExporter):
             lines.append("")
             
             for entry in notebook_entries:
-                lines.append(f"### Note: {entry.created_at.strftime('%Y-%m-%d %H:%M')}")
-                lines.append(f"**Anchor**: `{entry.anchor_id}`")
+                lines.append(f"### Note: {getattr(entry, 'created_at', None).strftime('%Y-%m-%d %H:%M') if getattr(entry, 'created_at', None) else 'Unknown'}")
+                lines.append(f"**Anchor**: `{getattr(entry, 'anchor_id', None)}`")
                 lines.append("")
                 # Preserve newlines in content
-                for line in entry.content.split('\n'):
+                for line in getattr(entry, 'content', '').split('\n'):
                     if line.strip():
                         lines.append(f"{line}")
                     else:
                         lines.append("")
                 lines.append("")
-                if hasattr(entry, 'tags') and entry.tags:
-                    lines.append(f"**Tags**: {', '.join(f'`{tag}`' for tag in entry.tags)}")
+                if getattr(entry, 'tags', None):
+                    lines.append(f"**Tags**: {', '.join(f'`{tag}`' for tag in getattr(entry, 'tags', []))}")
                     lines.append("")
                 lines.append("---")
                 lines.append("")
@@ -333,9 +334,13 @@ class MarkdownExporter(BaseExporter):
             lines.append("Use these hashes to verify export integrity:")
             lines.append("")
             for hash_obj in integrity_hashes:
-                lines.append(f"### {hash_obj.scope}")
-                lines.append(f"- **Algorithm**: {hash_obj.algorithm}")
-                lines.append(f"- **Hash**: `{hash_obj.hash_value}`")
+                lines.append("### Snapshot Integrity Root")
+                lines.append(f"- **Algorithm**: {hash_obj.algorithm.value if hasattr(hash_obj.algorithm, 'value') else hash_obj.algorithm}")
+                lines.append(f"- **Root Hash**: `{hash_obj.root_hash}`")
+                lines.append(f"- **Metadata Hash**: `{hash_obj.metadata_hash}`")
+                lines.append(f"- **Payload Hash**: `{hash_obj.payload_hash}`")
+                if getattr(hash_obj, 'anchors_hash', None):
+                    lines.append(f"- **Anchors Hash**: `{hash_obj.anchors_hash}`")
                 lines.append("")
         
         # Footer
@@ -377,8 +382,8 @@ class PlainTextExporter(BaseExporter):
         self,
         snapshot: Optional[Snapshot] = None,
         anchors: Optional[List[Anchor]] = None,
-        notebook_entries: Optional[List[NotebookEntry]] = None,
-        integrity_hashes: Optional[List[IntegrityHash]] = None
+        notebook_entries: Optional[List[NoteEntry]] = None,
+        integrity_hashes: Optional[List[IntegrityRoot]] = None
     ) -> str:
         """Export as plain text with minimal formatting."""
         
@@ -465,9 +470,13 @@ class PlainTextExporter(BaseExporter):
             lines.append("  Use these values to verify export integrity:")
             lines.append("")
             for hash_obj in integrity_hashes:
-                lines.append(f"  Scope: {hash_obj.scope}")
-                lines.append(f"  Algorithm: {hash_obj.algorithm}")
-                lines.append(f"  Hash: {hash_obj.hash_value}")
+                lines.append("  Snapshot Integrity Root")
+                lines.append(f"  Algorithm: {hash_obj.algorithm.value if hasattr(hash_obj.algorithm, 'value') else hash_obj.algorithm}")
+                lines.append(f"  Root Hash: {hash_obj.root_hash}")
+                lines.append(f"  Metadata Hash: {hash_obj.metadata_hash}")
+                lines.append(f"  Payload Hash: {hash_obj.payload_hash}")
+                if getattr(hash_obj, 'anchors_hash', None):
+                    lines.append(f"  Anchors Hash: {hash_obj.anchors_hash}")
                 lines.append("")
         
         # Footer

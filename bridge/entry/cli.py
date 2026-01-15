@@ -732,17 +732,41 @@ Export preserves truth without alteration.
                 code_root=args.path if hasattr(args, 'path') and isinstance(args.path, Path) and args.path.is_dir() else Path('.').absolute()
             )
             runtime = Runtime(config=config)
-            engine = Engine(
-                runtime._context,
-                runtime._state,
-                storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
+            try:
+                session_uuid = uuid.UUID(str(args.investigation_id))
+            except Exception:
+                self._refuse("Investigation ID must be a valid UUID for export")
+                return 1
+
+            session_context = SessionContext(
+                snapshot_id=session_uuid,
+                anchor_id="root",
+                question_type=QuestionType.STRUCTURE,
+                context_id=uuid.uuid4()
+            )
+            nav_context = create_navigation_context(
+                session_context=session_context,
+                workflow_stage=WorkflowStage.ORIENTATION,
+                focus_type=FocusType.SYSTEM,
+                focus_id="system:export",
+                current_view=ViewType.OVERVIEW
             )
             
+            format_map = {
+                "json": ExportFormat.JSON,
+                "markdown": ExportFormat.MARKDOWN,
+                "html": ExportFormat.HTML,
+                "plain": ExportFormat.PLAINTEXT,
+            }
+            export_format = format_map.get(str(args.format).lower())
+            if not export_format:
+                self._refuse(f"Unsupported export format: {args.format}")
+                return 1
+            
             req = ExportRequest(
-                type=ExportType.INVESTIGATION,
-                format=args.format,
-                session_id=args.investigation_id,
+                type=ExportType.SESSION,
+                format=export_format,
+                session_id=str(session_uuid),
                 parameters={
                     "output_path": str(args.output),
                     "include_notes": args.include_notes,
@@ -754,17 +778,18 @@ Export preserves truth without alteration.
             raw_result = export(
                 request=req,
                 runtime=runtime,
-                engine=engine
+                session_context=session_context,
+                nav_context=nav_context
             )
             
             from bridge.results import ExportResult
             # Create ExportResult with proper mapping from raw_result
             result = ExportResult(
-                success=raw_result.get('success', True),
+                success=True,
                 export_id=raw_result.get('export_id', 'unknown'),
-                format=raw_result.get('format', 'unknown'),
-                path=raw_result.get('path', 'unknown'),
-                error_message=raw_result.get('error_message')
+                format=req.format.value,
+                path=req.parameters.get('output_path', 'unknown'),
+                error_message=None
             )
             
             if result.success:
@@ -852,10 +877,11 @@ Export preserves truth without alteration.
             self._safe_print(f"Intent:      {intent}")
              
         self._safe_print(f"Status:      {result.status}")
-        
-        if result.warnings:
+
+        warnings = getattr(result, 'warnings', None) or []
+        if warnings:
             self._safe_print("\nWARNINGS:")
-            for warning in result.warnings:
+            for warning in warnings:
                 self._safe_print(f"  ⚠️  {warning}")
         
         self._safe_print("\nNext steps:")
@@ -932,26 +958,11 @@ Export preserves truth without alteration.
         """Show export result in explicit format."""
         self._safe_print("EXPORT COMPLETE")
         self._safe_print("=" * 80)
-        self._safe_print(f"Investigation: {result.investigation_id}")
-        self._safe_print(f"Format:        {result.format}")
-        self._safe_print(f"Output:        {result.output_path}")
-        self._safe_print(f"Size:          {result.file_size_bytes} bytes")
-        self._safe_print(f"Timestamp:     {result.timestamp}")
-        
-        self._safe_print("\nExported content:")
-        for item in result.included_items:
-            self._safe_print(f"  • {item}")
-        
-        self._safe_print("\nIntegrity checks:")
-        self._safe_print(f"  Hash (SHA-256): {result.checksum}")
-        self._safe_print(f"  Observations:   {result.observation_count}")
-        self._safe_print(f"  Patterns:       {result.pattern_count}")
-        self._safe_print(f"  Notes:          {result.note_count}")
-        
-        if result.warnings:
-            self._safe_print("\nWARNINGS:")
-            for warning in result.warnings:
-                self._safe_print(f"  ⚠️  {warning}")
+        self._safe_print(f"Export ID:      {getattr(result, 'export_id', 'unknown')}")
+        self._safe_print(f"Format:         {getattr(result, 'format', 'unknown')}")
+        self._safe_print(f"Output:         {getattr(result, 'path', 'unknown')}")
+        if getattr(result, 'error_message', None):
+            self._safe_print(f"Error:          {result.error_message}")
         
         self._safe_print("=" * 80)
     

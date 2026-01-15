@@ -28,10 +28,10 @@ from lens.philosophy import (
     ClarityRule,
     NavigationRule
 )
+from lens.philosophy.single_focus import MockInterfaceIntent
 from inquiry.session.context import SessionContext
 
 # NOT ALLOWED: patterns.*, bridge.commands.*
-
 
 class HelpCategory(Enum):
     """Categories of help content."""
@@ -58,12 +58,12 @@ class HelpCategory(Enum):
     def icon(self) -> str:
         """Icon for category."""
         return {
-            HelpCategory.SYSTEM_PHILOSOPHY: "🧠",
-            HelpCategory.VIEWS_AND_PURPOSE: "👁️",
-            HelpCategory.INVESTIGATION_FLOW: "🔄",
-            HelpCategory.CONSTITUTIONAL_RULES: "📜",
-            HelpCategory.TECHNICAL_DETAILS: "⚙️",
-            HelpCategory.TROUBLESHOOTING: "🔧"
+            HelpCategory.SYSTEM_PHILOSOPHY: "",
+            HelpCategory.VIEWS_AND_PURPOSE: "",
+            HelpCategory.INVESTIGATION_FLOW: "",
+            HelpCategory.CONSTITUTIONAL_RULES: "",
+            HelpCategory.TECHNICAL_DETAILS: "",
+            HelpCategory.TROUBLESHOOTING: ""
         }[self]
 
 
@@ -666,17 +666,17 @@ class HelpView:
     4. How to proceed correctly
     
     What this view MUST NOT SHOW:
-    1. No domain advice ❌
-    2. No shortcuts ❌
-    3. No "recommended next steps" ❌
+    1. No domain advice 
+    2. No shortcuts 
+    3. No "recommended next steps" 
     
     Mental Model: An instruction manual, not a hint system.
     """
     
     # Display constants
-    _SEARCH_ICON: ClassVar[str] = "🔍"
-    _BACK_ICON: ClassVar[str] = "←"
-    _HOME_ICON: ClassVar[str] = "🏠"
+    _SEARCH_ICON: ClassVar[str] = ""
+    _BACK_ICON: ClassVar[str] = ""
+    _HOME_ICON: ClassVar[str] = ""
     
     def __init__(
         self,
@@ -714,7 +714,9 @@ class HelpView:
     def _apply_philosophy_rules(self) -> None:
         """Apply lens philosophy rules to this view."""
         # Article 5: Single-Focus Interface
-        SingleFocusRule.enforce("help")
+        SingleFocusRule().validate_interface_intent(
+            MockInterfaceIntent(primary_focus=None)
+        )
         
         # Article 6: Linear Investigation
         # Help is available at any time, not part of linear flow
