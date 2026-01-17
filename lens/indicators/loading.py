@@ -11,9 +11,10 @@ Strict Rules:
 """
 
 from enum import Enum, auto
-from typing import Optional, ClassVar, Dict, Any
+from typing import Optional, ClassVar, Dict, Any, Callable
 from dataclasses import dataclass, field
 import time
+from datetime import datetime, timezone
 
 # Import from allowed modules only
 from lens.aesthetic.palette import SemanticColor as Color
@@ -228,6 +229,84 @@ def should_interrupt_for_attention(indicator: LoadingIndicator) -> bool:
         RequirementLevel.ACTION,
         RequirementLevel.CRITICAL
     ]
+
+
+# --- Performance Monitoring ---
+
+@dataclass(frozen=True)
+class PerformanceMonitor:
+    """
+    Tracks computation time for operations without making predictions.
+    
+    Provides honest timing information for Article 8 compliance.
+    """
+    
+    operation_name: str
+    start_time: float
+    end_time: Optional[float] = None
+    
+    @property
+    def is_complete(self) -> bool:
+        """Whether operation has finished."""
+        return self.end_time is not None
+    
+    @property
+    def elapsed_seconds(self) -> Optional[float]:
+        """Current elapsed time if running, total time if complete."""
+        current_time = self.end_time if self.end_time is not None else time.time()
+        return current_time - self.start_time
+    
+    @property
+    def human_readable_duration(self) -> str:
+        """Human-readable duration without optimistic language."""
+        if not self.is_complete:
+            return f"Running for {self._format_duration(self.elapsed_seconds)}"
+        return f"Completed in {self._format_duration(self.elapsed_seconds)}"
+    
+    def _format_duration(self, seconds: float) -> str:
+        """Format duration in human-readable terms."""
+        if seconds < 1:
+            return f"{seconds*1000:.0f}ms"
+        elif seconds < 60:
+            return f"{seconds:.1f}s"
+        else:
+            minutes = int(seconds // 60)
+            remaining = seconds % 60
+            return f"{minutes}m {remaining:.0f}s"
+    
+    def complete(self) -> 'PerformanceMonitor':
+        """Mark operation as complete."""
+        if self.end_time is not None:
+            raise ValueError("Operation already completed")
+        return PerformanceMonitor(
+            operation_name=self.operation_name,
+            start_time=self.start_time,
+            end_time=time.time()
+        )
+
+
+def monitor_performance(operation_name: str) -> Callable:
+    """
+    Decorator to monitor performance of functions.
+    
+    Usage:
+        @monitor_performance("file_observation")
+        def observe_files(path):
+            # ... observation logic
+            return result
+    """
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args, **kwargs):
+            monitor = PerformanceMonitor(operation_name=operation_name, start_time=time.time())
+            try:
+                result = func(*args, **kwargs)
+                return result
+            finally:
+                monitor = monitor.complete()
+                # Log performance honestly
+                print(f"[PERFORMANCE] {operation_name}: {monitor.human_readable_duration}")
+        return wrapper
+    return decorator
 
 
 # --- Global Defaults ---
