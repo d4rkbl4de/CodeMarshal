@@ -32,7 +32,7 @@ import json
 
 # Allowed Layer 1 imports (reality layer)
 from observations.record.snapshot import Snapshot
-from observations.eyes.file_sight import FileObservation
+from observations.eyes.file_sight import FileSight
 from observations.limitations.declared import Limitation
 
 
@@ -341,7 +341,7 @@ class StructureAnalyzer:
     
     def _build_directory_tree(
         self, 
-        observations: List[FileObservation]
+        observations: List[FileSight]
     ) -> DirectoryTree:
         """Build pure spatial tree from observations.
         
@@ -365,7 +365,7 @@ class StructureAnalyzer:
         tree = DirectoryTree(root=root_node, depth=0)
         
         # Group observations by directory
-        dir_structure: Dict[pathlib.Path, List[FileObservation]] = (
+        dir_structure: Dict[pathlib.Path, List[FileSight]] = (
             collections.defaultdict(list)
         )
         
@@ -383,7 +383,7 @@ class StructureAnalyzer:
         self,
         parent_tree: DirectoryTree,
         current_dir: pathlib.Path,
-        dir_structure: Dict[pathlib.Path, List[FileObservation]]
+        dir_structure: Dict[pathlib.Path, List[FileSight]]
     ) -> None:
         """Recursively build subtree without inference."""
         # Get observations for this directory
@@ -428,7 +428,7 @@ class StructureAnalyzer:
                 )
                 parent_tree.add_child(file_node)
     
-    def _determine_node_type(self, observation: FileObservation) -> NodeType:
+    def _determine_node_type(self, observation: FileSight) -> NodeType:
         """Determine node type from observable attributes only.
         
         Constitutional: No inference about file purpose or content.
@@ -508,6 +508,22 @@ class StructureAnalyzer:
                 extensions['(none)'] += 1
         
         return dict(extensions)
+
+
+class StructureQuestions:
+    """Answers "What exists?" with pure description."""
+    
+    def __init__(self, analyzer: StructureAnalyzer):
+        self.analyzer = analyzer
+    
+    def ask_about_structure(self, snapshot: Snapshot) -> StructureAnalysis:
+        """Describe what exists in the snapshot."""
+        return self.analyzer.analyze()
+    
+    def get_file_counts(self, snapshot: Snapshot) -> Dict[str, int]:
+        """Get counts by file type."""
+        analysis = self.analyzer.analyze()
+        return analysis.file_type_counts
 
 
 class ConstitutionalViolation(Exception):

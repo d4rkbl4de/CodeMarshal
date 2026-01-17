@@ -237,7 +237,7 @@ class TransactionalWriter:
         """
         # Generate ID if not provided
         if not obs_id:
-            obs_id = f"obs_{int(datetime.now().timestamp() * 1000)}"
+            obs_id = self._generate_observation_id(observation_data, session_id)
         
         target_path = self.base_path / 'observations' / f'{obs_id}.observation.json'
         
@@ -509,13 +509,32 @@ class TransactionalWriter:
             "backup_count": len(list(self.backup_dir.glob('*.backup*'))) if self.backup_dir.exists() else 0,
             "pending_transactions": len(self.transaction_log.get_pending_transactions())
         }
+    
+    def _generate_observation_id(self, observation_data: Dict[str, Any], session_id: str) -> str:
+        """
+        Generate deterministic observation ID for Article 13 compliance.
+        
+        Args:
+            observation_data: The observation content
+            session_id: Session context for uniqueness
+            
+        Returns:
+            Deterministic observation ID
+        """
+        # Article 13 Compliance: Deterministic observation IDs for truth artifacts
+        # Use content hash and session context for reproducible IDs
+        import hashlib
+        content_str = str(observation_data)
+        session_context = str(session_id)
+        base_string = f"{content_str}:{session_context}"
+        content_hash = hashlib.sha256(base_string.encode()).hexdigest()[:16]
+        return f"obs_{content_hash}"
 
 
 # Export public API
 __all__ = [
-    'TransactionalWriter',
+    'TransactionalStorage',
     'WriteTransaction',
-    'TransactionLog',
     'TransactionalStorageError',
     'InsufficientSpaceError',
     'ConcurrentWriteError',

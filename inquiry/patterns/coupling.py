@@ -9,7 +9,7 @@ from collections import defaultdict, Counter
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union, FrozenSet
+from typing import Dict, List, Optional, Set, Tuple, Union, FrozenSet, Sequence
 import itertools
 
 # Import from observations layer (allowed per architecture)

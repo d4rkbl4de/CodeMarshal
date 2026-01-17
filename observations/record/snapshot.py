@@ -830,3 +830,19 @@ class SnapshotBuilder:
         if self.end_time is not None:
             raise RuntimeError("Recording already finished")
         self.end_time = datetime.now(timezone.utc)
+
+
+# Export public API
+__all__ = [
+    'Snapshot',
+    'CodeSnapshot',  # Alias for backward compatibility
+    'SnapshotMetadata',
+    'SnapshotPayload',
+    'ObservationGroup',
+    'SnapshotBuilder',
+    'create_snapshot',
+    'load_snapshot'
+]
+
+# Backward compatibility alias
+CodeSnapshot = Snapshot

@@ -436,8 +436,15 @@ class Engine:
                     observation_ids.append(manifest_id)
                 else:
                     # Batch mode: save all observations at once
+                    # Article 13 Compliance: Deterministic observation IDs for truth artifacts
+                    import hashlib
+                    content_str = str(observation_result.data)
+                    session_context = str(self._context.session_id)
+                    base_string = f"{content_str}:{session_context}"
+                    content_hash = hashlib.sha256(base_string.encode()).hexdigest()[:16]
+                    
                     obs_data = {
-                        "id": f"obs_{int(datetime.datetime.now().timestamp()*1000)}",
+                        "id": f"obs_{content_hash}",
                         "data": observation_result.data,
                         "phase": "observation_complete",
                         "timestamp": datetime.datetime.now().isoformat()

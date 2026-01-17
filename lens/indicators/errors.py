@@ -49,6 +49,17 @@ class ErrorSeverity(Enum):
         order = list(ErrorSeverity)
         return order.index(self) < order.index(other)
     
+    @property
+    def indicator(self) -> str:
+        """Get uncertainty indicator for this severity."""
+        return {
+            ErrorSeverity.INFORMATIONAL: "ℹ️",
+            ErrorSeverity.RECOVERABLE: "⚠️",
+            ErrorSeverity.BLOCKING: "🚫",
+            ErrorSeverity.INTEGRITY_VIOLATION: "❌",
+            ErrorSeverity.UNKNOWN: "❓"
+        }.get(self, "❓")
+    
     def __le__(self, other: 'ErrorSeverity') -> bool:
         order = list(ErrorSeverity)
         return order.index(self) <= order.index(other)
@@ -303,7 +314,13 @@ class ErrorIndicator:
             'must_halt': self.must_halt_system,
             'display_color': self.display_color.name,
             'display_glyph': self.display_glyph.name,
+            'uncertainty_indicator': self.severity.indicator,
         }
+    
+    @property
+    def display_message(self) -> str:
+        """Get display message with uncertainty indicator."""
+        return f"{self.severity.indicator} {self.category.description}"
 
 
 # --- Error Collection (For Batch Processing) ---

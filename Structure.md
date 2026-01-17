@@ -241,6 +241,11 @@ TIER 4: SYSTEM BEHAVIOR
 Article 13: Deterministic Operation
 Same input must produce same output, regardless of when or where it runs. No randomness in analysis, no time-based behavior changes.
 
+Constitutional Clarification:
+"Same input must produce same output" applies to analysis results (observations, patterns, insights) that humans rely on for truth.
+Operational metadata (session IDs, timestamps, transaction IDs) may use time-based generation for human context and system operation.
+Truth artifacts must be deterministic; operational artifacts may be contextual for human comprehension.
+
 Article 14: Graceful Degradation
 When parts fail, preserve what works. Show available observations even when some cannot be collected. Explain failures simply and honestly.
 
