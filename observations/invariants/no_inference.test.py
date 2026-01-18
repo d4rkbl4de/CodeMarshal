@@ -394,11 +394,11 @@ __all__ = ['some_feature']
         
         # Write bytes that might trigger encoding detection issues
         ambiguous_bytes = b'''# -*- coding: latin-1 -*-
-# This file has non-ASCII characters: café résumé naïve
+# This file has non-ASCII characters: caf\xe9 r\xe9sum\xe9 na\xefve
 
 # Mixed encodings in comments
-# Latin-1: café
-# UTF-8: café (same characters, different encoding)
+# Latin-1: caf\xe9
+# UTF-8: caf\xe9 (same characters, different encoding)
 
 # Binary data that might be text
 data = b'\\x00\\x01\\x02Hello\\x00World\\x00'
