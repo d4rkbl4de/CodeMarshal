@@ -1,0 +1,127 @@
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codemarshal"
+version = "0.1.0"
+description = "Truth-preserving cognitive investigation environment for code"
+readme = "README.truth.md"
+license = "MIT"
+authors = [
+    {name = "CodeMarshal Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+keywords = ["code-analysis", "investigation", "documentation", "architecture"]
+requires-python = ">=3.11"
+dependencies = [
+    "typing-extensions>=4.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+    "ruff>=0.1.0",
+]
+tui = [
+    "rich>=13.7.0",
+    "textual>=0.52.0",
+]
+cli = [
+    "click>=8.1.0",
+    "rich>=13.7.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-org/codemarshal"
+"Documentation" = "https://codemarshal.readthedocs.io/"
+"Repository" = "https://github.com/your-org/codemarshal"
+"Changelog" = "https://github.com/your-org/codemarshal/releases"
+"Issues" = "https://github.com/your-org/codemarshal/issues"
+
+[project.scripts]
+codemarshal = "bridge.entry.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "core*",
+    "config*",
+    "storage*",
+    "observations*",
+    "inquiry*",
+    "lens*",
+    "bridge*",
+    "integrity*",
+]
+exclude = [
+    "tests*",
+    "*.tests",
+    "*.tests.*",
+    "test*",
+    "*.test",
+    "*.test.*",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# RUFF CONFIGURATION FIX APPLIED HERE:
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint] # <- NEW SECTION FOR LINT SETTINGS
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+]
