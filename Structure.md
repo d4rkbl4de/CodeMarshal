@@ -5,197 +5,197 @@ CodeMarshal/
 ├── constitution.truth.md
 ├── MANIFEST.integrity.md
 │
-├── core/                              # EXECUTION SPINE (SYSTEM HEART)
-│   ├── __init__.py
-│   ├── runtime.py                     # Owns lifecycle of an investigation
-│   ├── engine.py                      # Coordinates layers without leakage
-│   ├── context.py                     # Global immutable runtime context
-│   ├── state.py                       # Investigation state machine
-│   ├── shutdown.py                    # Safe termination guarantees
+├── core/ # EXECUTION SPINE (SYSTEM HEART)
+│ ├── **init**.py
+│ ├── runtime.py # Owns lifecycle of an investigation
+│ ├── engine.py # Coordinates layers without leakage
+│ ├── context.py # Global immutable runtime context
+│ ├── state.py # Investigation state machine
+│ ├── shutdown.py # Safe termination guarantees
 │
-├── config/                            # CONFIGURATION DISCIPLINE
-│   ├── __init__.py
-│   ├── defaults.py                    # System defaults (immutable)
-│   ├── user.py                        # User overrides
-│   ├── schema.py                      # Validation rules
-│   └── loader.py                      # Merge + validate config
+├── config/ # CONFIGURATION DISCIPLINE
+│ ├── **init**.py
+│ ├── defaults.py # System defaults (immutable)
+│ ├── user.py # User overrides
+│ ├── schema.py # Validation rules
+│ └── loader.py # Merge + validate config
 │
-├── storage/                           # PERSISTENCE & DURABILITY
-│   ├── __init__.py
-│   ├── layout.py                      # Directory & file layout rules
-│   ├── schema.py                      # Stored data schemas
-│   ├── atomic.py                      # Atomic write guarantees
-│   ├── corruption.py                  # Detect & flag corruption
-│   └── migration.py                   # Forward-compatible changes
+├── storage/ # PERSISTENCE & DURABILITY
+│ ├── **init**.py
+│ ├── layout.py # Directory & file layout rules
+│ ├── schema.py # Stored data schemas
+│ ├── atomic.py # Atomic write guarantees
+│ ├── corruption.py # Detect & flag corruption
+│ └── migration.py # Forward-compatible changes
 │
-├── observations/                      # WHAT EXISTS (LAYER 1)
-│   ├── __init__.py
-│   │
-│   ├── eyes/                          # WAYS OF SEEING (PURE READERS)
-│   │   ├── __init__.py
-│   │   ├── base.py                    # Observation interface contract
-│   │   ├── file_sight.py              # Files, directories, paths
-│   │   ├── import_sight.py            # Static import statements
-│   │   ├── export_sight.py            # Definitions, signatures
-│   │   ├── boundary_sight.py           # Module boundaries
-│   │   └── encoding_sight.py           # File encoding & type detection
-│   │
-│   ├── record/                        # IMMUTABLE RECORDING
-│   │   ├── __init__.py
-│   │   ├── snapshot.py                # Complete observation snapshot
-│   │   ├── anchors.py                 # Stable reference points
-│   │   ├── version.py                 # Snapshot versioning
-│   │   └── integrity.py               # Hashes & immutability checks
-│   │
-│   ├── limitations/                   # WHAT WE CANNOT SEE
-│   │   ├── __init__.py
-│   │   ├── declared.py                # Explicit blind spots
-│   │   ├── documented.py              # Human-readable limits
-│   │   └── validation.py              # Guards against overreach
-│   │
-│   ├── input_validation/              # INPUT DISCIPLINE
-│   │   ├── __init__.py
-│   │   ├── filesystem.py              # Symlink & traversal rules
-│   │   ├── binaries.py                # Binary file handling
-│   │   └── size_limits.py             # File & tree size limits
-│   │
-│   └── invariants/
-│       ├── __init__.py
-│       ├── immutable.test.py           # Observations never change
-│       ├── no_inference.test.py        # No guessing allowed
-│       └── purity.test.py              # Read-only enforcement
+├── observations/ # WHAT EXISTS (LAYER 1)
+│ ├── **init**.py
+│ │
+│ ├── eyes/ # WAYS OF SEEING (PURE READERS)
+│ │ ├── **init**.py
+│ │ ├── base.py # Observation interface contract
+│ │ ├── file_sight.py # Files, directories, paths
+│ │ ├── import_sight.py # Static import statements
+│ │ ├── export_sight.py # Definitions, signatures
+│ │ ├── boundary_sight.py # Module boundaries
+│ │ └── encoding_sight.py # File encoding & type detection
+│ │
+│ ├── record/ # IMMUTABLE RECORDING
+│ │ ├── **init**.py
+│ │ ├── snapshot.py # Complete observation snapshot
+│ │ ├── anchors.py # Stable reference points
+│ │ ├── version.py # Snapshot versioning
+│ │ └── integrity.py # Hashes & immutability checks
+│ │
+│ ├── limitations/ # WHAT WE CANNOT SEE
+│ │ ├── **init**.py
+│ │ ├── declared.py # Explicit blind spots
+│ │ ├── documented.py # Human-readable limits
+│ │ └── validation.py # Guards against overreach
+│ │
+│ ├── input_validation/ # INPUT DISCIPLINE
+│ │ ├── **init**.py
+│ │ ├── filesystem.py # Symlink & traversal rules
+│ │ ├── binaries.py # Binary file handling
+│ │ └── size_limits.py # File & tree size limits
+│ │
+│ └── invariants/
+│ ├── **init**.py
+│ ├── immutable.test.py # Observations never change
+│ ├── no_inference.test.py # No guessing allowed
+│ └── purity.test.py # Read-only enforcement
 │
-├── inquiry/                           # QUESTIONS & PATTERNS (LAYER 2)
-│   ├── __init__.py
-│   │
-│   ├── questions/                     # HUMAN QUESTIONS
-│   │   ├── __init__.py
-│   │   ├── structure.py               # What's here?
-│   │   ├── purpose.py                 # What does this do?
-│   │   ├── connections.py             # How is it connected?
-│   │   ├── anomalies.py               # What seems unusual?
-│   │   └── thinking.py                # What do I think?
-│   │
-│   ├── patterns/                      # NUMERIC-ONLY PATTERNS
-│   │   ├── __init__.py
-│   │   ├── density.py                 # Import counts, clustering
-│   │   ├── coupling.py                # Degree & fan-in/out
-│   │   ├── complexity.py              # Depth, node counts (no labels)
-│   │   ├── violations.py              # Boundary crossings (boolean)
-│   │   └── uncertainty.py             # Incomplete data indicators
-│   │
-│   ├── notebook/                      # HUMAN THINKING SPACE
-│   │   ├── __init__.py
-│   │   ├── entries.py                 # Notes anchored to observations
-│   │   ├── organization.py            # Tags & search
-│   │   ├── timeline.py                # Chronological reasoning
-│   │   ├── export.py                  # Export notes only
-│   │   └── constraints.py             # Prevent note→observation bleed
-│   │
-│   └── session/                       # INVESTIGATION CONTEXT
-│       ├── __init__.py
-│       ├── context.py                 # Current focus
-│       ├── history.py                 # Linear investigation path
-│       └── recovery.py                # Resume safely
+├── inquiry/ # QUESTIONS & PATTERNS (LAYER 2)
+│ ├── **init**.py
+│ │
+│ ├── questions/ # HUMAN QUESTIONS
+│ │ ├── **init**.py
+│ │ ├── structure.py # What's here?
+│ │ ├── purpose.py # What does this do?
+│ │ ├── connections.py # How is it connected?
+│ │ ├── anomalies.py # What seems unusual?
+│ │ └── thinking.py # What do I think?
+│ │
+│ ├── patterns/ # NUMERIC-ONLY PATTERNS
+│ │ ├── **init**.py
+│ │ ├── density.py # Import counts, clustering
+│ │ ├── coupling.py # Degree & fan-in/out
+│ │ ├── complexity.py # Depth, node counts (no labels)
+│ │ ├── violations.py # Boundary crossings (boolean)
+│ │ └── uncertainty.py # Incomplete data indicators
+│ │
+│ ├── notebook/ # HUMAN THINKING SPACE
+│ │ ├── **init**.py
+│ │ ├── entries.py # Notes anchored to observations
+│ │ ├── organization.py # Tags & search
+│ │ ├── timeline.py # Chronological reasoning
+│ │ ├── export.py # Export notes only
+│ │ └── constraints.py # Prevent note→observation bleed
+│ │
+│ └── session/ # INVESTIGATION CONTEXT
+│ ├── **init**.py
+│ ├── context.py # Current focus
+│ ├── history.py # Linear investigation path
+│ └── recovery.py # Resume safely
 │
-├── lens/                              # INTERFACE (LAYER 3)
-│   ├── __init__.py
-│   │
-│   ├── philosophy/
-│   │   ├── __init__.py
-│   │   ├── single_focus.py
-│   │   ├── progressive.py
-│   │   ├── clarity.py
-│   │   └── navigation.py
-│   │
-│   ├── views/
-│   │   ├── __init__.py
-│   │   ├── overview.py
-│   │   ├── examination.py
-│   │   ├── connections.py
-│   │   ├── patterns.py
-│   │   ├── thinking.py
-│   │   └── help.py
-│   │
-│   ├── navigation/
-│   │   ├── __init__.py
-│   │   ├── workflow.py
-│   │   ├── shortcuts.py
-│   │   ├── context.py
-│   │   └── recovery.py
-│   │
-│   ├── aesthetic/
-│   │   ├── __init__.py
-│   │   ├── palette.py
-│   │   ├── typography.py
-│   │   ├── icons.py
-│   │   └── layout.py
-│   │
-│   └── indicators/
-│       ├── __init__.py
-│       ├── loading.py
-│       └── errors.py
+├── lens/ # INTERFACE (LAYER 3)
+│ ├── **init**.py
+│ │
+│ ├── philosophy/
+│ │ ├── **init**.py
+│ │ ├── single_focus.py
+│ │ ├── progressive.py
+│ │ ├── clarity.py
+│ │ └── navigation.py
+│ │
+│ ├── views/
+│ │ ├── **init**.py
+│ │ ├── overview.py
+│ │ ├── examination.py
+│ │ ├── connections.py
+│ │ ├── patterns.py
+│ │ ├── thinking.py
+│ │ └── help.py
+│ │
+│ ├── navigation/
+│ │ ├── **init**.py
+│ │ ├── workflow.py
+│ │ ├── shortcuts.py
+│ │ ├── context.py
+│ │ └── recovery.py
+│ │
+│ ├── aesthetic/
+│ │ ├── **init**.py
+│ │ ├── palette.py
+│ │ ├── typography.py
+│ │ ├── icons.py
+│ │ └── layout.py
+│ │
+│ └── indicators/
+│ ├── **init**.py
+│ ├── loading.py
+│ └── errors.py
 │
-├── bridge/                            # COMMAND & CONTROL
-│   ├── __init__.py
-│   │
-│   ├── commands/
-│   │   ├── __init__.py
-│   │   ├── investigate.py
-│   │   ├── observe.py
-│   │   ├── query.py
-│   │   └── export.py
-│   │
-│   ├── entry/
-│   │   ├── __init__.py
-│   │   ├── cli.py
-│   │   ├── tui.py
-│   │   └── api.py
-│   │
-│   ├── integration/
-│   │   ├── __init__.py
-│   │   ├── editor.py
-│   │   ├── ci.py
-│   │   └── export_formats.py
-│   │
-│   └── coordination/
-│       ├── __init__.py
-│       ├── caching.py                # Shared caching logic
-│       └── scheduling.py             # Task orchestration
+├── bridge/ # COMMAND & CONTROL
+│ ├── **init**.py
+│ │
+│ ├── commands/
+│ │ ├── **init**.py
+│ │ ├── investigate.py
+│ │ ├── observe.py
+│ │ ├── query.py
+│ │ └── export.py
+│ │
+│ ├── entry/
+│ │ ├── **init**.py
+│ │ ├── cli.py
+│ │ ├── tui.py
+│ │ └── api.py
+│ │
+│ ├── integration/
+│ │ ├── **init**.py
+│ │ ├── editor.py
+│ │ ├── ci.py
+│ │ └── export_formats.py
+│ │
+│ └── coordination/
+│ ├── **init**.py
+│ ├── caching.py # Shared caching logic
+│ └── scheduling.py # Task orchestration
 │
-├── integrity/                         # TRUTH PRESERVATION
-│   ├── __init__.py
-│   │
-│   ├── validation/
-│   │   ├── __init__.py
-│   │   ├── observations.test.py
-│   │   ├── patterns.test.py
-│   │   ├── interface.test.py
-│   │   └── integration.test.py
-│   │
-│   ├── monitoring/
-│   │   ├── __init__.py
-│   │   ├── drift.py
-│   │   ├── performance.py
-│   │   └── errors.py
-│   │
-│   ├── prohibitions/
-│   │   ├── __init__.py
-│   │   ├── no_network.test.py
-│   │   ├── no_runtime_imports.test.py
-│   │   └── no_mutation.test.py
-│   │
-│   └── recovery/
-│       ├── __init__.py
-│       ├── backup.py
-│       ├── restore.py
-│       └── audit.py
+├── integrity/ # TRUTH PRESERVATION
+│ ├── **init**.py
+│ │
+│ ├── validation/
+│ │ ├── **init**.py
+│ │ ├── observations.test.py
+│ │ ├── patterns.test.py
+│ │ ├── interface.test.py
+│ │ └── integration.test.py
+│ │
+│ ├── monitoring/
+│ │ ├── **init**.py
+│ │ ├── drift.py
+│ │ ├── performance.py
+│ │ └── errors.py
+│ │
+│ ├── prohibitions/
+│ │ ├── **init**.py
+│ │ ├── no_network.test.py
+│ │ ├── no_runtime_imports.test.py
+│ │ └── no_mutation.test.py
+│ │
+│ └── recovery/
+│ ├── **init**.py
+│ ├── backup.py
+│ ├── restore.py
+│ └── audit.py
 │
-└── tests/                             # SYSTEM-LEVEL TESTS
-    ├── __init__.py
-    ├── end_to_end.test.py
-    ├── performance.test.py
-    └── invariants.test.py
+└── tests/ # SYSTEM-LEVEL TESTS
+├── **init**.py
+├── end_to_end.test.py
+├── performance.test.py
+└── invariants.test.py
 
 CONSTITUTION OF TRUTH (NON-NEGOTIABLE)
 TIER 1: FOUNDATIONAL TRUTHS (NEVER VIOLATE)
@@ -321,8 +321,9 @@ The Ultimate Measure:
 Does this tool make us better at understanding complex systems without ever pretending to understand for us?
 
 ARCHITECTURAL BREAKTHROUGHS
+
 1. The Three-Layer Truth Model:
-Observations: What exists (immutable facts)
+   Observations: What exists (immutable facts)
 
 Inquiry: What questions we ask and patterns we see (human+machine)
 
@@ -330,8 +331,8 @@ Lens: How we look at truth (interface constraints)
 
 This separates what is from what we think about it from how we look at it.
 
-2. The Truth-Preserving Interface:
-The interface is not just a viewer—it's a truth-preserving lens that:
+1. The Truth-Preserving Interface:
+   The interface is not just a viewer—it's a truth-preserving lens that:
 
 Shows one thing at a time (prevents overload)
 
@@ -341,8 +342,8 @@ Clearly signals uncertainty (prevents overconfidence)
 
 Anchors thinking to observations (prevents floating ideas)
 
-3. Self-Validating Architecture:
-The integrity/ directory ensures the system follows its own rules:
+1. Self-Validating Architecture:
+   The integrity/ directory ensures the system follows its own rules:
 
 Validates observation purity
 
@@ -352,8 +353,8 @@ Recovers from corruption
 
 Audits system behavior
 
-4. The Bridge Metaphor:
-The bridge/ directory recognizes that truth exists in different contexts:
+1. The Bridge Metaphor:
+   The bridge/ directory recognizes that truth exists in different contexts:
 
 CLI for scripting truth
 
@@ -424,9 +425,10 @@ This is how we build tools that make us better thinkers: by creating environment
 
 ## **WHAT IS CODEMARSHAL?**
 
-**CodeMarshal** is a standalone, truth-preserving cognitive investigation environment designed specifically for understanding complex, constitutionally-constrained codebases like **Agent Nexus**. 
+**CodeMarshal** is a standalone, truth-preserving cognitive investigation environment designed specifically for understanding complex, constitutionally-constrained codebases like **Agent Nexus**.
 
 **Think of CodeMarshal as:**
+
 > A detective's notebook for code. It helps you investigate complex systems without ever lying to you, guessing for you, or overwhelming you.
 
 While **Agent Nexus** is a policy-first modular monolith for autonomous agents, **CodeMarshal** is the specialized tool we're building to make Agent Nexus's development, maintenance, and evolution **humanly comprehensible**.
@@ -436,20 +438,24 @@ While **Agent Nexus** is a policy-first modular monolith for autonomous agents, 
 ## **THE PROBLEM WE'RE SOLVING**
 
 ### **Agent Nexus is Constitutionally Complex**
+
 Agent Nexus has:
+
 - **24 non-negotiable constitutional rules** that must never be violated
 - **5 architectural layers** with strict boundaries (no cross-layer imports)
-- **Isolated lobes** that must never talk directly to each other  
+- **Isolated lobes** that must never talk directly to each other
 - **Immutable witnessing requirements** for all evidence
 - **Traceability mandates** for every decision
 
 Traditional tools fail for Agent Nexus because they:
+
 - **Can't understand constitutional constraints**
 - **Overwhelm with false positives** (can't distinguish "violation" from "by design")
 - **Lack architectural awareness** of lobe isolation
 - **Can't preserve truth** from observation to understanding
 
 ### **The Human Cognitive Limit**
+
 As Agent Nexus grows (currently 847 files, 4,238 evidence points), it's becoming **impossible for any single developer to hold the entire system in their head** while maintaining constitutional purity.
 
 **CodeMarshal exists to solve this specific problem.**
@@ -459,6 +465,7 @@ As Agent Nexus grows (currently 847 files, 4,238 evidence points), it's becoming
 ## **HOW CODEMARSHAL HELPS AGENT NEXUS DEVELOPMENT**
 
 ### **1. Constitutional Compliance Guardrails**
+
 ```bash
 # CodeMarshal automatically detects:
 • Cross-lobe imports (Constitutional violation)
@@ -469,6 +476,7 @@ As Agent Nexus grows (currently 847 files, 4,238 evidence points), it's becoming
 ```
 
 ### **2. Architectural Understanding**
+
 ```bash
 # Answer questions like:
 • "What happens if I change this core module?"
@@ -478,6 +486,7 @@ As Agent Nexus grows (currently 847 files, 4,238 evidence points), it's becoming
 ```
 
 ### **3. Truth-Preserving Investigation**
+
 ```bash
 # When investigating a bug or design issue:
 • See ONLY what exists in code (no AI hallucinations)
@@ -487,6 +496,7 @@ As Agent Nexus grows (currently 847 files, 4,238 evidence points), it's becoming
 ```
 
 ### **4. Onboarding & Knowledge Transfer**
+
 ```bash
 # New developer to Agent Nexus can:
 • Investigate the codebase with constitutional awareness
@@ -499,30 +509,35 @@ As Agent Nexus grows (currently 847 files, 4,238 evidence points), it's becoming
 
 ## **CODEMARSHAL VS. TRADITIONAL TOOLS**
 
-| **Aspect** | **Traditional Tools** | **CodeMarshal** | **Why This Matters for Agent Nexus** |
-|------------|----------------------|-----------------|-------------------------------------|
-| **Truth Model** | Often guess or infer | Only shows what exists | Prevents constitutional violations from hidden assumptions |
-| **Architectural Awareness** | Generic patterns | Understands lobe isolation, constitutional layers | Can distinguish "violation" from "by design" |
-| **Cognitive Load** | Overwhelm with data | One question, one answer at a time | Developers can focus without losing constitutional context |
-| **Evidence Preservation** | Transient analysis | Immutable, versioned evidence | Audit trail for every constitutional decision |
-| **Integration** | Standalone | Built for Agent Nexus's specific constraints | Speeds up development while maintaining purity |
+| **Aspect**                  | **Traditional Tools** | **CodeMarshal**                                   | **Why This Matters for Agent Nexus**                       |
+| --------------------------- | --------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
+| **Truth Model**             | Often guess or infer  | Only shows what exists                            | Prevents constitutional violations from hidden assumptions |
+| **Architectural Awareness** | Generic patterns      | Understands lobe isolation, constitutional layers | Can distinguish "violation" from "by design"               |
+| **Cognitive Load**          | Overwhelm with data   | One question, one answer at a time                | Developers can focus without losing constitutional context |
+| **Evidence Preservation**   | Transient analysis    | Immutable, versioned evidence                     | Audit trail for every constitutional decision              |
+| **Integration**             | Standalone            | Built for Agent Nexus's specific constraints      | Speeds up development while maintaining purity             |
 
 ---
 
 ## **KEY DIFFERENTIATORS**
 
 ### **1. Built for Constitutional Constraints**
+
 CodeMarshal doesn't just understand code—it understands **constitutionally-governed systems**. It knows:
+
 - Which imports should never cross which boundaries
 - Where policy logic must live vs. where agent logic lives
 - How to trace evidence through strict architectural layers
 - When something is "unusual but allowed" vs "unusual and prohibited"
 
 ### **2. Epistemic Discipline**
+
 While Agent Nexus enforces **operational discipline** (agents can't access DBs directly), CodeMarshal enforces **epistemic discipline** (developers can't make decisions without evidence).
 
 ### **3. Production-Grade from Day 1**
+
 CodeMarshal is being built **alongside Agent Nexus**, not after it. Every feature is:
+
 - **Dogfooded immediately** on Agent Nexus codebase
 - **Validated against real constitutional violations**
 - **Performance-tuned** for production-scale codebases
@@ -533,18 +548,21 @@ CodeMarshal is being built **alongside Agent Nexus**, not after it. Every featur
 ## **THE VALUE PROPOSITION FOR AGENT NEXUS**
 
 ### **For Developers:**
+
 - **30% faster onboarding**: Understand constitutional constraints in days, not weeks
 - **50% fewer violations**: Catch constitutional issues before commit
 - **Context preservation**: Never lose the "why" behind architectural decisions
 - **Confidence in changes**: See impact across constitutional boundaries
 
 ### **For the System:**
+
 - **Constitutional purity maintained**: Automated guardrails prevent drift
 - **Knowledge preserved**: Investigation trails survive developer turnover
 - **Evolution guided**: Understand constraints before expanding system
 - **Quality improved**: Fewer violations means more stable system
 
 ### **For the Project:**
+
 - **Faster development**: Less time debugging constitutional issues
 - **Better decisions**: Evidence-based architectural evolution
 - **Scalable understanding**: System grows without becoming incomprehensible
@@ -555,6 +573,7 @@ CodeMarshal is being built **alongside Agent Nexus**, not after it. Every featur
 ## **USE CASES IN AGENT NEXUS DEVELOPMENT**
 
 ### **Use Case 1: Pre-Commit Constitutional Check**
+
 ```bash
 # Before every commit to Agent Nexus:
 codemarshal investigate . --rule=constitutional
@@ -563,6 +582,7 @@ codemarshal investigate . --rule=constitutional
 ```
 
 ### **Use Case 2: Architectural Refactoring**
+
 ```bash
 # When refactoring common/ SDK:
 codemarshal ask . "What depends on common/agent_sdk?"
@@ -571,6 +591,7 @@ codemarshal ask . "What depends on common/agent_sdk?"
 ```
 
 ### **Use Case 3: Bug Investigation**
+
 ```bash
 # When debugging a cross-lobe issue:
 codemarshal investigate . --focus="lobes/chatbuddy"
@@ -579,6 +600,7 @@ codemarshal investigate . --focus="lobes/chatbuddy"
 ```
 
 ### **Use Case 4: New Feature Development**
+
 ```bash
 # When adding a new lobe:
 codemarshal patterns . --type="boundary_violation"
@@ -587,6 +609,7 @@ codemarshal patterns . --type="boundary_violation"
 ```
 
 ### **Use Case 5: Knowledge Transfer**
+
 ```bash
 # When onboarding new team member:
 codemarshal export --format=html --title="Agent Nexus Architecture"
@@ -599,16 +622,19 @@ codemarshal export --format=html --title="Agent Nexus Architecture"
 ## **WHY A SEPARATE TOOL?**
 
 ### **Agent Nexus is the System**
+
 - **Purpose**: Host, orchestrate, and evolve autonomous agents
 - **Constrained by**: Constitutional rules for operational purity
 - **Success metric**: Agent autonomy and reasoning quality
 
 ### **CodeMarshal is the Investigation Environment**
+
 - **Purpose**: Help humans understand and evolve Agent Nexus
-- **Constrained by**: Epistemic rules for truth preservation  
+- **Constrained by**: Epistemic rules for truth preservation
 - **Success metric**: Developer comprehension and constitutional compliance
 
 ### **Separation of Concerns:**
+
 - **Agent Nexus** must remain pure to its purpose (agent platform)
 - **CodeMarshal** can evolve independently as investigation needs change
 - **Cross-pollination**: CodeMarshal learns from Agent Nexus's constraints, Agent Nexus benefits from better understanding tools
@@ -618,11 +644,12 @@ codemarshal export --format=html --title="Agent Nexus Architecture"
 ## **TECHNICAL INTEGRATION**
 
 ### **Lightweight Integration**
+
 ```yaml
 # Agent Nexus .codemarshal.yaml
 constitutional_rules:
   - no_cross_lobe_imports
-  - agents_no_infrastructure_access  
+  - agents_no_infrastructure_access
   - policy_separate_from_reasoning
   - memory_facade_only
   # ... all 24 Agent Nexus constitutional rules
@@ -634,6 +661,7 @@ architectural_layers:
 ```
 
 ### **Development Workflow Integration**
+
 ```bash
 # In Agent Nexus development:
 git checkout -b new-feature
@@ -649,6 +677,7 @@ codemarshal export --evidence --notes
 ```
 
 ### **CI/CD Integration**
+
 ```yaml
 # Agent Nexus CI pipeline:
 - name: Constitutional Validation
@@ -663,17 +692,16 @@ codemarshal export --evidence --notes
 ## **THE VISION**
 
 ### **Short Term (8 Weeks):**
+
 CodeMarshal becomes **indispensable for Agent Nexus development**, catching constitutional violations before commit, accelerating onboarding, and preserving architectural knowledge.
 
 ### **Medium Term (6 Months):**
+
 CodeMarshal evolves into the **standard investigation tool for constitutionally-constrained systems**, used by other projects with similar architectural discipline requirements.
 
 ### **Long Term (1 Year+):**
+
 CodeMarshal establishes a **new category of development tools**—truth-preserving investigation environments that help humans understand complex systems without distortion, applicable beyond software to any complex, governed system.
-
-
-
-
 
 ## **THE BOTTOM LINE**
 
@@ -686,8 +714,9 @@ CodeMarshal establishes a **new category of development tools**—truth-preservi
 We're not just building another code analysis tool. We're building **the first environment where truth about complex, governed systems can be preserved, investigated, and understood without distortion.**
 
 **For Agent Nexus developers, this means:**
+
 - Fewer constitutional violations
-- Faster understanding of complex constraints  
+- Faster understanding of complex constraints
 - More confidence in architectural changes
 - Preserved knowledge across team members
 - Sustainable growth of a revolutionary system

@@ -16,13 +16,13 @@ Most tools try to **think for you**. CodeMarshal helps you **think better** by e
 
 Modern codebases have become epistemically opaque: too large to hold in your head, too interconnected to reason about linearly, too complex to understand without distortion. Traditional approaches fail because they:
 
-| Traditional Tools | CodeMarshal Approach |
-|-------------------|----------------------|
-| **Hallucinate** with AI guesses | **Witnesses** only what exists in source |
-| **Overwhelm** with 1,000 warnings | Shows **one question at a time** |
-| **Simplify** with scores (87% quality) | Preserves **full traceability** |
-| **Decide** for you (auto-fix) | Helps **you decide** with anchored evidence |
-| **Confuse** with jargon | Uses **human questions** not system categories |
+| Traditional Tools                      | CodeMarshal Approach                           |
+| -------------------------------------- | ---------------------------------------------- |
+| **Hallucinate** with AI guesses        | **Witnesses** only what exists in source       |
+| **Overwhelm** with 1,000 warnings      | Shows **one question at a time**               |
+| **Simplify** with scores (87% quality) | Preserves **full traceability**                |
+| **Decide** for you (auto-fix)          | Helps **you decide** with anchored evidence    |
+| **Confuse** with jargon                | Uses **human questions** not system categories |
 
 CodeMarshal solves this through **epistemic discipline**—a systematic approach that separates what exists from how we understand it from how we look at it.
 
@@ -31,12 +31,15 @@ CodeMarshal solves this through **epistemic discipline**—a systematic approach
 ## **🎯 THE THREE LAWS OF CODEMARSHAL**
 
 ### **Law 1: Witness, Don't Interpret**
+
 > The system may only record what is textually present in source code. It may never infer, guess, or interpret meaning. Witnessed reality is immutable.
 
 ### **Law 2: Support, Don't Replace**
+
 > The system exists to support human curiosity and thinking. It may never make decisions, draw conclusions, or think for humans. Humans ask, pattern, and reflect; the system only assists.
 
 ### **Law 3: Clarify, Don't Obscure**
+
 > The interface must make reality clearer, not more confusing. One focus at a time, progressive revelation, clear navigation, honest uncertainty.
 
 These laws are **non-negotiable** and enforced at every level of the system.
@@ -61,24 +64,28 @@ Each layer has **strict boundaries** and **zero leakage**. This separation is wh
 ## **✨ KEY FEATURES**
 
 ### **📝 Ground Truth Preservation**
+
 - **Immutable witnessing**: Records only what exists in source code
 - **Zero inference**: Never guesses, never assumes, never interprets
 - **Deterministic output**: Same code always produces same observations
 - **Declared blindness**: Explicitly states what cannot be seen
 
 ### **🤔 Human-Centric Investigation**
+
 - **Question-driven workflow**: "What's here? → What does it do? → How is it connected?"
 - **Pattern humility**: All patterns marked with uncertainty (🟡 "Review manually")
 - **Anchored thinking**: Every note links to specific evidence
 - **Session continuity**: Investigations survive crashes and can be resumed
 
 ### **👁️ Truth-Preserving Interface**
+
 - **Single attention**: One question, one screen, one focus
 - **Progressive disclosure**: Complexity revealed only when requested
 - **Clear navigation**: Always know where you are, how you got there
 - **Honest performance**: Never freeze silently, always show waiting states
 
 ### **🔒 Self-Policing System**
+
 - **Constitutional compliance**: Continuous validation against the Three Laws
 - **Truth drift detection**: Alerts when system approaches boundaries
 - **Graceful degradation**: Preserves what works when parts fail
@@ -163,16 +170,21 @@ codemarshal.export(investigation, format="markdown")
 CodeMarshal follows a **natural investigative progression**:
 
 ### **Phase 1: Crime Scene Documentation**
+
 ```bash
 codemarshal collect . --detail=full
 ```
+
 **Goal:** Record everything that exists without interpretation.
 
 ### **Phase 2: Initial Assessment**
+
 ```bash
 codemarshal investigate .
 ```
+
 **Navigate through:**
+
 1. **Case File**: What's the overall structure?
 2. **Evidence Room**: What does each file contain?
 3. **Connection Map**: How are things related?
@@ -180,15 +192,18 @@ codemarshal investigate .
 5. **Detective's Notes**: What do I think?
 
 ### **Phase 3: Deep Investigation**
+
 1. **Follow leads**: Click through dependency chains
 2. **Test hypotheses**: Examine evidence for each pattern
 3. **Record findings**: Anchor notes to specific evidence
 4. **Build understanding**: Connect dots across the codebase
 
 ### **Phase 4: Case Closure**
+
 ```bash
 codemarshal export --format=html --include-timeline
 ```
+
 **Produce:** A complete investigation report with full traceability.
 
 ---
@@ -214,6 +229,7 @@ Project: agent-nexus  |  Files: 847  |  Evidence Points: 4,238
 ```
 
 **View Types:**
+
 1. **Case File**: Project structure and statistics
 2. **Evidence Room**: File contents, imports, exports
 3. **Connection Map**: Dependency graphs and relationships
@@ -221,6 +237,7 @@ Project: agent-nexus  |  Files: 847  |  Evidence Points: 4,238
 5. **Detective's Notes**: Your thinking anchored to evidence
 
 **Navigation Principles:**
+
 - **Single focus**: Only one primary content area visible
 - **Linear flow**: Natural progression through investigation
 - **Clear affordances**: Always show what you can do next
@@ -258,6 +275,7 @@ codemarshal recover --session=latest    # Recover crashed investigation
 ### **Visual Themes**
 
 CodeMarshal uses a **Gotham Detective** aesthetic:
+
 - **Dark theme**: Black/dark gray background
 - **Yellow highlights**: Important elements and selections
 - **Orange warnings**: Uncertainty indicators (🟡)
@@ -271,6 +289,7 @@ This isn't just styling—it's **cognitive scaffolding** that puts you in the mi
 ## **🔧 ARCHITECTURE DEEP DIVE**
 
 ### **Layer 1: Reality - What Exists**
+
 ```
 reality/
 ├── witness/          # Ways of seeing (files, imports, definitions, boundaries)
@@ -278,9 +297,11 @@ reality/
 ├── limitations/      # Honest declarations of blindness
 └── integrity/        # Validation of witnessing purity
 ```
+
 **Promise:** "I will only record what is textually present."
 
 ### **Layer 2: Understanding - Making Sense**
+
 ```
 understanding/
 ├── questions/        # Human curiosity framework
@@ -288,9 +309,11 @@ understanding/
 ├── journal/          # Anchored thinking space
 └── session/          # Investigation state management
 ```
+
 **Promise:** "I will help you ask better questions and see patterns without pretending certainty."
 
 ### **Layer 3: Lens - How We Look**
+
 ```
 lens/
 ├── philosophy/       # Interface design principles
@@ -299,24 +322,29 @@ lens/
 ├── visual/           # Truth-preserving aesthetics
 └── performance/      # Responsiveness guarantees
 ```
+
 **Promise:** "I will make reality clearer, never more confusing."
 
 ### **Layer 4: Bridge - Interaction Points**
+
 ```
 bridge/
 ├── intents/          # User goals (explore, analyze, document)
 ├── interfaces/       # CLI, TUI, API access points
 └── integration/      # Editor, CI/CD, tool integration
 ```
+
 **Promise:** "I will meet you where you work."
 
 ### **Layer 5: Integrity - Staying Honest**
+
 ```
 integrity/
 ├── validation/       # Constitutional compliance checking
 ├── monitoring/       # Truth drift detection
 └── recovery/         # Healing from errors
 ```
+
 **Promise:** "I will continuously verify that I follow my own rules."
 
 ---
@@ -324,6 +352,7 @@ integrity/
 ## **📚 EXAMPLE INVESTIGATIONS**
 
 ### **Case Study 1: Understanding a Legacy Codebase**
+
 ```bash
 # Day 1: Initial reconnaissance
 codemarshal investigate legacy-system/
@@ -344,6 +373,7 @@ codemarshal export --format=html --title="Legacy System Investigation"
 ```
 
 ### **Case Study 2: Architectural Review**
+
 ```bash
 # Collect complete evidence
 codemarshal collect . --detail=architectural
@@ -360,6 +390,7 @@ codemarshal export --format=markdown \
 ```
 
 ### **Case Study 3: Pre-Merge Analysis**
+
 ```bash
 # Witness changes in feature branch
 codemarshal collect . --compare=main --output=changes.json
@@ -383,19 +414,20 @@ codemarshal notes add \
 ## **⚙️ CONFIGURATION**
 
 ### **Global Configuration**
+
 ```yaml
 # ~/.config/codemarshal/config.yaml
 investigation:
   default_theme: "gotham"
   auto_save: true
-  save_interval: 300  # seconds
+  save_interval: 300 # seconds
   max_evidence_size: "1GB"
 
 patterns:
   confidence_levels:
-    high: 0.8    # 🟡🟡🟡
-    medium: 0.5  # 🟡🟡
-    low: 0.2     # 🟡
+    high: 0.8 # 🟡🟡🟡
+    medium: 0.5 # 🟡🟡
+    low: 0.2 # 🟡
   enabled_detectors:
     - complexity
     - coupling
@@ -408,7 +440,7 @@ interface:
     font_size: 14
     show_progress: true
   cli:
-    output_format: "auto"  # auto, json, text
+    output_format: "auto" # auto, json, text
     verbosity: "normal"
 
 export:
@@ -419,6 +451,7 @@ export:
 ```
 
 ### **Project-Specific Configuration**
+
 ```yaml
 # .codemarshal.yaml
 witness:
@@ -470,13 +503,14 @@ integration:
 ## **🔬 ADVANCED USAGE**
 
 ### **Custom Pattern Detectors**
+
 ```python
 # detectors/architectural_rules.py
 from codemarshal.patterns import BaseDetector, Hypothesis, Confidence
 
 class LobeIsolationDetector(BaseDetector):
     """Detects violations of lobe isolation principle."""
-    
+
     def detect(self, evidence):
         hypotheses = []
         for import_ in evidence.filter(type="import"):
@@ -493,6 +527,7 @@ class LobeIsolationDetector(BaseDetector):
 ```
 
 ### **Plugin Development**
+
 ```python
 # plugins/security_audit.py
 from codemarshal.plugins import BasePlugin
@@ -500,17 +535,17 @@ from codemarshal.plugins import BasePlugin
 class SecurityAuditPlugin(BasePlugin):
     name = "security_audit"
     version = "1.0.0"
-    
+
     def enhance_evidence(self, evidence):
         """Add security-specific evidence collection."""
         # Your custom evidence collection
         pass
-    
+
     def generate_hypotheses(self, evidence):
         """Generate security-specific hypotheses."""
         # Your custom hypothesis generation
         pass
-    
+
     def enhance_interface(self, interface):
         """Add security-specific views to interface."""
         # Your custom interface enhancements
@@ -518,6 +553,7 @@ class SecurityAuditPlugin(BasePlugin):
 ```
 
 ### **Batch Investigation Automation**
+
 ```python
 # scripts/batch_investigate.py
 import codemarshal
@@ -525,24 +561,24 @@ from pathlib import Path
 
 def investigate_projects(projects_dir):
     results = []
-    
+
     for project_path in Path(projects_dir).iterdir():
         if project_path.is_dir():
             print(f"Investigating: {project_path.name}")
-            
+
             # Collect evidence
             evidence = codemarshal.collect(project_path)
-            
+
             # Generate hypotheses
             hypotheses = codemarshal.analyze(evidence)
-            
+
             # Export findings
             report = codemarshal.export(
                 evidence=evidence,
                 hypotheses=hypotheses,
                 format="json"
             )
-            
+
             results.append({
                 "project": project_path.name,
                 "evidence_points": len(evidence),
@@ -550,11 +586,12 @@ def investigate_projects(projects_dir):
                 "high_confidence_issues": len([h for h in hypotheses if h.confidence == "high"]),
                 "report": report
             })
-    
+
     return results
 ```
 
 ### **Continuous Monitoring**
+
 ```bash
 # Set up continuous truth monitoring
 codemarshal monitor --watch --project=/path/to/project
@@ -571,12 +608,14 @@ codemarshal monitor --watch --project=/path/to/project
 ## **🔗 INTEGRATION ECOSYSTEM**
 
 ### **Editor Integration**
+
 - **VS Code**: Real-time investigation sidebar
 - **Neovim**: Terminal integration with key bindings
 - **Sublime Text**: Plugin for quick evidence collection
 - **IntelliJ**: Full IDE integration
 
 ### **CI/CD Pipeline**
+
 ```yaml
 # .github/workflows/codemarshal.yml
 name: CodeMarshal Investigation
@@ -606,6 +645,7 @@ jobs:
 ```
 
 ### **Export Formats**
+
 - **Markdown**: Human-readable investigation reports
 - **HTML**: Interactive investigation browsers
 - **JSON**: Machine-readable full evidence
@@ -618,14 +658,15 @@ jobs:
 
 CodeMarshal is designed for **truth at scale**:
 
-| Metric | Small Project (1k files) | Medium Project (10k files) | Large Project (100k files) |
-|--------|--------------------------|----------------------------|----------------------------|
-| Evidence collection | 2-5 seconds | 30-60 seconds | 5-10 minutes |
-| Hypothesis generation | 1-2 seconds | 10-20 seconds | 2-5 minutes |
-| Memory usage | 50-100 MB | 200-500 MB | 1-2 GB |
-| TUI responsiveness | <50ms | <100ms | <200ms |
+| Metric                | Small Project (1k files) | Medium Project (10k files) | Large Project (100k files) |
+| --------------------- | ------------------------ | -------------------------- | -------------------------- |
+| Evidence collection   | 2-5 seconds              | 30-60 seconds              | 5-10 minutes               |
+| Hypothesis generation | 1-2 seconds              | 10-20 seconds              | 2-5 minutes                |
+| Memory usage          | 50-100 MB                | 200-500 MB                 | 1-2 GB                     |
+| TUI responsiveness    | <50ms                    | <100ms                     | <200ms                     |
 
 **Optimization strategies:**
+
 - **Incremental evidence collection**: Only process changed files
 - **Smart caching**: Cache evidence and hypothesis results
 - **Lazy loading**: Load detailed evidence only when needed
@@ -636,13 +677,14 @@ CodeMarshal is designed for **truth at scale**:
 ## **🧩 EXTENDING CODEMARSHAL**
 
 ### **Adding New Evidence Collectors**
+
 ```python
 from codemarshal.reality import BaseWitness
 
 class CustomWitness(BaseWitness):
     name = "custom_evidence"
     limitations = ["Cannot witness runtime behavior"]
-    
+
     def witness(self, file_path):
         # Your custom witnessing logic
         evidence = self._extract_custom_evidence(file_path)
@@ -650,13 +692,14 @@ class CustomWitness(BaseWitness):
 ```
 
 ### **Creating Custom Hypothesis Generators**
+
 ```python
 from codemarshal.understanding import BaseAnalyzer
 
 class CustomAnalyzer(BaseAnalyzer):
     rule_name = "my_custom_rule"
     confidence_calibration = 0.7
-    
+
     def analyze(self, evidence):
         hypotheses = []
         # Your custom analysis logic
@@ -670,13 +713,14 @@ class CustomAnalyzer(BaseAnalyzer):
 ```
 
 ### **Building Custom Interfaces**
+
 ```python
 from codemarshal.lens import BaseView
 
 class CustomView(BaseView):
     name = "my_custom_view"
     description = "A custom view for specialized investigation"
-    
+
     def render(self, investigation):
         # Your custom rendering logic
         return self._render_custom_interface(investigation)
@@ -687,18 +731,21 @@ class CustomView(BaseView):
 ## **🔒 SECURITY & PRIVACY**
 
 ### **Security Principles**
+
 - **Local-first**: All analysis happens on your machine
 - **No telemetry**: No data leaves your machine without explicit consent
 - **Code review**: Entire codebase is open for security review
 - **Minimal dependencies**: Carefully curated dependency tree
 
 ### **Privacy Guarantees**
+
 - **Your code stays yours**: Never uploaded to cloud services
 - **Your thoughts stay private**: Notes and investigations stored locally
 - **Zero tracking**: No usage analytics, no tracking, no surveillance
 - **Export control**: You decide what to share and with whom
 
 ### **Security Features**
+
 - **Evidence integrity verification**: SHA-256 hashing of all evidence
 - **Secure note storage**: Optional encryption for sensitive investigations
 - **Audit trails**: Complete history of all investigative actions
@@ -711,12 +758,14 @@ class CustomView(BaseView):
 CodeMarshal is built on **epistemic discipline**—this extends to how we build it.
 
 ### **Contribution Principles**
+
 1. **Truth over convenience**: Never compromise truth preservation for features
 2. **Discipline over speed**: Follow the architecture, even when slower
 3. **Clarity over cleverness**: Write code that's obvious, not clever
 4. **Validation over trust**: All contributions must pass constitutional checks
 
 ### **Development Workflow**
+
 ```bash
 # 1. Fork and clone
 git clone https://github.com/codemarshal/codemarshal.git
@@ -739,7 +788,9 @@ pytest tests/ --constitutional
 ```
 
 ### **Constitutional Compliance**
+
 All contributions must pass:
+
 - **Layer boundary tests**: No mixing of reality/understanding/lens
 - **Truth preservation tests**: No inference, no guessing
 - **Interface clarity tests**: Single focus, progressive disclosure
@@ -752,6 +803,7 @@ All contributions must pass:
 CodeMarshal is released under the **Truth Preservation License**—a modified MIT license that requires preservation of epistemic discipline in derivative works.
 
 ### **Academic Citation**
+
 ```bibtex
 @software{codemarshal2024,
   title = {CodeMarshal: A Truth-Preserving Cognitive Investigation Environment},
@@ -763,6 +815,7 @@ CodeMarshal is released under the **Truth Preservation License**—a modified MI
 ```
 
 ### **Commercial Use**
+
 For commercial use, please review the license terms. The core principle: **Truth preservation cannot be compromised, even in commercial derivatives.**
 
 ---
@@ -787,6 +840,7 @@ For commercial use, please review the license terms. The core principle: **Truth
 **Solution**: Run diagnostics: `codemarshal validate --diagnose`
 
 ### **Getting Help**
+
 - **Documentation**: `codemarshal --help` or `F1` in TUI
 - **Community**: GitHub Discussions for epistemic discussions
 - **Issues**: GitHub Issues for bug reports and feature requests
@@ -799,7 +853,7 @@ For commercial use, please review the license terms. The core principle: **Truth
 A **marshal** is an officer who preserves order, maintains boundaries, and ensures proper procedure. A **CodeMarshal** does the same for understanding code:
 
 1. **Preserves truth** through immutable evidence
-2. **Maintains boundaries** between layers of understanding  
+2. **Maintains boundaries** between layers of understanding
 3. **Ensures procedure** through constitutional compliance
 4. **Guides investigation** without taking over
 
