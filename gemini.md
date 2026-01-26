@@ -41,21 +41,21 @@ CodeMarshal is **not** a traditional code analysis tool. It is a **truth-preserv
 ### Core Directory Structure & Responsibilities
 
 CodeMarshal/
-├── bridge/          # Truth in different contexts (CLI, TUI, API, Export)
-├── config/          # Boundary definitions and user configuration
-├── core/            # Engine, runtime, and state management
-├── inquiry/         # Human questions, patterns, and session management
-├── integrity/       # Self-validation and constitutional compliance
-├── lens/            # Truth-preserving interface (TUI philosophy)
-├── observations/    # Immutable fact collection ("eyes")
-└── storage/         # Atomic, transactional, versioned truth storage
+├── bridge/ # Truth in different contexts (CLI, TUI, API, Export)
+├── config/ # Boundary definitions and user configuration
+├── core/ # Engine, runtime, and state management
+├── inquiry/ # Human questions, patterns, and session management
+├── integrity/ # Self-validation and constitutional compliance
+├── lens/ # Truth-preserving interface (TUI philosophy)
+├── observations/ # Immutable fact collection ("eyes")
+└── storage/ # Atomic, transactional, versioned truth storage
 
 ### Key Architectural Breakthroughs
 
 #### 1. The Bridge Metaphor
 
 - **CLI**: `bridge/entry/cli.py` - Scriptable truth investigation
-- **TUI**: `bridge/entry/tui.py` - Interactive truth exploration  
+- **TUI**: `bridge/entry/tui.py` - Interactive truth exploration
 - **API**: `bridge/entry/api.py` - Programmatic truth access
 - **Export**: `bridge/integration/export_formats.py` - Shareable truth artifacts
 
@@ -83,7 +83,7 @@ When analyzing CodeMarshal, first verify it follows its own constitution:
 ```python
 # Check: Does CodeMarshal violate its own rules?
 - Look for inference in observations/ (violates Article 1)
-- Check if interface overwhelms (violates Article 4)  
+- Check if interface overwhelms (violates Article 4)
 - Verify immutability in storage/ (violates Article 9)
 - Test single-focus in lens/ (violates Article 5)
 ```
@@ -97,7 +97,7 @@ When analyzing CodeMarshal, first verify it follows its own constitution:
 # MUST: Only record textual facts
 # MUST NOT: Infer, guess, or interpret
 
-# File: observations/record/snapshot.py  
+# File: observations/record/snapshot.py
 # MUST: Create immutable observation records
 # MUST NOT: Allow modification after creation
 ```
@@ -157,7 +157,7 @@ User Action → System Response
 3. **What prevents the interface from misleading users?**
 4. **Where are the declared limitations actually enforced?**
 
-### Philosophical Questions  
+### Philosophical Questions
 
 1. **How does "epistemic humility" manifest in code?**
 2. **Where does the system say "I cannot see this" vs guessing?**
@@ -180,7 +180,7 @@ User Action → System Response
 # Files: storage/atomic.py, storage/transactional.py
 # Indicator: Write-once, append-only operations
 
-# Pattern: Declared limitation enforcement  
+# Pattern: Declared limitation enforcement
 # Files: observations/limitations/declared.py
 # Indicator: "cannot_see_" prefixes in method names
 
@@ -214,7 +214,7 @@ User Action → System Response
 3. **`storage/atomic.py`** - Immutable truth storage implementation
 4. **`integrity/monitoring/drift.py`** - Truth preservation monitoring
 
-### Interface Truth Preservation  
+### Interface Truth Preservation
 
 1. **`lens/philosophy/clarity.py`** - Visual truth enhancement principles
 2. **`lens/views/overview.py`** - Single-focus view implementation
@@ -231,7 +231,7 @@ User Action → System Response
 ### 1. The "Three Guardians" System
 
 - **Static Guardian**: Pre-commit constitutional validation
-- **Runtime Guardian**: Real-time truth preservation monitoring  
+- **Runtime Guardian**: Real-time truth preservation monitoring
 - **Interface Guardian**: UI prevention of truth-violating interactions
 
 ### 2. Truth Decay Prevention
@@ -291,27 +291,27 @@ Not "analysis" but "investigation" - key differences:
 
 ### Output Format for Analysis
 
-CODEMARSHAL ANALYSIS: [file_or_module] 
-========================================
+# CODEMARSHAL ANALYSIS:
+
 CONSTITUTIONAL COMPLIANCE:
-  • Article X: [Compliance status]
-  • Article Y: [Potential violation]
+• Article X: [Compliance status]
+• Article Y: [Potential violation]
 
 TRUTH PRESERVATION:
-  • Observations: [Pure/Inferential]
-  • Limitations: [Declared/Hidden]
-  • Immutability: [Guaranteed/Potentially violated]
+• Observations: [Pure/Inferential]
+• Limitations: [Declared/Hidden]
+• Immutability: [Guaranteed/Potentially violated]
 
 INTERFACE INTEGRITY:
-  • Single-focus: [Maintained/Broken]
-  • Linear flow: [Followed/Skipped]
-  • Affordances: [Clear/Hidden]
+• Single-focus: [Maintained/Broken]
+• Linear flow: [Followed/Skipped]
+• Affordances: [Clear/Hidden]
 
 RECOMMENDED INVESTIGATION PATH:
-  1. [Next file to examine]
-  2. [Specific constitutional check]
-  3. [Truth preservation validation]
-```
+
+1. [Next file to examine]
+2. [Specific constitutional check]
+3. [Truth preservation validation]
 
 ## FINAL PRINCIPLE FOR AI ANALYSIS
 
@@ -321,8 +321,6 @@ When examining any part of CodeMarshal, ask: "Does this make humans better at un
 
 The ultimate test: If CodeMarshal were used to analyze itself, would it find itself constitutionally compliant?
 
-```
-
 This `codemarshal.gemini.md` file provides Gemini CLI with:
 
 1. **Architectural understanding** of CodeMarshal's unique structure
@@ -330,4 +328,3 @@ This `codemarshal.gemini.md` file provides Gemini CLI with:
 3. **Specific analysis guidelines** for truth-preservation checking
 4. **Key files and patterns** to examine
 5. **Philosophical context** for why CodeMarshal exists
-
