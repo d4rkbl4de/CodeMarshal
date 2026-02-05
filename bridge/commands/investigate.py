@@ -272,21 +272,21 @@ def execute_investigation(
     # 3. Delegate to runtime for actual investigation management
     try:
         if request.type == InvestigationType.NEW:
-            session_result = runtime.start_investigation(
-                target_path=str(request.target_path),
-                scope=request.scope.value,
-                parameters=request.parameters,
-                session_id=request.session_id,
-            )
-
             # Inject interfaces into engine (dependency injection)
             engine = runtime.engine
             if engine:
                 # Register layer interfaces (bridge layer injects into core)
-                engine.register_observation_interface(MinimalObservationInterface())
+                engine.register_observation_interface(MinimalObservationInterface(runtime.context))
                 engine.register_inquiry_interface(MinimalInquiryInterface())
                 engine.register_lens_interface(MinimalLensInterface())
 
+            session_result = runtime.start_investigation(
+                target_path=request.target_path,
+                parameters=request.parameters,
+                session_id=request.session_id,
+            )
+
+            if engine:
                 # Execute full investigation lifecycle via engine
                 engine.execute_investigation()
                 # Update session result with actual investigation data

@@ -41,7 +41,7 @@ class RuntimeInitializationError(Exception):
         super().__init__(message)
         self.message = message
         self.phase = phase
-        self.timestamp = datetime.datetime.now(datetime.UTC)
+        self.timestamp = datetime.datetime.now(datetime.timezone.utc)
 
         # Mark as constitutional violation for shutdown
         self.constitutional_violation = True

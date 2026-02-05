@@ -20,11 +20,14 @@ from .eyes import get_eye
 from .eyes.boundary_sight import BoundaryDefinition, BoundarySight
 
 
+from core.context import RuntimeContext
+# ...
 class MinimalObservationInterface(ObservationInterface):
     """Minimal implementation of ObservationInterface to enable engine execution."""
 
-    def __init__(self):
+    def __init__(self, context: RuntimeContext):
         """Initialize the observation interface."""
+        self._context = context
         self._last_request = None
         # Initialize boundary checker with Agent Nexus boundaries
         self._boundary_checker = BoundaryViolationChecker(
@@ -248,7 +251,7 @@ class MinimalObservationInterface(ObservationInterface):
             session_id: Session ID for streaming mode
         """
         # Get memory monitor
-        memory_monitor = get_memory_monitor()
+        memory_monitor = get_memory_monitor(self._context)
 
         # Start memory tracking for this operation
         memory_monitor.start_operation("observe", "scanning")

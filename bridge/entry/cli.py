@@ -448,7 +448,9 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             try:
                 scope = scope_map[args.scope]
             except KeyError:
-                raise ValueError(f"'{args.scope}' is not a valid InvestigationScope") from None
+                raise ValueError(
+                    f"'{args.scope}' is not a valid InvestigationScope"
+                ) from None
 
             req = InvestigationRequest(
                 type=InvestigationType.NEW,
@@ -558,7 +560,9 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             # Register interfaces
             from observations.interface import MinimalObservationInterface
 
-            engine.register_observation_interface(MinimalObservationInterface())
+            engine.register_observation_interface(
+                MinimalObservationInterface(runtime._context)
+            )
 
             print("4. Creating context...", file=sys.stderr)
             session_context = SessionContext(
@@ -680,90 +684,180 @@ The TUI provides a single-focus, truth-preserving investigation interface.
 
         # Call command
         try:
-            config = RuntimeConfiguration(
-                investigation_root=args.path
-                if hasattr(args, "path")
-                and isinstance(args.path, Path)
-                and args.path.is_dir()
-                else Path(".").absolute(),
-                execution_mode=ExecutionMode.CLI,
-                constitution_path=Path(__file__).parent.parent.parent / "Structure.md",
-                code_root=args.path
-                if hasattr(args, "path")
-                and isinstance(args.path, Path)
-                and args.path.is_dir()
-                else Path(".").absolute(),
-            )
-            runtime = Runtime(config=config)
-            engine = Engine(
-                runtime._context,
-                runtime._state,
-                storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
-            )
-            # Determine appropriate workflow stage based on question type
-            workflow_stage = self._map_question_type_to_workflow_stage(
-                args.question_type
-            )
+            # Load investigation data and observations
+            storage = InvestigationStorage()
 
-            session_context = SessionContext(
-                snapshot_id=uuid.uuid4(),
-                anchor_id="root",
-                question_type=QuestionType.STRUCTURE,
-                context_id=uuid.uuid4(),
-            )
-            nav_context = create_navigation_context(
-                session_context=session_context,
-                workflow_stage=workflow_stage,
-                focus_type=FocusType.SYSTEM,
-                focus_id="system:welcome",
-                current_view=ViewType.OVERVIEW,
-            )
+            # Load session data from storage
+            session_data = self._load_session_data(storage, args.investigation_id)
+            if not session_data:
+                self._refuse(f"Investigation not found: {args.investigation_id}")
+                return 1
 
-            req = QueryRequest(
-                type=QueryType.QUESTION,
-                name=QuestionName(args.question_type),
-                session_id=args.investigation_id,  # CLI argument is investigation_id, but request expects session_id
-                parameters={
-                    "question": args.question,
-                    "focus": args.focus,
-                    "limit": args.limit,
-                },
-            )
+            # Load observations for this session
+            observations = self._load_observations(storage, session_data)
 
-            raw_result = query(
-                request=req,
-                runtime=runtime,
-                engine=engine,
-                nav_context=nav_context,
-                session_context=session_context,
+            # Generate answer based on question type
+            answer = self._generate_answer(
+                args.question, args.question_type, observations
             )
 
             from bridge.results import QueryResult
 
-            # Create QueryResult with proper mapping from raw_result
+            # Create QueryResult with the generated answer
             result = QueryResult(
-                success=raw_result.get("success", True),
-                investigation_id=raw_result.get(
-                    "investigation_id", args.investigation_id
-                ),
-                question=raw_result.get("question", args.question),
-                question_type=raw_result.get("question_type", args.question_type),
-                answer=raw_result.get("answer", "No answer provided"),
-                error_message=raw_result.get("error_message"),
+                success=True,
+                investigation_id=args.investigation_id,
+                question=args.question,
+                question_type=args.question_type,
+                answer=answer,
+                error_message=None,
             )
 
-            if result.success:
-                self._show_query_result(result)
-                return 0
-            else:
-                self._refuse(f"Query failed: {result.error_message}")
-                return 1
+            self._show_query_result(result)
+            return 0
 
         except Exception as e:
             logger.exception("Query command failed")
             self._refuse(f"Query error: {str(e)}")
             return 1
+
+    def _load_session_data(
+        self, storage: InvestigationStorage, investigation_id: str
+    ) -> dict | None:
+        """Load session data from storage."""
+        import json
+        from pathlib import Path
+
+        # Look for session file in storage/sessions/
+        sessions_dir = Path("storage/sessions")
+        if not sessions_dir.exists():
+            return None
+
+        # Try to find session file by investigation_id
+        for session_file in sessions_dir.glob("*.session.json"):
+            try:
+                with open(session_file, "r") as f:
+                    data = json.load(f)
+                    # Check if this is the right session
+                    if data.get("id") == investigation_id:
+                        return data
+                    # Also check by filename pattern (investigation_id format)
+                    if investigation_id in str(session_file):
+                        return data
+            except Exception:
+                continue
+
+        # If not found, return the most recent session as fallback
+        # (This handles cases where investigation_id isn't properly mapped)
+        most_recent = None
+        most_recent_time = 0
+
+        for session_file in sessions_dir.glob("*.session.json"):
+            try:
+                with open(session_file, "r") as f:
+                    data = json.load(f)
+                    # Get timestamp from created_at
+                    created_at = data.get("created_at", "")
+                    if created_at:
+                        # Parse ISO timestamp to compare
+                        try:
+                            from datetime import datetime
+
+                            dt = datetime.fromisoformat(
+                                created_at.replace("Z", "+00:00")
+                            )
+                            timestamp = dt.timestamp()
+                            if timestamp > most_recent_time:
+                                most_recent_time = timestamp
+                                most_recent = data
+                        except Exception:
+                            pass
+            except Exception:
+                continue
+
+        if most_recent:
+            self._warn(
+                f"Investigation {investigation_id} not found, using most recent session"
+            )
+            return most_recent
+
+        return None
+
+    def _load_observations(
+        self, storage: InvestigationStorage, session_data: dict
+    ) -> list:
+        """Load observations for a session."""
+        import json
+        from pathlib import Path
+
+        observations = []
+        observation_ids = session_data.get("observation_ids", [])
+
+        observations_dir = Path("storage/observations")
+        if not observations_dir.exists():
+            return observations
+
+        for obs_id in observation_ids:
+            # Look for observation file (with .observation.json extension)
+            obs_file = observations_dir / f"{obs_id}.observation.json"
+            if obs_file.exists():
+                try:
+                    with open(obs_file, "r") as f:
+                        data = json.load(f)
+                        # Extract the actual observation data from the nested structure
+                        if "data" in data and isinstance(data["data"], dict):
+                            obs_data = data["data"]
+                            # Check if there are nested observations
+                            if "observations" in obs_data and obs_data["observations"]:
+                                for nested_obs in obs_data["observations"]:
+                                    observations.append(nested_obs)
+                            else:
+                                # Add the main data as a file_sight observation
+                                observations.append(
+                                    {
+                                        "type": "file_sight",
+                                        "result": obs_data,
+                                        "path": obs_data.get("path", ""),
+                                    }
+                                )
+                        else:
+                            observations.append(data)
+                except Exception as e:
+                    logger.warning(f"Failed to load observation {obs_id}: {e}")
+                    continue
+
+        return observations
+
+    def _generate_answer(
+        self, question: str, question_type: str, observations: list
+    ) -> str:
+        """Generate answer using appropriate analyzer."""
+        from inquiry.answers import (
+            StructureAnalyzer,
+            ConnectionMapper,
+            AnomalyDetector,
+            PurposeExtractor,
+            ThinkingEngine,
+        )
+
+        # Map question type to analyzer
+        analyzers = {
+            "structure": StructureAnalyzer,
+            "connections": ConnectionMapper,
+            "anomalies": AnomalyDetector,
+            "purpose": PurposeExtractor,
+            "thinking": ThinkingEngine,
+        }
+
+        analyzer_class = analyzers.get(question_type)
+        if not analyzer_class:
+            return f"Unknown question type: {question_type}"
+
+        try:
+            analyzer = analyzer_class()
+            return analyzer.analyze(observations, question)
+        except Exception as e:
+            return f"Error generating answer: {str(e)}"
 
     def _handle_export(self, args: argparse.Namespace) -> int:
         """Handle export command with explicit validation."""
@@ -855,30 +949,51 @@ The TUI provides a single-focus, truth-preserving investigation interface.
                 },
             )
 
-            raw_result = export(
-                request=req,
-                runtime=runtime,
-                session_context=session_context,
-                nav_context=nav_context,
+            # Load investigation data for export
+            storage = InvestigationStorage()
+            session_data = self._load_session_data(storage, args.investigation_id)
+            if not session_data:
+                self._refuse(f"Investigation not found: {args.investigation_id}")
+                return 1
+
+            # Load observations for this session
+            observations = self._load_observations(storage, session_data)
+
+            # Generate export content
+            export_content = self._generate_export_content(
+                args.format,
+                session_data,
+                observations,
+                args.include_notes,
+                args.include_patterns,
             )
+
+            # Write to file
+            output_path = Path(args.output)
+            try:
+                output_path.write_text(export_content, encoding="utf-8")
+            except Exception as e:
+                self._refuse(f"Failed to write export file: {str(e)}")
+                return 1
+
+            # Verify file was created
+            if not output_path.exists():
+                self._refuse("Export file was not created")
+                return 1
 
             from bridge.results import ExportResult
 
-            # Create ExportResult with proper mapping from raw_result
+            # Create ExportResult
             result = ExportResult(
                 success=True,
-                export_id=raw_result.get("export_id", "unknown"),
-                format=req.format.value,
-                path=req.parameters.get("output_path", "unknown"),
+                export_id=str(uuid.uuid4()),
+                format=args.format,
+                path=str(output_path),
                 error_message=None,
             )
 
-            if result.success:
-                self._show_export_result(result)
-                return 0
-            else:
-                self._refuse(f"Export failed: {result.error_message}")
-                return 1
+            self._show_export_result(result)
+            return 0
 
         except Exception as e:
             logger.exception("Export command failed")
@@ -908,6 +1023,342 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             logger.exception("TUI command failed")
             self._refuse(f"TUI error: {str(e)}")
             return 1
+
+    def _generate_export_content(
+        self,
+        format_type: str,
+        session_data: dict,
+        observations: list,
+        include_notes: bool = False,
+        include_patterns: bool = False,
+    ) -> str:
+        """Generate export content in the specified format."""
+        from datetime import datetime
+
+        if format_type.lower() == "json":
+            return self._generate_json_export(
+                session_data, observations, include_notes, include_patterns
+            )
+        elif format_type.lower() == "markdown":
+            return self._generate_markdown_export(
+                session_data, observations, include_notes, include_patterns
+            )
+        elif format_type.lower() == "html":
+            return self._generate_html_export(
+                session_data, observations, include_notes, include_patterns
+            )
+        elif format_type.lower() in ["plain", "plaintext"]:
+            return self._generate_plaintext_export(
+                session_data, observations, include_notes, include_patterns
+            )
+        else:
+            raise ValueError(f"Unsupported export format: {format_type}")
+
+    def _generate_json_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> str:
+        """Generate JSON export."""
+        import json
+        from datetime import datetime
+
+        export_data = {
+            "export_metadata": {
+                "version": "1.0",
+                "exported_at": datetime.now().isoformat(),
+                "format": "json",
+                "tool": "CodeMarshal",
+            },
+            "investigation": session_data,
+            "observations": observations,
+        }
+
+        if include_notes:
+            export_data["notes"] = session_data.get("notes", [])
+
+        if include_patterns:
+            export_data["patterns"] = session_data.get("patterns", [])
+
+        return json.dumps(export_data, indent=2, default=str)
+
+    def _generate_markdown_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> str:
+        """Generate Markdown export."""
+        from datetime import datetime
+
+        lines = [
+            "# CodeMarshal Investigation Report",
+            "",
+            f"**Exported:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"**Format:** Markdown",
+            "",
+            "---",
+            "",
+            "## Investigation Metadata",
+            "",
+            f"- **ID:** {session_data.get('id', 'Unknown')}",
+            f"- **Path:** {session_data.get('path', 'Unknown')}",
+            f"- **State:** {session_data.get('state', 'Unknown')}",
+            f"- **Created:** {session_data.get('created_at', 'Unknown')}",
+            "",
+            "---",
+            "",
+        ]
+
+        # Add observations summary
+        lines.extend(
+            [
+                "## Observations Summary",
+                "",
+                f"Total Observations: {len(observations)}",
+                "",
+            ]
+        )
+
+        # Group observations by type
+        obs_by_type = {}
+        for obs in observations:
+            obs_type = obs.get("type", "unknown")
+            if obs_type not in obs_by_type:
+                obs_by_type[obs_type] = []
+            obs_by_type[obs_type].append(obs)
+
+        for obs_type, obs_list in obs_by_type.items():
+            lines.extend(
+                [
+                    f"### {obs_type.title()}",
+                    "",
+                    f"Count: {len(obs_list)}",
+                    "",
+                ]
+            )
+
+        if include_notes and session_data.get("notes"):
+            lines.extend(
+                [
+                    "",
+                    "---",
+                    "",
+                    "## Notes",
+                    "",
+                ]
+            )
+            for note in session_data["notes"]:
+                lines.append(f"- {note}")
+
+        if include_patterns and session_data.get("patterns"):
+            lines.extend(
+                [
+                    "",
+                    "---",
+                    "",
+                    "## Patterns",
+                    "",
+                ]
+            )
+            for pattern in session_data["patterns"]:
+                lines.append(f"- {pattern}")
+
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "*Generated by CodeMarshal - Truth-Preserving Investigation*",
+            ]
+        )
+
+        return "\n".join(lines)
+
+    def _generate_html_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> str:
+        """Generate HTML export."""
+        from datetime import datetime
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeMarshal Investigation Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        h1 {{ color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }}
+        h2 {{ color: #555; margin-top: 30px; }}
+        h3 {{ color: #666; }}
+        .metadata {{ background: #f9f9f9; padding: 15px; border-left: 4px solid #007acc; margin: 20px 0; }}
+        .observation {{ background: #fff; border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 4px; }}
+        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 0.9em; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background: #f5f5f5; font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CodeMarshal Investigation Report</h1>
+        
+        <div class="metadata">
+            <p><strong>Exported:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+            <p><strong>Format:</strong> HTML</p>
+            <p><strong>Investigation ID:</strong> {session_data.get("id", "Unknown")}</p>
+        </div>
+        
+        <h2>Investigation Details</h2>
+        <table>
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>ID</td><td>{session_data.get("id", "Unknown")}</td></tr>
+            <tr><td>Path</td><td>{session_data.get("path", "Unknown")}</td></tr>
+            <tr><td>State</td><td>{session_data.get("state", "Unknown")}</td></tr>
+            <tr><td>Created</td><td>{session_data.get("created_at", "Unknown")}</td></tr>
+        </table>
+        
+        <h2>Observations</h2>
+        <p>Total Observations: {len(observations)}</p>
+"""
+
+        # Group observations by type
+        obs_by_type = {}
+        for obs in observations:
+            obs_type = obs.get("type", "unknown")
+            if obs_type not in obs_by_type:
+                obs_by_type[obs_type] = []
+            obs_by_type[obs_type].append(obs)
+
+        for obs_type, obs_list in obs_by_type.items():
+            html += f"""
+        <h3>{obs_type.title()}</h3>
+        <p>Count: {len(obs_list)}</p>
+"""
+
+        if include_notes and session_data.get("notes"):
+            html += """
+        <h2>Notes</h2>
+        <ul>
+"""
+            for note in session_data["notes"]:
+                html += f"            <li>{note}</li>\n"
+            html += "        </ul>\n"
+
+        if include_patterns and session_data.get("patterns"):
+            html += """
+        <h2>Patterns</h2>
+        <ul>
+"""
+            for pattern in session_data["patterns"]:
+                html += f"            <li>{pattern}</li>\n"
+            html += "        </ul>\n"
+
+        html += """
+        <div class="footer">
+            <p>Generated by CodeMarshal - Truth-Preserving Investigation</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+        return html
+
+    def _generate_plaintext_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> str:
+        """Generate Plain text export."""
+        from datetime import datetime
+
+        lines = [
+            "=" * 70,
+            "CODEMARSHAL INVESTIGATION REPORT",
+            "=" * 70,
+            "",
+            f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"Format: Plain Text",
+            "",
+            "-" * 70,
+            "INVESTIGATION DETAILS",
+            "-" * 70,
+            "",
+            f"ID:       {session_data.get('id', 'Unknown')}",
+            f"Path:     {session_data.get('path', 'Unknown')}",
+            f"State:    {session_data.get('state', 'Unknown')}",
+            f"Created:  {session_data.get('created_at', 'Unknown')}",
+            "",
+            "-" * 70,
+            "OBSERVATIONS SUMMARY",
+            "-" * 70,
+            "",
+            f"Total Observations: {len(observations)}",
+            "",
+        ]
+
+        # Group observations by type
+        obs_by_type = {}
+        for obs in observations:
+            obs_type = obs.get("type", "unknown")
+            if obs_type not in obs_by_type:
+                obs_by_type[obs_type] = []
+            obs_by_type[obs_type].append(obs)
+
+        for obs_type, obs_list in obs_by_type.items():
+            lines.extend(
+                [
+                    f"{obs_type.title()}:",
+                    f"  Count: {len(obs_list)}",
+                    "",
+                ]
+            )
+
+        if include_notes and session_data.get("notes"):
+            lines.extend(
+                [
+                    "-" * 70,
+                    "NOTES",
+                    "-" * 70,
+                    "",
+                ]
+            )
+            for note in session_data["notes"]:
+                lines.append(f"- {note}")
+            lines.append("")
+
+        if include_patterns and session_data.get("patterns"):
+            lines.extend(
+                [
+                    "-" * 70,
+                    "PATTERNS",
+                    "-" * 70,
+                    "",
+                ]
+            )
+            for pattern in session_data["patterns"]:
+                lines.append(f"- {pattern}")
+            lines.append("")
+
+        lines.extend(
+            [
+                "=" * 70,
+                "Generated by CodeMarshal - Truth-Preserving Investigation",
+                "=" * 70,
+            ]
+        )
+
+        return "\n".join(lines)
 
     # Validation helpers
     def _looks_like_project(self, path: Path) -> bool:

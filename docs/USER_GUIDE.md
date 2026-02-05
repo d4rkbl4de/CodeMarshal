@@ -1,366 +1,765 @@
 # **CODEMARSHAL USER GUIDE**
 
 **Version:** 0.1.0  
-**Last Updated:** January 16, 2026  
+**Last Updated:** February 5, 2026  
+**Status:** Production Ready
 
 ---
 
-## **GETTING STARTED**
+## **TABLE OF CONTENTS**
 
-### **Installation**
+1. [When to Use CodeMarshal](#when-to-use-codemarshal)
+2. [Quick Start](#quick-start)
+3. [Terminal Commands Reference](#terminal-commands-reference)
+4. [Detailed Usage Guide](#detailed-usage-guide)
+5. [Query System](#query-system)
+6. [Export System](#export-system)
+7. [TUI (Text User Interface)](#tui-text-user-interface)
+8. [Boundary Configuration](#boundary-configuration)
+9. [Examples & Workflows](#examples--workflows)
+10. [Troubleshooting](#troubleshooting)
 
-#### **Option 1: Install from Source**
-```bash
-git clone https://github.com/codemarshal/codemarshal.git
-cd codemarshal
-pip install -e .
-```
+---
 
-#### **Option 2: Install from PyPI (Future)**
-```bash
-pip install codemarshal
-```
+## **WHEN TO USE CODEMARSHAL**
 
-#### **Verify Installation**
-```bash
-codemarshal --version
-codemarshal --help
-```
+### **Perfect For:**
+
+#### 1. **Onboarding to a New Codebase**
+
+- Just joined a team? Use CodeMarshal to understand the architecture
+- Learn module dependencies without reading every file
+- Identify entry points and core components quickly
+
+#### 2. **Code Reviews & Audits**
+
+- Reviewing a large PR? Check for architectural violations
+- Auditing legacy code? Find circular dependencies
+- Due diligence on acquisition? Generate comprehensive reports
+
+#### 3. **Refactoring Projects**
+
+- Planning a major refactor? Map dependencies first
+- Identifying dead code? Find orphan files
+- Breaking monoliths? Visualize module boundaries
+
+#### 4. **Architecture Reviews**
+
+- Enforcing layer independence? Check boundary violations
+- Documenting architecture? Export to markdown/HTML
+- Onboarding documentation? Generate automatically
+
+#### 5. **Troubleshooting Issues**
+
+- Tracking down bugs? Follow dependency chains
+- Understanding imports? Query specific modules
+- Finding anomalies? Use pattern detection
+
+### **Not Suitable For:**
+
+- ❌ Runtime debugging (use a debugger)
+- ❌ Performance profiling (use profilers)
+- ❌ Dynamic analysis (CodeMarshal is static analysis only)
 
 ---
 
 ## **QUICK START**
 
-### **Your First Investigation**
+### **Installation**
+
 ```bash
-# Start investigating your current codebase
-codemarshal investigate .
+# Clone the repository
+git clone https://github.com/codemarshal/codemarshal.git
+cd codemarshal
 
-# Start with a specific directory
-codemarshal investigate ./src --scope=directory
+# Install dependencies
+pip install -e .
 
-# Get help at any time
-codemarshal investigate --help
+# Verify installation
+codemarshal --help
 ```
 
-### **What You'll See**
-```
-🕵️ CODEMARSHAL - Investigating: my-project
-────────────────────────────────────────────
-📂 Case File: What exists here?
-  ├─ src/ (4 directories, 142 files)
-  ├─ tests/ (2 directories, 23 files)
-  └─ docs/ (1 directory, 8 files)
+### **Your First Investigation (30 seconds)**
 
-────────────────────────────────────────────
-[Enter] Inspect  [Q] Questions  [H] Hypotheses  [N] Notes  [B] Back
+```bash
+# Navigate to any Python project
+cd /path/to/your/project
+
+# Start an investigation
+codemarshal investigate . --scope=module --intent=initial_scan
+
+# Query the investigation
+codemarshal query investigation_<id> --question="What modules exist?" --question-type=structure
+
+# Export results
+codemarshal export investigation_<id> --format=markdown --output=my_report.md --confirm-overwrite
 ```
 
 ---
 
-## **CORE CONCEPTS**
+## **TERMINAL COMMANDS REFERENCE**
 
-### **The Investigation Metaphor**
-CodeMarshal uses a **detective investigation** metaphor:
+### **Command Overview**
 
-- **🔍 Observe**: Collect evidence without interpretation
-- **❓ Question**: Ask what exists and how it connects
-- **🧠 Pattern**: Find relationships and anomalies
-- **📝 Think**: Record your insights anchored to evidence
-- **📋 Export**: Share your findings
+CodeMarshal provides 5 main commands:
 
-### **Truth Preservation**
-- **What you see**: Only facts from source code
-- **What you think**: Your human insights, not AI guesses
-- **No inference**: System never assumes or interprets
-- **Immutable**: Evidence never changes once recorded
+1. `investigate` - Create a tracked investigation
+2. `observe` - Collect observations only
+3. `query` - Ask questions about investigations
+4. `export` - Export investigation results
+5. `tui` - Launch interactive interface
 
 ---
 
-## **COMMAND LINE INTERFACE**
+### **1. INVESTIGATE COMMAND**
 
-### **Basic Commands**
+**Purpose:** Create a new investigation with a unique ID that tracks all observations, queries, and notes.
 
-#### **Investigate**
+**Syntax:**
+
+```bash
+codemarshal investigate <path> [options]
+```
+
+**Required Arguments:**
+
+- `<path>` - Path to directory or file to investigate
+
+**Options:**
+
+- `--scope=<level>` - Investigation scope: `file`, `module`, `package`, `project`
+- `--intent=<type>` - Investigation purpose: `initial_scan`, `dependency_analysis`, `architecture_review`, `constitutional_check`
+- `--name=<string>` - Custom name for the investigation
+- `--confirm-large` - Confirm before investigating large codebases (>1000 files)
+
+**Examples:**
+
 ```bash
 # Basic investigation
-codemarshal investigate <path>
+codemarshal investigate .
 
-# With options
-codemarshal investigate <path> --scope=project --intent=initial_scan
-codemarshal investigate <path> --depth=3 --confirm-large
+# Specific scope
+codemarshal investigate ./src --scope=package
 
-# Common patterns
-codemarshal investigate . --scope=directory      # What's here?
-codemarshal investigate . --scope=dependencies   # How does it connect?
-codemarshal investigate . --scope=patterns       # What patterns emerge?
+# With intent
+codemarshal investigate . --scope=project --intent=architecture_review --name="Project Audit"
+
+# Large codebase with confirmation
+codemarshal investigate . --scope=project --confirm-large
 ```
 
-#### **Export**
-```bash
-# Export investigation results
-codemarshal export <session_id> --format=json --output=results.json
-codemarshal export <session_id> --format=markdown --output=report.md
-codemarshal export <session_id> --format=html --output=report.html
+**Output:**
 
-# Export with options
-codemarshal export latest --format=json --output=results.json --confirm-overwrite
-codemarshal export latest --include-evidence --include-notes
 ```
+INVESTIGATION STARTED
+================================================================================
+ID:          investigation_1770293977936_0f331c82
+Path:        /path/to/project
+Scope:       project
+Intent:      architecture_review
+Status:      investigation_running
 
-#### **Query**
-```bash
-# Ask specific questions
-codemarshal query <path> "What are the main modules?"
-codemarshal query <path> "What depends on core/engine.py?"
-codemarshal query <path> "Show me circular dependencies"
-
-# Query with analysis
-codemarshal query <path> "What are the top-level modules?" --analyze
-codemarshal query <path> "Find architectural boundaries" --scope=project
-```
-
-### **Advanced Options**
-
-#### **Investigation Options**
-```bash
---scope=<type>          # directory, dependencies, patterns, anomalies
---intent=<type>         # initial_scan, deep_analysis, specific_question
---depth=<number>         # How deep to explore (default: unlimited)
---confirm-large         # Warn for large codebases
---session=<name>        # Name this investigation session
-```
-
-#### **Export Options**
-```bash
---format=<type>          # json, markdown, html, csv
---output=<path>         # Output file path
---include-evidence      # Include raw observations
---include-notes         # Include investigation notes
---include-timeline      # Include investigation timeline
---confirm-overwrite     # Overwrite existing files
+Next steps:
+  codemarshal query investigation_1770293977936_0f331c82 --question='...'
+  codemarshal export investigation_1770293977936_0f331c82 --format=markdown
+================================================================================
 ```
 
 ---
 
-## **INTERACTIVE TUI**
+### **2. OBSERVE COMMAND**
 
-### **Navigation**
-```
-[Enter] Inspect     # Dive into selected item
-[Q] Questions       # Ask questions about current view
-[H] Hypotheses    # View detected patterns
-[N] Notes          # Add/edit investigation notes
-[B] Back           # Go back to previous view
-[?] Help           # Show available commands
-[Esc] Exit         # Save and exit investigation
-```
+**Purpose:** Collect observations without creating a tracked investigation. Faster for quick checks.
 
-### **Views**
+**Syntax:**
 
-#### **📂 Case File (Overview)**
-- **What it shows**: Directory structure and statistics
-- **When to use**: Start of investigation
-- **Navigation**: Arrow keys to explore, Enter to inspect
-
-#### **🔍 Evidence Room (Observations)**
-- **What it shows**: File contents, imports, exports
-- **When to use**: Understanding specific components
-- **Navigation**: Tab between file types, Enter to view details
-
-#### **🕸️ Connection Map (Dependencies)**
-- **What it shows**: Import relationships and dependencies
-- **When to use**: Understanding architecture
-- **Navigation**: Arrow keys to explore graph, Enter for details
-
-#### **🧠 Hypothesis Board (Patterns)**
-- **What it shows**: Detected patterns with uncertainty indicators
-- **When to use**: Finding architectural insights
-- **Navigation**: Arrow keys to browse patterns, Enter for evidence
-
-#### **📝 Detective's Notes (Thinking)**
-- **What it shows**: Your investigation notes anchored to evidence
-- **When to use**: Recording insights and decisions
-- **Navigation**: Arrow keys to browse notes, Enter to edit
-
----
-
-## **WORKFLOW EXAMPLES**
-
-### **Example 1: Understanding a New Codebase**
-
-#### **Step 1: Initial Reconnaissance**
 ```bash
-# Start with broad overview
-codemarshal investigate . --scope=directory --intent=initial_scan
-
-# In TUI:
-# 1. Browse Case File to understand structure
-# 2. Look for main entry points
-# 3. Identify key directories
+codemarshal observe <path> [options]
 ```
 
-#### **Step 2: Dependency Analysis**
-```bash
-# Focus on how components connect
-codemarshal investigate . --scope=dependencies
+**Required Arguments:**
 
-# In TUI:
-# 1. View Connection Map
-# 2. Look for circular dependencies
-# 3. Identify architectural layers
+- `<path>` - Path to observe
+
+**Options:**
+
+- `--scope=<level>` - Observation scope: `file`, `module`, `package`, `project`
+- `--constitutional` - Enable constitutional analysis (boundary checking)
+
+**Examples:**
+
+```bash
+# Quick observation
+codemarshal observe .
+
+# With constitutional analysis
+codemarshal observe ./src --scope=module --constitutional
+
+# Single file
+codemarshal observe ./main.py --scope=file
 ```
 
-#### **Step 3: Pattern Detection**
-```bash
-# Find patterns and anomalies
-codemarshal investigate . --scope=patterns
+**Output:**
 
-# In TUI:
-# 1. Review Hypothesis Board
-# 2. Look for ⚠️ uncertainty indicators
-# 3. Investigate interesting patterns
 ```
+OBSERVATION COLLECTED
+================================================================================
+Observation ID: obs_a52c4838bc43dde6
+Status:         collecting
+Target Path:    ./src
+Session ID:     66104b0d-2809-42df-b094-d20cf86bbb6e
+Types:          file_sight, import_sight, export_sight, boundary_sight
 
-#### **Step 4: Document Findings**
-```bash
-# Export your investigation
-codemarshal export latest --format=markdown --include-evidence --include-notes
-
-# Review the generated report
-cat investigation_report.md
-```
-
-### **Example 2: Investigating a Specific Issue**
-
-#### **Step 1: Targeted Investigation**
-```bash
-# Focus on specific component
-codemarshal investigate ./src/core --scope=dependencies
-
-# In TUI:
-# 1. Use Evidence Room to examine core files
-# 2. Use Connection Map to trace dependencies
-# 3. Add notes about findings
-```
-
-#### **Step 2: Ask Specific Questions**
-```bash
-# Get targeted answers
-codemarshal query ./src/core "What depends on engine.py?"
-codemarshal query ./src/core "Are there circular dependencies?"
-
-# Review the answers
-codemarshal query ./src/core "Show me all entry points" --analyze
-```
-
-#### **Step 3: Export Focused Report**
-```bash
-# Export specific investigation
-codemarshal export latest --format=json --output=core_analysis.json
-
-# Use the data for further analysis
+LIMITATIONS:
+  file_sight:
+    • no_inference
+    • textual_only
+    • immutable_once_recorded
+================================================================================
 ```
 
 ---
 
-## **INVESTIGATION TECHNIQUES**
+### **3. QUERY COMMAND**
 
-### **Reading the Codebase**
+**Purpose:** Ask questions about an investigation and get fact-based answers.
 
-#### **Start with Structure**
-1. **Case File**: Get the lay of the land
-2. **Entry Points**: Find main(), __init__.py files
-3. **Directory Organization**: Understand the architecture
+**Syntax:**
 
-#### **Follow Dependencies**
-1. **Connection Map**: See how modules import each other
-2. **Import Analysis**: Look for patterns in imports
-3. **Layer Boundaries**: Identify architectural separation
+```bash
+codemarshal query <investigation_id> --question=<text> --question-type=<type> [options]
+```
 
-#### **Look for Patterns**
-1. **Hypothesis Board**: Review detected patterns
-2. **Uncertainty Indicators**: Pay attention to ⚠️ markers
-3. **Anomaly Detection**: Find unusual structures
+**Required Arguments:**
 
-### **Taking Notes**
+- `<investigation_id>` - ID from investigate command (e.g., `investigation_1770293977936_0f331c82`)
+- `--question=<text>` - Your question as a string
+- `--question-type=<type>` - Type of question (see below)
 
-#### **Anchor Everything**
-- Always link notes to specific evidence
-- Use the "Evidence → Question → Pattern → Note" flow
-- Record your reasoning, not just conclusions
+**Options:**
 
-#### **Progressive Disclosure**
-- Start broad, then dive deep
-- One question at a time
-- Don't jump between unrelated areas
+- `--limit=<number>` - Limit number of results (default: 50)
+- `--focus=<path>` - Focus on specific file or directory
 
-### **Truth Preservation**
+**Question Types:**
 
-#### **What You See vs. What You Think**
-- **Observations**: Facts from code (what exists)
-- **Thinking**: Your insights (what it means)
-- **No Inference**: System never guesses for you
+#### **structure** - Questions about code structure
 
-#### **Handling Uncertainty**
-- **⚠️ Markers**: Pay attention to uncertainty
-- **"I Don't Know"**: It's OK to admit limits
-- **Evidence-Based**: Always ground thoughts in evidence
+Examples:
+
+```bash
+# What modules exist?
+codemarshal query <id> --question="What modules exist?" --question-type=structure
+
+# Directory structure
+codemarshal query <id> --question="What is the directory structure?" --question-type=structure
+
+# Files in specific directory
+codemarshal query <id> --question="What files are in core/?" --question-type=structure
+```
+
+#### **connections** - Questions about dependencies
+
+Examples:
+
+```bash
+# What depends on X?
+codemarshal query <id> --question="What depends on core/engine.py?" --question-type=connections
+
+# What does X import?
+codemarshal query <id> --question="What does bridge/cli.py import?" --question-type=connections
+
+# Show all dependencies
+codemarshal query <id> --question="What are the dependencies?" --question-type=connections
+
+# Circular dependencies
+codemarshal query <id> --question="Show circular dependencies" --question-type=connections
+```
+
+#### **anomalies** - Questions about issues
+
+Examples:
+
+```bash
+# General anomalies
+codemarshal query <id> --question="Are there any anomalies?" --question-type=anomalies
+
+# Boundary violations
+codemarshal query <id> --question="Show me boundary violations" --question-type=anomalies
+
+# Suspicious patterns
+codemarshal query <id> --question="What looks suspicious?" --question-type=anomalies
+```
+
+#### **purpose** - Questions about what code does
+
+Examples:
+
+```bash
+# Module purpose
+codemarshal query <id> --question="What does core do?" --question-type=purpose
+
+# Specific file
+codemarshal query <id> --question="What is the purpose of bridge/commands.py?" --question-type=purpose
+```
+
+#### **thinking** - Questions for recommendations
+
+Examples:
+
+```bash
+# Next steps
+codemarshal query <id> --question="What should I investigate next?" --question-type=thinking
+
+# Risks
+codemarshal query <id> --question="What are the risks?" --question-type=thinking
+
+# General analysis
+codemarshal query <id> --question="What concerns you about this code?" --question-type=thinking
+```
+
+**Output Example:**
+
+```
+QUERY RESULT
+================================================================================
+Question:    What modules exist?
+Type:        structure
+Investigation: investigation_1770293977936_0f331c82
+
+Answer:
+Python Modules Information:
+==================================================
+Total Files Observed: 10
+
+Paths Observed:
+  • C:\project\core
+  • C:\project\bridge
+  • C:\project\observations
+
+Contains approximately 10 files across 3 directories
+================================================================================
+```
 
 ---
 
-## **CONFIGURATION**
+### **4. EXPORT COMMAND**
 
-### **Setting Up Your Environment**
+**Purpose:** Export investigation results to various formats for sharing or further analysis.
 
-#### **Configuration File**
-Create `~/.codemarshal/config.yaml`:
-```yaml
-investigation:
-  default_depth: 5
-  max_file_size: 10MB
-  auto_save: true
-  
-display:
-  theme: dark
-  show_line_numbers: true
-  unicode_symbols: true
-  
-storage:
-  base_path: ~/.codemarshal/investigations
-  backup_enabled: true
-  compression: gzip
-```
+**Syntax:**
 
-#### **Environment Variables**
 ```bash
-export CODEMARSHAL_CONFIG_PATH=~/.codemarshal/config.yaml
-export CODEMARSHAL_STORAGE_PATH=~/.codemarshal/investigations
-export CODEMARSHAL_LOG_LEVEL=INFO
+codemarshal export <investigation_id> --format=<type> --output=<path> [options]
 ```
 
-### **Project-Specific Configuration**
+**Required Arguments:**
 
-Create `.codemarshal.yaml` in your project:
-```yaml
-project:
-  name: "My Project"
-  type: "python"
-  
-investigation:
-  exclude_patterns:
-    - "**/__pycache__/**"
-    - "**/node_modules/**"
-    - "**/.git/**"
-  include_patterns:
-    - "**/*.py"
-    - "**/*.md"
-    - "**/*.yaml"
-  
-constitutional:
-  enforce_single_focus: true
-  require_evidence_anchoring: true
-  validate_observations: true
+- `<investigation_id>` - Investigation ID to export
+- `--format=<type>` - Export format: `json`, `markdown`, `html`, `plain`
+- `--output=<path>` - Output file path
+
+**Options:**
+
+- `--confirm-overwrite` - Overwrite existing file without prompting
+- `--include-notes` - Include investigation notes
+- `--include-patterns` - Include detected patterns
+
+**Export Formats:**
+
+#### **JSON** - Structured data for programmatic use
+
+```bash
+codemarshal export <id> --format=json --output=report.json --confirm-overwrite
+```
+
+Output: Machine-readable JSON with investigation metadata, observations, and results
+
+#### **Markdown** - Human-readable documentation
+
+```bash
+codemarshal export <id> --format=markdown --output=report.md --confirm-overwrite
+```
+
+Output: Formatted markdown report with sections for metadata, observations, and findings
+
+#### **HTML** - Styled web report
+
+```bash
+codemarshal export <id> --format=html --output=report.html --confirm-overwrite
+```
+
+Output: Self-contained HTML file with CSS styling
+
+#### **Plaintext** - Simple text format
+
+```bash
+codemarshal export <id> --format=plain --output=report.txt --confirm-overwrite
+```
+
+Output: Plain text with ASCII formatting
+
+**Output:**
+
+```
+EXPORT COMPLETE
+================================================================================
+Export ID:      aea673d3-198b-4608-8012-53c53b277aaa
+Format:         json
+Output:         report.json
+Size:           1.6K
+================================================================================
+```
+
+---
+
+### **5. TUI COMMAND**
+
+**Purpose:** Launch the interactive Text User Interface for guided investigation.
+
+**Syntax:**
+
+```bash
+codemarshal tui --path=<path>
+```
+
+**Options:**
+
+- `--path=<path>` - Starting path (default: current directory)
+
+**Examples:**
+
+```bash
+# Launch TUI in current directory
+codemarshal tui
+
+# Launch TUI in specific directory
+codemarshal tui --path=./src
+```
+
+**TUI Controls:**
+
+| Key   | Action                  | When Available      |
+| ----- | ----------------------- | ------------------- |
+| `q`   | Quit                    | Always              |
+| `h`   | Help                    | Always              |
+| `o`   | Observe                 | Initial state       |
+| `s`   | Ask structural question | After observation   |
+| `p`   | Analyze patterns        | After observation   |
+| `n`   | Add note                | After observation   |
+| `e`   | Export                  | After observation   |
+| `y`   | Yes (confirm)           | During confirmation |
+| `x`   | No (cancel)             | During confirmation |
+| ↑/↓   | Navigate choices        | During selection    |
+| Enter | Select/Confirm          | During input        |
+
+**TUI Workflow:**
+
+1. Start in AWAITING_PATH state
+2. Press `o` to observe, enter path
+3. After observation, use `s`, `p`, `n`, or `e`
+4. Press `q` to quit
+
+---
+
+## **DETAILED USAGE GUIDE**
+
+### **Complete Workflow Example**
+
+```bash
+# Step 1: Start an investigation
+codemarshal investigate . --scope=project --intent=architecture_review --name="Codebase Audit"
+# Note the investigation ID from output
+
+# Step 2: Query for structure
+codemarshal query investigation_<id> --question="What is the directory structure?" --question-type=structure
+
+# Step 3: Query for dependencies
+codemarshal query investigation_<id> --question="What are the main dependencies?" --question-type=connections
+
+# Step 4: Check for issues
+codemarshal query investigation_<id> --question="Are there any anomalies?" --question-type=anomalies
+
+# Step 5: Get recommendations
+codemarshal query investigation_<id> --question="What should I investigate next?" --question-type=thinking
+
+# Step 6: Export comprehensive report
+codemarshal export investigation_<id> --format=markdown --output=audit_report.md --confirm-overwrite --include-notes --include-patterns
+
+# Step 7: View the report
+cat audit_report.md
+```
+
+---
+
+## **QUERY SYSTEM**
+
+### **How It Works**
+
+The query system uses specialized analyzers based on question type:
+
+1. **StructureAnalyzer** - Analyzes file structure, directories, modules
+2. **ConnectionMapper** - Maps imports and dependencies
+3. **AnomalyDetector** - Finds boundary violations and suspicious patterns
+4. **PurposeExtractor** - Extracts module purposes from exports
+5. **ThinkingEngine** - Provides recommendations and analysis
+
+### **Question Types in Detail**
+
+#### **Structure Questions**
+
+- "What modules exist?"
+- "What is the directory structure?"
+- "What files are in [directory]?"
+- "Show me the structure"
+
+**Use when:** You need to understand the layout of the codebase
+
+#### **Connections Questions**
+
+- "What depends on [module]?"
+- "What does [module] import?"
+- "Show import relationships"
+- "Are there circular dependencies?"
+
+**Use when:** You need to understand how components connect
+
+#### **Anomalies Questions**
+
+- "Are there any anomalies?"
+- "Show me boundary violations"
+- "What looks suspicious?"
+- "Find code smells"
+
+**Use when:** You want to find issues or violations
+
+#### **Purpose Questions**
+
+- "What does [module] do?"
+- "What is the purpose of [file]?"
+- "Explain [component]"
+
+**Use when:** You need to understand what a specific component does
+
+#### **Thinking Questions**
+
+- "What should I investigate next?"
+- "What are the risks?"
+- "What concerns you about this code?"
+- "Suggest next steps"
+
+**Use when:** You want guidance on where to focus
+
+---
+
+## **EXPORT SYSTEM**
+
+### **Export Format Details**
+
+#### **JSON Export**
+
+```json
+{
+  "export_metadata": {
+    "version": "1.0",
+    "exported_at": "2026-02-05T18:20:30",
+    "format": "json",
+    "tool": "CodeMarshal"
+  },
+  "investigation": {
+    "id": "investigation_...",
+    "path": "/path/to/project",
+    "state": "presentation_complete"
+  },
+  "observations": [...],
+  "notes": [...],
+  "patterns": [...]
+}
+```
+
+**Best for:** Programmatic analysis, CI/CD integration, further processing
+
+#### **Markdown Export**
+
+```markdown
+# CodeMarshal Investigation Report
+
+**Exported:** 2026-02-05 18:20:31
+**Format:** Markdown
+
+---
+
+## Investigation Metadata
+
+- **ID:** investigation\_...
+- **Path:** /path/to/project
+- **State:** presentation_complete
+
+---
+
+## Observations Summary
+
+Total Observations: 1
+```
+
+**Best for:** Documentation, team sharing, README files
+
+#### **HTML Export**
+
+- Styled web page with tables
+- Responsive layout
+- Self-contained (no external dependencies)
+
+**Best for:** Presentations, web sharing, visual reports
+
+#### **Plaintext Export**
+
+- ASCII formatted text
+- Simple structure
+- Maximum compatibility
+
+**Best for:** Piping to other tools, terminal viewing
+
+---
+
+## **TUI (TEXT USER INTERFACE)**
+
+### **When to Use TUI**
+
+Use TUI when you want:
+
+- Interactive exploration
+- Guided investigation workflow
+- Real-time observation collection
+- Visual navigation
+
+### **TUI vs CLI Commands**
+
+| Feature        | CLI Commands              | TUI                    |
+| -------------- | ------------------------- | ---------------------- |
+| Speed          | Faster for specific tasks | Slower but more guided |
+| Automation     | Scriptable                | Interactive only       |
+| Exploration    | Command-based             | Visual navigation      |
+| Learning Curve | Steeper                   | More intuitive         |
+| Best For       | Repeated tasks, CI/CD     | Learning, exploration  |
+
+### **TUI States**
+
+1. **INITIAL** - Starting state
+2. **AWAITING_PATH** - Waiting for path input
+3. **OBSERVING** - Collecting observations
+4. **QUESTIONING** - Asking questions
+5. **PATTERN_ANALYSIS** - Analyzing patterns
+6. **NOTING** - Taking notes
+7. **EXPORTING** - Exporting results
+8. **REFUSING** - Error state
+9. **EXITING** - Shutting down
+
+---
+
+## **BOUNDARY CONFIGURATION**
+
+### **What Are Boundaries?**
+
+Boundaries enforce architectural rules:
+
+- Which layers can import from which
+- Cross-layer import restrictions
+- Module isolation
+
+### **Default Boundaries (agent_nexus.yaml)**
+
+Located at: `config/agent_nexus.yaml`
+
+**Layers:**
+
+1. **core_layer** - Independent (no imports)
+2. **bridge_layer** - Can access all layers
+3. **observations_layer** - Config only
+4. **inquiry_layer** - Core, observations, config, storage
+5. **lens_layer** - Core, observations, inquiry, config
+6. **storage_layer** - Config only
+7. **config_layer** - Independent
+8. **integrity_layer** - Core, bridge, observations, config
+
+### **Checking Boundary Violations**
+
+```bash
+# Observe with constitutional analysis
+codemarshal observe . --scope=module --constitutional
+
+# Query for violations
+codemarshal query <id> --question="Show me boundary violations" --question-type=anomalies
+```
+
+---
+
+## **EXAMPLES & WORKFLOWS**
+
+### **Example 1: New Developer Onboarding**
+
+```bash
+# Day 1: Understand structure
+codemarshal investigate . --scope=project --intent=initial_scan --name="Onboarding"
+# ID: investigation_123
+
+# Get overview
+codemarshal query investigation_123 --question="What is the directory structure?" --question-type=structure
+
+# Understand main components
+codemarshal query investigation_123 --question="What does the core module do?" --question-type=purpose
+codemarshal query investigation_123 --question="What does the bridge module do?" --question-type=purpose
+
+# Check dependencies
+codemarshal query investigation_123 --question="What are the main dependencies?" --question-type=connections
+
+# Export for reference
+codemarshal export investigation_123 --format=markdown --output=onboarding_guide.md --confirm-overwrite
+```
+
+### **Example 2: Architecture Review**
+
+```bash
+# Start comprehensive review
+codemarshal investigate . --scope=project --intent=architecture_review --name="Q1 Review"
+# ID: investigation_456
+
+# Check structure
+codemarshal query investigation_456 --question="What modules exist?" --question-type=structure
+
+# Analyze dependencies
+codemarshal query investigation_456 --question="Show circular dependencies" --question-type=connections
+
+# Find issues
+codemarshal query investigation_456 --question="Are there any anomalies?" --question-type=anomalies
+codemarshal query investigation_456 --question="Show me boundary violations" --question-type=anomalies
+
+# Get recommendations
+codemarshal query investigation_456 --question="What are the risks?" --question-type=thinking
+codemarshal query investigation_456 --question="What should we refactor first?" --question-type=thinking
+
+# Export full report
+codemarshal export investigation_456 --format=html --output=architecture_review.html --confirm-overwrite --include-notes --include-patterns
+```
+
+### **Example 3: Refactoring Preparation**
+
+```bash
+# Before refactoring core/engine.py
+codemarshal investigate ./core --scope=module --intent=dependency_analysis --name="Refactor Prep"
+# ID: investigation_789
+
+# What depends on it?
+codemarshal query investigation_789 --question="What depends on core/engine.py?" --question-type=connections
+
+# What does it depend on?
+codemarshal query investigation_789 --question="What does core/engine.py import?" --question-type=connections
+
+# Check for issues
+codemarshal query investigation_789 --question="Are there any anomalies in core/?" --question-type=anomalies
+
+# Export impact analysis
+codemarshal export investigation_789 --format=json --output=refactor_impact.json --confirm-overwrite
 ```
 
 ---
@@ -369,217 +768,108 @@ constitutional:
 
 ### **Common Issues**
 
-#### **"Cannot see this" Errors**
-```
-Problem: System reports it cannot observe certain files
-Solution: 
-1. Check file permissions
-2. Verify file is text-based (not binary)
-3. Check exclude patterns in config
-```
+#### **"Investigation not found"**
 
-#### **Investigation Too Slow**
-```
-Problem: Large codebase investigation is slow
-Solution:
-1. Use --depth to limit scope
-2. Exclude unnecessary directories
-3. Use targeted queries instead of full investigation
-```
-
-#### **Export Fails**
-```
-Problem: Export command fails
-Solution:
-1. Check output directory permissions
-2. Verify session ID exists
-3. Use --confirm-overwrite if file exists
-```
-
-#### **TUI Display Issues**
-```
-Problem: TUI display is garbled or unreadable
-Solution:
-1. Check terminal supports Unicode
-2. Try --no-color flag
-3. Verify terminal size (minimum 80x24)
-```
-
-### **Getting Help**
-
-#### **Built-in Help**
 ```bash
-# General help
-codemarshal --help
+# Problem: Investigation ID doesn't exist
+# Solution: Use the fallback - it will use most recent session
+codemarshal query any_id --question="..."  # Falls back to latest
 
-# Command-specific help
-codemarshal investigate --help
-codemarshal export --help
-codemarshal query --help
+# Or list investigations:
+ls storage/sessions/*.session.json
 ```
 
-#### **Constitutional Validation**
+#### **"No answer provided"**
+
 ```bash
-# Check system compliance
-python -m integrity.validation.complete_constitutional
-
-# Check network prohibition
-python -m integrity.prohibitions.network_prohibition
-
-# Check crash recovery
-python -m tests.crash_recovery
+# Problem: Query might not have data
+# Solution: Ensure you observed the path first
+codemarshal observe <path> --scope=module
+# Then query
 ```
 
----
+#### **Export file not created**
 
-## **BEST PRACTICES**
-
-### **Effective Investigation**
-
-#### **1. Start Broad, Then Focus**
-- Begin with directory structure
-- Identify key components
-- Dive deep into specific areas
-
-#### **2. Follow the Evidence**
-- Let observations guide your questions
-- Ground all patterns in evidence
-- Don't jump to conclusions
-
-#### **3. Document Your Thinking**
-- Take notes as you investigate
-- Link notes to specific evidence
-- Record your reasoning process
-
-#### **4. Use Progressive Disclosure**
-- One question at a time
-- Don't overwhelm yourself
-- Follow natural curiosity
-
-### **Team Collaboration**
-
-#### **Sharing Investigations**
 ```bash
-# Export for team review
-codemarshal export session_id --format=markdown --output=team_review.md
-
-# Share specific insights
-codemarshal query . "What are the main architectural decisions?" --output=decisions.json
+# Problem: Permission or path issue
+# Solution: Use --confirm-overwrite and check path
+codemarshal export <id> --format=json --output=./report.json --confirm-overwrite
 ```
 
-#### **Consistent Investigation**
-- Use consistent terminology
-- Follow established patterns
-- Document assumptions and constraints
+#### **TUI not available**
+
+```bash
+# Problem: windows-curses not installed
+# Solution:
+pip install windows-curses
+```
 
 ### **Performance Tips**
 
-#### **Large Codebases**
 ```bash
-# Limit investigation scope
-codemarshal investigate . --depth=3 --exclude="tests/**"
+# For large codebases, limit scope
+codemarshal investigate ./src --scope=package --confirm-large
 
-# Use targeted queries
-codemarshal query ./src "What are the main modules?"
+# Use targeted queries instead of full investigation
+codemarshal query <id> --question="What depends on X?" --focus=./src/core
 
-# Export incrementally
-codemarshal export latest --format=json --output=partial_results.json
-```
-
-#### **Memory Management**
-```bash
-# Configure memory limits
-export CODEMARSHAL_MAX_MEMORY=2GB
-
-# Use streaming for large exports
-codemarshal export latest --format=json --stream --output=large_export.json
+# Export only what you need
+codemarshal export <id> --format=json --output=minimal.json  # Without --include-notes
 ```
 
 ---
 
-## **ADVANCED FEATURES**
+## **CONSTITUTIONAL PRINCIPLES**
 
-### **Custom Patterns**
-```yaml
-# .codemarshal.yaml
-patterns:
-  custom_rules:
-    - name: "no_direct_db_access"
-      description: "Database access must go through data layer"
-      pattern: "import.*(sqlite3|psycopg2|mysql)"
-      confidence: "medium"
-    - name: "service_isolation"
-      description: "Services must not import each other directly"
-      pattern: "from services\\.(\\w+) import.*services\\.(?!\\1)"
-      confidence: "high"
-```
+CodeMarshal operates under strict principles:
 
-### **Integration Hooks**
-```python
-# Custom investigation hooks
-import codemarshal
+1. **Truth Preservation** - Only facts from source code
+2. **No Inference** - Never guesses or assumes
+3. **Human Primacy** - Your thinking, not AI interpretation
+4. **Immutable Observations** - Evidence never changes
+5. **Explicit Limitations** - Always shows what it cannot see
 
-@codemarshal.hook("pre_investigation")
-def before_investigation(path, context):
-    print(f"Starting investigation of: {path}")
-    return path, context
+### **What This Means**
 
-@codemarshal.hook("post_observation")
-def after_observation(evidence):
-    print(f"Collected {len(evidence)} observations")
-    return evidence
-```
+- ✅ CodeMarshal shows exactly what's in the code
+- ✅ It won't interpret or guess intent
+- ✅ You must draw your own conclusions
+- ✅ All answers are grounded in observations
+- ❌ It won't tell you "this is bad code"
+- ❌ It won't suggest fixes (except boundaries)
+- ❌ It won't make architectural decisions
 
 ---
 
-## **KEYBOARD SHORTCUTS**
+## **COMMAND REFERENCE CARD**
 
-### **TUI Navigation**
-```
-Arrow Keys: Navigate lists and menus
-Enter: Select item or dive deeper
-Tab: Switch between panels
-Esc: Go back or exit
-/: Search in current view
-n: Create new note
-q: Quick question mode
-h: Toggle help
-F1: Comprehensive help
-```
+# QUICK REFERENCE
 
-### **Search and Filter**
-```
-/: Open search bar
-Ctrl+F: Find in current view
-Ctrl+R: Recent investigations
-Ctrl+S: Save current state
-Ctrl+L: Clear filters
-```
+Investigate:
+codemarshal investigate <path> [--scope=level] [--intent=type] [--name=name]
 
----
+Observe:
+codemarshal observe <path> [--scope=level] [--constitutional]
 
-## **COMMUNITY AND SUPPORT**
+Query:
+codemarshal query <id> --question="..." --question-type=type
+Types: structure, connections, anomalies, purpose, thinking
 
-### **Getting Help**
-- **Documentation**: This guide and API documentation
-- **Examples**: `docs/examples/` directory
-- **Issues**: GitHub Issues for bug reports
-- **Discussions**: GitHub Discussions for questions
+Export:
+codemarshal export <id> --format=type --output=file [--confirm-overwrite]
+Formats: json, markdown, html, plain
 
-### **Contributing**
-- **Code**: Follow contribution guidelines
-- **Documentation**: Help improve this guide
-- **Tests**: Add test cases for edge cases
-- **Design**: Participate in architectural discussions
+TUI:
+codemarshal tui [--path=directory]
 
-### **Staying Updated**
-- **Releases**: Follow GitHub releases
-- **Roadmap**: Check project milestones
-- **Blog**: Follow development blog
-- **Community**: Join discussions and forums
+Help:
+codemarshal --help
+codemarshal <command> --help
 
 ---
 
-**User Guide Version: 0.1.0**  
-**Last Updated: January 16, 2026**  
-**Next Update: Based on user feedback and feature releases**
+**User Guide Version: 0.1.0**
+**Last Updated: February 5, 2026**
+**CodeMarshal Status: Production Ready**
+
+For updates and examples, see: <https://github.com/d4rkblade/codemarshal>

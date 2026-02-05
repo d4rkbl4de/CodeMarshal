@@ -93,6 +93,7 @@ class TruthPreservingTUI:
             category=ErrorCategory.UNCLASSIFIED,
             affected_component="TUI",
         )
+        self.exit_code = 0  # Initialize exit code
 
         # Allowed keybindings - explicit and minimal
         self.key_actions: dict[str, tuple[str, Callable]] = {
@@ -120,26 +121,29 @@ class TruthPreservingTUI:
         self.width: int = 0
         self.stdscr: Any | None = None
 
-    def run(self, initial_path: Path | None = None) -> None:
+    def run(self, initial_path: Path | None = None) -> int:
         """
         Main TUI entry point. Wraps curses initialization.
 
         Args:
             initial_path: Optional starting path from command line.
 
-        Raises:
-            SystemExit: When user quits or on critical error.
+        Returns:
+            Exit code (0 for success, 1 for error)
         """
+        self.exit_code = 0
         try:
             wrapper(self._main)
         except KeyboardInterrupt:
             # Respect user interrupt without dumping stack trace
-            sys.exit(0)
+            self.exit_code = 130  # Standard exit code for Ctrl+C
         except Exception as e:
             # Fall back to CLI with clear error
             print(f"TUI failed: {e}", file=sys.stderr)
             print("Falling back to CLI interface.", file=sys.stderr)
-            sys.exit(1)
+            self.exit_code = 1
+
+        return self.exit_code
 
     def _main(self, stdscr: Any) -> None:
         """Curses main loop with truth-preserving constraints."""
@@ -194,7 +198,8 @@ class TruthPreservingTUI:
         # Update navigation workflow
         if new_state != TUIState.INITIAL:
             self.context.workflow = self.workflow_nav.get_step(new_state.value)
-            self.context.current_step = self.context.workflow.current
+            if self.context.workflow:
+                self.context.current_step = self.context.workflow.current
 
     def _update_enabled_actions(self) -> None:
         """Enable only actions appropriate for current state."""
@@ -550,7 +555,102 @@ class TruthPreservingTUI:
             self._transition_to(TUIState.REFUSING)
             return
 
+        # Ask user what they want to know
         self._transition_to(TUIState.QUESTIONING)
+        question = self._request_text_input(
+            "What would you like to know? (e.g., 'What modules exist?', 'Show directory structure')",
+            "What modules exist?",
+        )
+
+        if question:
+            self._perform_query(question, "structure")
+
+    def _perform_query(self, question: str, question_type: str) -> None:
+        """Perform a query and display results."""
+        from bridge.entry.cli import CodeMarshalCLI
+
+        self.loading_indicator = LoadingIndicator.create_working(
+            "Querying...", with_timer=True
+        )
+        self._render()
+
+        try:
+            # Use the CLI's query functionality
+            cli = CodeMarshalCLI()
+
+            # Load session and observations
+            storage = cli._load_session_data(cli, None, self.context.investigation_id)
+            if not storage:
+                # Try to find any session
+                from storage.investigation_storage import InvestigationStorage
+
+                store = InvestigationStorage()
+                sessions_dir = Path("storage/sessions")
+                if sessions_dir.exists():
+                    for session_file in sessions_dir.glob("*.session.json"):
+                        import json
+
+                        with open(session_file, "r") as f:
+                            data = json.load(f)
+                            if data.get("id"):
+                                self.context.investigation_id = data.get("id")
+                                break
+
+            # Get observations
+            from storage.investigation_storage import InvestigationStorage
+
+            store = InvestigationStorage()
+            session_data = cli._load_session_data(store, self.context.investigation_id)
+
+            if session_data:
+                observations = cli._load_observations(store, session_data)
+                answer = cli._generate_answer(question, question_type, observations)
+                self._show_query_results(question, answer)
+            else:
+                self._show_temporary_message("No session data available for querying")
+
+        except Exception as e:
+            logger.error(f"Query failed: {e}")
+            self.context.last_error = f"Query failed: {str(e)}"
+            self._transition_to(TUIState.REFUSING)
+        finally:
+            self.loading_indicator = LoadingIndicator.create_idle()
+
+    def _show_query_results(self, question: str, answer: str) -> None:
+        """Display query results in the TUI."""
+        if not self.stdscr:
+            return
+
+        self._update_screen_dimensions()
+        self.stdscr.clear()
+        self._render_header()
+
+        # Title
+        title = "Query Results"
+        self._addstr_centered(4, title, curses.color_pair(5))
+
+        # Question
+        question_label = f"Q: {question}"
+        self._addstr_truncated(6, question_label, 2, curses.color_pair(2))
+
+        # Answer (scrollable)
+        lines = answer.split("\n")
+        y = 8
+        for i, line in enumerate(lines):
+            if y + i >= self.height - 5:
+                self._addstr_truncated(
+                    y + i - 1, "... (more content)", 2, curses.color_pair(3)
+                )
+                break
+            self._addstr_truncated(y + i, line, 2)
+
+        # Footer
+        self._addstr_truncated(
+            self.height - 3, "Press any key to continue...", 2, curses.color_pair(5)
+        )
+
+        self.stdscr.refresh()
+        self.stdscr.getch()
 
     def _handle_patterns(self) -> None:
         """Handle pattern analysis request."""
@@ -578,6 +678,82 @@ class TruthPreservingTUI:
             return
 
         self._transition_to(TUIState.EXPORTING)
+
+        # Ask for export format
+        format_choice = self._request_choice(
+            "Select export format:", ["json", "markdown", "html", "plain"], default=0
+        )
+
+        if not format_choice:
+            self._transition_to(TUIState.OBSERVING)
+            return
+
+        # Ask for output filename
+        default_name = (
+            f"investigation_{self.context.investigation_id[:8]}.{format_choice}"
+        )
+        filename = self._request_text_input("Enter output filename:", default_name)
+
+        if not filename:
+            self._transition_to(TUIState.OBSERVING)
+            return
+
+        # Perform export
+        self._perform_export(format_choice, filename)
+
+    def _perform_export(self, format_type: str, filename: str) -> None:
+        """Perform export operation."""
+        from bridge.entry.cli import CodeMarshalCLI
+        from pathlib import Path
+
+        self.loading_indicator = LoadingIndicator.create_working(
+            "Exporting...", with_timer=True
+        )
+        self._render()
+
+        try:
+            cli = CodeMarshalCLI()
+
+            # Load session data
+            from storage.investigation_storage import InvestigationStorage
+
+            store = InvestigationStorage()
+            session_data = cli._load_session_data(store, self.context.investigation_id)
+
+            if not session_data:
+                self._show_temporary_message("No session data available for export")
+                self._transition_to(TUIState.OBSERVING)
+                return
+
+            # Load observations
+            observations = cli._load_observations(store, session_data)
+
+            # Generate export content
+            output_path = Path(filename)
+            export_content = cli._generate_export_content(
+                format_type,
+                session_data,
+                observations,
+                include_notes=False,
+                include_patterns=False,
+            )
+
+            # Write to file
+            output_path.write_text(export_content, encoding="utf-8")
+
+            if output_path.exists():
+                self._show_temporary_message(
+                    f"✓ Export complete: {output_path.absolute()}"
+                )
+            else:
+                self._show_temporary_message("✗ Export failed: File was not created")
+
+        except Exception as e:
+            logger.error(f"Export failed: {e}")
+            self.context.last_error = f"Export failed: {str(e)}"
+            self._transition_to(TUIState.REFUSING)
+        finally:
+            self.loading_indicator = LoadingIndicator.create_idle()
 
     def _handle_confirm(self) -> None:
         """Handle confirmation."""
@@ -680,6 +856,97 @@ class TruthPreservingTUI:
         self.stdscr.refresh()
         self.stdscr.getch()
 
+    def _request_text_input(self, prompt: str, default: str = "") -> str | None:
+        """Request text input from user with optional default value."""
+        if not self.stdscr:
+            return None
+
+        self._update_screen_dimensions()
+        self.stdscr.clear()
+        self._render_header()
+
+        # Show prompt
+        self._addstr_truncated(4, prompt, 2, curses.color_pair(1))
+
+        if default:
+            self._addstr_truncated(5, f"Default: {default}", 2, curses.color_pair(5))
+
+        # Input box
+        box_y = 7
+        box_x = 2
+        box_w = max(20, min(self.width - 4, 120))
+        box_h = 3
+        win = curses.newwin(box_h, box_w, box_y, box_x)
+        win.border()
+        self.stdscr.refresh()
+        win.refresh()
+
+        editwin = win.derwin(1, box_w - 2, 1, 1)
+        tb = curses.textpad.Textbox(editwin)
+        curses.curs_set(1)
+        try:
+            raw = tb.edit().strip()
+        finally:
+            curses.curs_set(0)
+
+        if not raw and default:
+            return default
+        return raw if raw else None
+
+    def _request_choice(
+        self, prompt: str, options: list[str], default: int = 0
+    ) -> str | None:
+        """Request a choice from a list of options."""
+        if not self.stdscr:
+            return None
+
+        current_selection = default
+
+        while True:
+            self._update_screen_dimensions()
+            self.stdscr.clear()
+            self._render_header()
+
+            # Show prompt
+            self._addstr_truncated(4, prompt, 2, curses.color_pair(1))
+            self._addstr_truncated(
+                5,
+                "Use arrow keys to select, Enter to confirm, q to cancel",
+                2,
+                curses.color_pair(5),
+            )
+
+            # Show options
+            y = 7
+            for i, option in enumerate(options):
+                if i == current_selection:
+                    line = f"> {option}"
+                    self._addstr_truncated(
+                        y + i, line, 2, curses.color_pair(4)
+                    )  # Green for selected
+                else:
+                    line = f"  {option}"
+                    self._addstr_truncated(y + i, line, 2)
+
+            self.stdscr.refresh()
+
+            # Handle input
+            key = self.stdscr.getch()
+
+            if key == ord("\n") or key == ord("\r"):  # Enter
+                return options[current_selection]
+            elif key == ord("q") or key == 27:  # q or Escape
+                return None
+            elif key == curses.KEY_UP:
+                current_selection = max(0, current_selection - 1)
+            elif key == curses.KEY_DOWN:
+                current_selection = min(len(options) - 1, current_selection + 1)
+            elif ord("1") <= key <= ord("9"):
+                # Direct selection via number keys
+                idx = key - ord("1")
+                if idx < len(options):
+                    return options[idx]
+
     # Utility rendering methods
     def _addstr_centered(self, y: int, text: str, color: int = 0) -> None:
         """Add centered string to screen."""
@@ -721,32 +988,32 @@ class TruthPreservingTUI:
             pass  # Ignore cursor position errors at screen edges
 
 
-def launch_tui(initial_path: Path | None = None) -> None:
+def launch_tui(initial_path: Path | None = None) -> int:
     """
     Public entry point for TUI launch.
 
     Args:
         initial_path: Optional starting path.
 
-    Raises:
-        SystemExit: On quit or error.
+    Returns:
+        Exit code (0 for success, 1 for error, 130 for interrupt)
     """
     if not TUI_AVAILABLE:
         print(
             "TUI requires curses library. On Windows install: pip install windows-curses",
             file=sys.stderr,
         )
-        sys.exit(1)
+        return 1
 
     try:
         tui = TruthPreservingTUI()
         if initial_path:
             tui.context.current_path = initial_path
-        tui.run(initial_path)
+        return tui.run(initial_path)
     except Exception as e:
         logger.error(f"TUI launch failed: {e}")
         print(f"Failed to launch TUI: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
 
 if __name__ == "__main__":

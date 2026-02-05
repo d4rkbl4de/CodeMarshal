@@ -1,0 +1,19 @@
+{
+  "id": "ee7955e7-31e8-52b6-976e-b15316cb3741",
+  "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal",
+  "created_at": "2026-02-04T15:05:15.024891+00:00",
+  "state": "presentation_complete",
+  "observation_ids": [
+    "obs_f997b1787618beed"
+  ],
+  "question_ids": [
+    "q_35647d14566a9f1f"
+  ],
+  "pattern_ids": [
+    "p_272dba3f0e48f18c"
+  ],
+  "completed_at": "2026-02-04T21:07:21.008362",
+  "saved_at": "2026-02-04T21:07:21.008362",
+  "storage_version": "1.0",
+  "checksum": "b879c874ab37c4366323e4276f012ea3fb0e4453d38fdb4b335f31a90bef6d8d"
+}

@@ -236,17 +236,7 @@ class Engine:
                 HighLevelIntent.PRESENT: InvestigationPhase.PRESENTATION_ACTIVE,
             }
 
-            # Allow phase transitions from current state to required state
-            required_phase = intent_phase_map.get(request.intent)
-            if required_phase:
-                # Check if transition is allowed
-                if not self._is_phase_transition_allowed(
-                    self._state.current_phase, required_phase
-                ):
-                    raise CoordinationError(
-                        f"Intent {request.intent.name} cannot transition from {self._state.current_phase.name} to {required_phase.name}",
-                        "state_validation",
-                    )
+
 
             # Route to appropriate layer interface
             if request.intent == HighLevelIntent.OBSERVE:

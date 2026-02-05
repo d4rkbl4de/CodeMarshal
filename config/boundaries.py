@@ -146,14 +146,33 @@ class BoundaryConfigLoader:
             boundary_type_str.lower(), BoundaryType.CUSTOM
         )
 
+        # Support both 'pattern' (singular) and 'patterns' (list)
         pattern = data.get("pattern", "")
-        if not pattern:
-            raise ValueError(f"Boundary '{name}' must have a 'pattern' field")
+        patterns = data.get("patterns", [])
+
+        if patterns:
+            # If patterns list is provided, use the first one as primary
+            # and store the rest as additional patterns in description
+            if not pattern:
+                pattern = patterns[0]
+            additional = patterns[1:] if len(patterns) > 1 else []
+        elif not pattern:
+            raise ValueError(
+                f"Boundary '{name}' must have a 'pattern' or 'patterns' field"
+            )
+        else:
+            additional = []
 
         description = data.get("description", "")
 
-        # Parse allowed_targets
-        allowed_targets = data.get("allowed_targets", [])
+        # Add additional patterns to description for reference
+        if additional:
+            description = (
+                f"{description} (Additional patterns: {', '.join(additional)})".strip()
+            )
+
+        # Parse allowed_targets (from allowed_imports in config)
+        allowed_targets = data.get("allowed_targets", data.get("allowed_imports", []))
         if not isinstance(allowed_targets, list):
             allowed_targets = [str(allowed_targets)]
 

@@ -30,29 +30,44 @@ from .base import (
     validate_eye_purity,
 )
 from .boundary_sight import (
+    BoundaryDefinition,
+    BoundaryObservation,
     BoundarySight,
+    BoundaryType,
     create_layer_boundary,
     create_package_boundary,
     observe_boundaries,
 )
 from .encoding_sight import (
-    EncodingSight,
     check_line_endings,
     detect_encoding,
+    EncodingConfidence,
+    EncodingObservation,
+    EncodingSight,
+    LineEndingType,
 )
 from .export_sight import (
+    DefinitionType,
+    ExportDefinition,
     ExportSight,
+    ModuleExports,
     observe_exports,
+    Visibility,
 )
 
 # Import all concrete eyes
 from .file_sight import (
+    DirectoryTree,
+    FileMetadata,
     FileSight,
     observe_directory,
     observe_file,
+    TraversalConfig,
 )
 from .import_sight import (
+    ImportObservation,
     ImportSight,
+    ImportStatement,
     observe_imports,
 )
 
@@ -525,9 +540,28 @@ __all__ = [
     "observe_boundaries",
     "detect_encoding",
     "check_line_endings",
-    # Boundary helpers
+    # Boundary helpers and types
+    "BoundaryDefinition",
+    "BoundaryObservation",
+    "BoundaryType",
     "create_layer_boundary",
     "create_package_boundary",
+    # Export helpers and types
+    "DefinitionType",
+    "ExportDefinition",
+    "ModuleExports",
+    "Visibility",
+    # File sight types
+    "DirectoryTree",
+    "FileMetadata",
+    "TraversalConfig",
+    # Encoding sight types
+    "EncodingConfidence",
+    "EncodingObservation",
+    "LineEndingType",
+    # Import sight types
+    "ImportObservation",
+    "ImportStatement",
 ]
 
 

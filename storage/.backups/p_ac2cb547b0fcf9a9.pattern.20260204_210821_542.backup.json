@@ -1,0 +1,23 @@
+{
+  "id": "p_ac2cb547b0fcf9a9",
+  "data": {
+    "patterns": [
+      {
+        "type": "file_count",
+        "value": 10,
+        "unit": "files"
+      },
+      {
+        "type": "directory_count",
+        "value": 1,
+        "unit": "directories"
+      }
+    ],
+    "summary": "Numeric patterns extracted from observations"
+  },
+  "phase": "patterns_complete",
+  "timestamp": "2026-02-04T20:57:28.656521",
+  "session_id": "d30a9687-0a08-5809-a3ec-0047bd7b9d97",
+  "type": "numeric_pattern",
+  "checksum": "0e2ee8ad5c29e99aa2860995010c1ddb948b0203113a5ac6809277ba5c4eedb5"
+}

@@ -28,6 +28,7 @@ keywords = ["code-analysis", "investigation", "documentation", "architecture"]
 requires-python = ">=3.11"
 dependencies = [
     "typing-extensions>=4.8.0",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -124,4 +125,26 @@ select = [
 ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (slower, test interactions)",
+    "e2e: End-to-end tests (full workflow)",
+    "slow: Slow tests (skip with -m 'not slow')",
+    "tui: Tests requiring TUI/curses",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
 ]

@@ -305,7 +305,7 @@ class HashTree:
         self,
         items: list[Any],
         algorithm: HashAlgorithm = HashAlgorithm.default(),
-        hash_func: callable | None = None,
+        hash_func: Optional[callable] = None,
     ):
         """
         Build a Merkle tree from items.
