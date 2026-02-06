@@ -66,7 +66,7 @@ LIMITATION DECLARATIONS:
 - No automatic fix generation
 """
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 
 class ThinkingEngine:
@@ -166,7 +166,7 @@ class ThinkingEngine:
         """Initialize the ThinkingEngine."""
         pass
 
-    def analyze(self, observations: List[Dict[str, Any]], question: str) -> str:
+    def analyze(self, observations: list[dict[str, Any]], question: str) -> str:
         """
         Analyze observations and generate thoughtful answers.
 
@@ -191,7 +191,7 @@ class ThinkingEngine:
         else:
             return self._general_analysis(observations)
 
-    def _suggest_next_steps(self, observations: List[Dict[str, Any]]) -> str:
+    def _suggest_next_steps(self, observations: list[dict[str, Any]]) -> str:
         """
         Suggest what to investigate next based on observations.
 
@@ -204,7 +204,7 @@ class ThinkingEngine:
         Returns:
             str: Prioritized list of suggestions.
         """
-        suggestions: List[Dict[str, Any]] = []
+        suggestions: list[dict[str, Any]] = []
 
         # Check for boundary violations
         boundary_violations = 0
@@ -245,8 +245,8 @@ class ThinkingEngine:
             )
 
         # Check for orphan files
-        files_with_imports: Set[str] = set()
-        all_files: Set[str] = set()
+        files_with_imports: set[str] = set()
+        all_files: set[str] = set()
 
         for obs in observations:
             if obs.get("type") == "file_sight":
@@ -291,7 +291,7 @@ Consider investigating:
 """
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             "Suggested Next Steps:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -315,7 +315,7 @@ Consider investigating:
 
         return "\n".join(lines)
 
-    def _identify_risks(self, observations: List[Dict[str, Any]]) -> str:
+    def _identify_risks(self, observations: list[dict[str, Any]]) -> str:
         """
         Identify potential risks in the codebase.
 
@@ -328,7 +328,7 @@ Consider investigating:
         Returns:
             str: Risk assessment with severity and mitigations.
         """
-        risks: List[Dict[str, Any]] = []
+        risks: list[dict[str, Any]] = []
 
         # Risk 1: Boundary violations
         boundary_count = 0
@@ -404,7 +404,7 @@ Continue monitoring as the codebase evolves.
 """
 
         # Build formatted output
-        lines: List[str] = ["Risk Assessment:", "=" * self._SECTION_SEPARATOR_LENGTH]
+        lines: list[str] = ["Risk Assessment:", "=" * self._SECTION_SEPARATOR_LENGTH]
 
         for i, risk in enumerate(risks, 1):
             lines.append(f"\n{i}. [{risk['level']}] {risk['risk']}")
@@ -414,7 +414,7 @@ Continue monitoring as the codebase evolves.
 
         return "\n".join(lines)
 
-    def _general_analysis(self, observations: List[Dict[str, Any]]) -> str:
+    def _general_analysis(self, observations: list[dict[str, Any]]) -> str:
         """
         Provide general thoughtful analysis.
 
@@ -428,7 +428,7 @@ Continue monitoring as the codebase evolves.
             str: General analysis with observations and recommendations.
         """
         # Gather statistics
-        stats: Dict[str, int] = {
+        stats: dict[str, int] = {
             "total_observations": len(observations),
             "files": 0,
             "imports": 0,
@@ -450,7 +450,7 @@ Continue monitoring as the codebase evolves.
                 stats["violations"] += len(obs.get("crossings", []))
 
         # Build output
-        lines: List[str] = [
+        lines: list[str] = [
             "Thoughtful Analysis:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
             f"Based on {stats['total_observations']} observations:",
@@ -487,7 +487,7 @@ Continue monitoring as the codebase evolves.
 
         return "\n".join(lines)
 
-    def _calculate_health_score(self, stats: Dict[str, int]) -> int:
+    def _calculate_health_score(self, stats: dict[str, int]) -> int:
         """
         Calculate a simple health score for the codebase.
 

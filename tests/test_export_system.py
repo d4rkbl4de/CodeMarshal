@@ -222,7 +222,7 @@ class TestExportCLIIntegration:
             ("plaintext", "plain"),
         ]
 
-        for input_fmt, expected_behavior in variations:
+        for input_fmt, _ in variations:
             try:
                 content = cli._generate_export_content(
                     input_fmt, session_data, observations, False, False

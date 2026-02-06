@@ -590,7 +590,7 @@ class TruthPreservingTUI:
                     for session_file in sessions_dir.glob("*.session.json"):
                         import json
 
-                        with open(session_file, "r") as f:
+                        with open(session_file) as f:
                             data = json.load(f)
                             if data.get("id"):
                                 self.context.investigation_id = data.get("id")
@@ -703,8 +703,9 @@ class TruthPreservingTUI:
 
     def _perform_export(self, format_type: str, filename: str) -> None:
         """Perform export operation."""
-        from bridge.entry.cli import CodeMarshalCLI
         from pathlib import Path
+
+        from bridge.entry.cli import CodeMarshalCLI
 
         self.loading_indicator = LoadingIndicator.create_working(
             "Exporting...", with_timer=True

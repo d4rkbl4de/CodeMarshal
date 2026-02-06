@@ -9,10 +9,7 @@ from pathlib import Path
 import pytest
 
 from config.boundaries import (
-    BoundaryConfig,
-    BoundaryConfigLoader,
     load_boundary_config,
-    find_config_file,
 )
 from observations.boundary_checker import (
     Boundary,
@@ -110,7 +107,7 @@ class TestBoundaryMatcher:
 
         # Test external path
         external_path = Path("/usr/lib/python/os.py")
-        boundary = matcher.find_boundary(external_path)
+        _ = matcher.find_boundary(external_path)
         # External paths may or may not match depending on patterns
 
     def test_pattern_matching(self):
@@ -125,8 +122,8 @@ class TestBoundaryMatcher:
         matcher = BoundaryMatcher(boundaries)
 
         # Test with paths that should match the regex patterns
-        result1 = matcher.find_boundary(Path("core/file.py"))
-        result2 = matcher.find_boundary(Path("bridge/file.py"))
+        _ = matcher.find_boundary(Path("core/file.py"))
+        _ = matcher.find_boundary(Path("bridge/file.py"))
         # Results may vary based on pattern compilation, test runs without error
 
 

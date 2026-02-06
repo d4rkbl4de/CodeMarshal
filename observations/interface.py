@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from core.context import RuntimeContext
 from core.engine import CoordinationRequest, CoordinationResult, ObservationInterface
 
 # Memory monitoring integration
@@ -20,7 +21,6 @@ from .eyes import get_eye
 from .eyes.boundary_sight import BoundaryDefinition, BoundarySight
 
 
-from core.context import RuntimeContext
 # ...
 class MinimalObservationInterface(ObservationInterface):
     """Minimal implementation of ObservationInterface to enable engine execution."""

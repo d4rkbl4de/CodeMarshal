@@ -6,7 +6,7 @@ Tests TUI initialization, state management, and functionality.
 
 import pytest
 
-from bridge.entry.tui import TruthPreservingTUI, TUIState, TUI_AVAILABLE
+from bridge.entry.tui import TUI_AVAILABLE, TruthPreservingTUI, TUIState
 
 
 @pytest.mark.skipif(not TUI_AVAILABLE, reason="curses not available")
@@ -186,7 +186,7 @@ class TestTUIExitCodes:
         # We can't actually run the TUI in tests, but we can verify the method signature
         import inspect
 
-        sig = inspect.signature(tui.run)
+        _ = inspect.signature(tui.run)
         # Check that the method exists and has the right signature
         assert callable(tui.run)
 

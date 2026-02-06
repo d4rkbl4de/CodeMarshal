@@ -18,20 +18,16 @@ from bridge.commands import (
     ExportType,
     ObservationRequest,
     ObservationType,
-    QueryRequest,
 )
-from bridge.commands import execute_export as export
 
 # Only allowed imports per constitutional constraints
 from bridge.commands import execute_investigation as investigate
 from bridge.commands import execute_observation as observe
-from bridge.commands import execute_query as query
 from bridge.commands.investigate import (
     InvestigationRequest,
     InvestigationScope,
     InvestigationType,
 )
-from bridge.commands.query import QueryType, QuestionName
 from core.engine import Engine
 from core.runtime import ExecutionMode, Runtime, RuntimeConfiguration
 from inquiry.session.context import QuestionType, SessionContext
@@ -736,7 +732,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
         # Try to find session file by investigation_id
         for session_file in sessions_dir.glob("*.session.json"):
             try:
-                with open(session_file, "r") as f:
+                with open(session_file) as f:
                     data = json.load(f)
                     # Check if this is the right session
                     if data.get("id") == investigation_id:
@@ -754,7 +750,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
 
         for session_file in sessions_dir.glob("*.session.json"):
             try:
-                with open(session_file, "r") as f:
+                with open(session_file) as f:
                     data = json.load(f)
                     # Get timestamp from created_at
                     created_at = data.get("created_at", "")
@@ -802,7 +798,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             obs_file = observations_dir / f"{obs_id}.observation.json"
             if obs_file.exists():
                 try:
-                    with open(obs_file, "r") as f:
+                    with open(obs_file) as f:
                         data = json.load(f)
                         # Extract the actual observation data from the nested structure
                         if "data" in data and isinstance(data["data"], dict):
@@ -833,10 +829,10 @@ The TUI provides a single-focus, truth-preserving investigation interface.
     ) -> str:
         """Generate answer using appropriate analyzer."""
         from inquiry.answers import (
-            StructureAnalyzer,
-            ConnectionMapper,
             AnomalyDetector,
+            ConnectionMapper,
             PurposeExtractor,
+            StructureAnalyzer,
             ThinkingEngine,
         )
 
@@ -893,8 +889,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
                 and args.path.is_dir()
                 else Path(".").absolute(),
             )
-            runtime = Runtime(config=config)
-            # Validate investigation ID format (investigation_timestamp_hash)
+            Runtime(config=config)
             if not str(args.investigation_id).startswith(
                 "investigation_"
             ) or "_" not in str(args.investigation_id):
@@ -918,7 +913,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
                 question_type=QuestionType.STRUCTURE,
                 context_id=uuid.uuid4(),
             )
-            nav_context = create_navigation_context(
+            create_navigation_context(
                 session_context=session_context,
                 workflow_stage=WorkflowStage.ORIENTATION,
                 focus_type=FocusType.SYSTEM,
@@ -937,7 +932,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
                 self._refuse(f"Unsupported export format: {args.format}")
                 return 1
 
-            req = ExportRequest(
+            ExportRequest(
                 type=ExportType.SESSION,
                 format=export_format,
                 session_id=str(session_uuid),
@@ -1033,7 +1028,6 @@ The TUI provides a single-focus, truth-preserving investigation interface.
         include_patterns: bool = False,
     ) -> str:
         """Generate export content in the specified format."""
-        from datetime import datetime
 
         if format_type.lower() == "json":
             return self._generate_json_export(
@@ -1098,7 +1092,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             "# CodeMarshal Investigation Report",
             "",
             f"**Exported:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"**Format:** Markdown",
+            "**Format:** Markdown",
             "",
             "---",
             "",
@@ -1209,13 +1203,11 @@ The TUI provides a single-focus, truth-preserving investigation interface.
 <body>
     <div class="container">
         <h1>CodeMarshal Investigation Report</h1>
-        
         <div class="metadata">
             <p><strong>Exported:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
             <p><strong>Format:</strong> HTML</p>
             <p><strong>Investigation ID:</strong> {session_data.get("id", "Unknown")}</p>
         </div>
-        
         <h2>Investigation Details</h2>
         <table>
             <tr><th>Property</th><th>Value</th></tr>
@@ -1224,7 +1216,6 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             <tr><td>State</td><td>{session_data.get("state", "Unknown")}</td></tr>
             <tr><td>Created</td><td>{session_data.get("created_at", "Unknown")}</td></tr>
         </table>
-        
         <h2>Observations</h2>
         <p>Total Observations: {len(observations)}</p>
 """
@@ -1288,7 +1279,7 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             "=" * 70,
             "",
             f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"Format: Plain Text",
+            "Format: Plain Text",
             "",
             "-" * 70,
             "INVESTIGATION DETAILS",

@@ -68,7 +68,7 @@ When purpose cannot be confidently inferred:
 - Does not fabricate descriptions
 """
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 
 class PurposeExtractor:
@@ -159,7 +159,7 @@ class PurposeExtractor:
         """Initialize the PurposeExtractor."""
         pass
 
-    def analyze(self, observations: List[Dict[str, Any]], question: str) -> str:
+    def analyze(self, observations: list[dict[str, Any]], question: str) -> str:
         """
         Analyze observations and generate an answer to a purpose question.
 
@@ -187,7 +187,7 @@ class PurposeExtractor:
             # General purpose summary
             return self._get_general_purpose(observations)
 
-    def _extract_target(self, question: str) -> Optional[str]:
+    def _extract_target(self, question: str) -> str | None:
         """
         Extract the target module/file from the question.
 
@@ -221,7 +221,7 @@ class PurposeExtractor:
 
         return None
 
-    def _describe_target(self, observations: List[Dict[str, Any]], target: str) -> str:
+    def _describe_target(self, observations: list[dict[str, Any]], target: str) -> str:
         """
         Describe the purpose of a specific target.
 
@@ -236,8 +236,8 @@ class PurposeExtractor:
             str: Detailed purpose analysis.
         """
         # Collect exports and imports
-        exports: List[str] = []
-        imports: List[str] = []
+        exports: list[str] = []
+        imports: list[str] = []
 
         for obs in observations:
             obs_file = obs.get("file", "")
@@ -260,7 +260,7 @@ class PurposeExtractor:
                                 imports.append(module)
 
         # Build output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Analysis of '{target}':",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -305,7 +305,7 @@ class PurposeExtractor:
 
         return "\n".join(lines)
 
-    def _get_general_purpose(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_general_purpose(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate general purpose summary of the codebase.
 
@@ -337,7 +337,7 @@ class PurposeExtractor:
                 total_imports += len(statements)
 
         # Build output
-        lines: List[str] = [
+        lines: list[str] = [
             "Codebase Purpose Summary:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
             f"Total Public Exports: {total_exports}",
@@ -369,7 +369,7 @@ class PurposeExtractor:
 
         return "\n".join(lines)
 
-    def _categorize_module_type(self, exports: List[str], imports: List[str]) -> str:
+    def _categorize_module_type(self, exports: list[str], imports: list[str]) -> str:
         """
         Categorize module type based on exports and imports.
 
@@ -398,7 +398,7 @@ class PurposeExtractor:
         else:
             return "Simple module (focused functionality)"
 
-    def _analyze_export_patterns(self, exports: List[str]) -> Dict[str, int]:
+    def _analyze_export_patterns(self, exports: list[str]) -> dict[str, int]:
         """
         Analyze patterns in export names.
 
@@ -434,7 +434,7 @@ class PurposeExtractor:
         return patterns
 
     def _get_module_complexity_indicator(
-        self, exports: List[str], imports: List[str]
+        self, exports: list[str], imports: list[str]
     ) -> str:
         """
         Generate complexity indicator based on exports and imports.
@@ -489,7 +489,7 @@ class PurposeExtractor:
             return f"{name} (function)"
 
     def _calculate_coupling_ratio(
-        self, exports: List[str], imports: List[str]
+        self, exports: list[str], imports: list[str]
     ) -> float:
         """
         Calculate coupling ratio for a module.

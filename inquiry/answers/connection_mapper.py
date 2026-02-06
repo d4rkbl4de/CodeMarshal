@@ -63,8 +63,7 @@ OUTPUT FORMAT:
 - Statistical summaries
 """
 
-from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple, Optional
+from typing import Any
 
 
 class ConnectionMapper:
@@ -159,7 +158,7 @@ class ConnectionMapper:
         # Reserved for future extensions
         pass
 
-    def analyze(self, observations: List[Dict[str, Any]], question: str) -> str:
+    def analyze(self, observations: list[dict[str, Any]], question: str) -> str:
         """
         Analyze observations and generate an answer to a connection question.
 
@@ -256,7 +255,7 @@ class ConnectionMapper:
             # - "Describe the dependency graph"
             return self._get_dependency_graph_summary(observations)
 
-    def _extract_target_module(self, question: str) -> Optional[str]:
+    def _extract_target_module(self, question: str) -> str | None:
         """
         Extract module name from question text.
 
@@ -303,7 +302,7 @@ class ConnectionMapper:
 
         # Define patterns to check
         # Order matters: check more specific patterns first
-        patterns: List[str] = [
+        patterns: list[str] = [
             "depends on ",
             "depend on ",
             "imports ",
@@ -324,8 +323,8 @@ class ConnectionMapper:
                     target = target.rstrip("?.!;:,").strip()
 
                     # Remove common suffixes
-                    target = target.rstrip(" import").strip()
-                    target = target.rstrip(" depend").strip()
+                    target = target.replace(" import", "").strip()
+                    target = target.replace(" depend", "").strip()
 
                     # Return cleaned target
                     return target if target else None
@@ -334,7 +333,7 @@ class ConnectionMapper:
         return None
 
     def _find_dependents(
-        self, observations: List[Dict[str, Any]], target_module: str
+        self, observations: list[dict[str, Any]], target_module: str
     ) -> str:
         """
         Find all modules that import the target module.
@@ -370,7 +369,7 @@ class ConnectionMapper:
                   • tests/test_engine.py
         """
         # Track dependents (files that import the target)
-        dependents: List[str] = []
+        dependents: list[str] = []
 
         # Scan all observations for import references
         for obs in observations:
@@ -397,7 +396,7 @@ class ConnectionMapper:
             return f"No modules found that depend on: {target_module}"
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Modules that depend on '{target_module}': {len(dependents)}",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -414,7 +413,7 @@ class ConnectionMapper:
         return "\n".join(lines)
 
     def _find_imports_of_module(
-        self, observations: List[Dict[str, Any]], target_module: str
+        self, observations: list[dict[str, Any]], target_module: str
     ) -> str:
         """
         Find what a specific module imports.
@@ -451,7 +450,7 @@ class ConnectionMapper:
                   • config.loader
         """
         # Track imports found
-        imports_found: List[str] = []
+        imports_found: list[str] = []
 
         # Convert module path notation for matching
         # "core.engine" → "core/engine"
@@ -484,7 +483,7 @@ class ConnectionMapper:
             return f"No imports found for module: {target_module}"
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Imports in '{target_module}': {len(imports_found)}",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -495,7 +494,7 @@ class ConnectionMapper:
 
         return "\n".join(lines)
 
-    def _get_all_imports_summary(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_all_imports_summary(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate summary of all imports found in observations.
 
@@ -519,7 +518,7 @@ class ConnectionMapper:
             str: Formatted summary with import statistics.
         """
         # Build import map: file -> list of imported modules
-        all_imports: Dict[str, List[str]] = {}
+        all_imports: dict[str, list[str]] = {}
         total_imports: int = 0
 
         for obs in observations:
@@ -538,13 +537,13 @@ class ConnectionMapper:
                             total_imports += 1
 
         # Calculate import frequencies
-        import_counts: Dict[str, int] = {}
+        import_counts: dict[str, int] = {}
         for imports in all_imports.values():
             for imp in imports:
                 import_counts[imp] = import_counts.get(imp, 0) + 1
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Import Summary: {total_imports} imports across {len(all_imports)} files",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -560,7 +559,7 @@ class ConnectionMapper:
 
         return "\n".join(lines)
 
-    def _find_circular_dependencies(self, observations: List[Dict[str, Any]]) -> str:
+    def _find_circular_dependencies(self, observations: list[dict[str, Any]]) -> str:
         """
         Detect circular import dependencies using DFS.
 
@@ -593,7 +592,7 @@ class ConnectionMapper:
                 indicating no cycles found.
         """
         # Build dependency graph as adjacency list
-        graph: Dict[str, Set[str]] = {}
+        graph: dict[str, set[str]] = {}
 
         for obs in observations:
             if obs.get("type") == "import_sight":
@@ -612,11 +611,11 @@ class ConnectionMapper:
                             graph[file_path].add(potential_path)
 
         # Find cycles using DFS
-        cycles: List[List[str]] = []
-        visited: Set[str] = set()
-        rec_stack: Set[str] = set()
+        cycles: list[list[str]] = []
+        visited: set[str] = set()
+        rec_stack: set[str] = set()
 
-        def dfs(node: str, path: List[str]) -> None:
+        def dfs(node: str, path: list[str]) -> None:
             """Depth-first search helper for cycle detection."""
             visited.add(node)
             rec_stack.add(node)
@@ -643,7 +642,7 @@ class ConnectionMapper:
             return "No circular dependencies detected."
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Circular Dependencies Found: {len(cycles)}",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -664,7 +663,7 @@ class ConnectionMapper:
 
         return "\n".join(lines)
 
-    def _get_dependency_graph_summary(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_dependency_graph_summary(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate a summary of the dependency graph.
 
@@ -684,7 +683,7 @@ class ConnectionMapper:
             str: Formatted dependency graph summary.
         """
         # Initialize statistics
-        stats: Dict[str, Any] = {
+        stats: dict[str, Any] = {
             "total_imports": 0,
             "unique_modules": set(),
             "files_with_imports": 0,
@@ -704,7 +703,7 @@ class ConnectionMapper:
                             stats["unique_modules"].add(module)
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             "Dependency Graph Summary:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
             f"Files with imports: {stats['files_with_imports']}",
@@ -716,7 +715,7 @@ class ConnectionMapper:
         if stats["unique_modules"]:
             lines.append("\nTop imported modules:")
             # Count occurrences
-            module_counts: Dict[str, int] = {}
+            module_counts: dict[str, int] = {}
             for obs in observations:
                 if obs.get("type") == "import_sight":
                     for stmt in obs.get("statements", []):
@@ -734,8 +733,8 @@ class ConnectionMapper:
         return "\n".join(lines)
 
     def _build_dependency_graph(
-        self, observations: List[Dict[str, Any]]
-    ) -> Dict[str, Set[str]]:
+        self, observations: list[dict[str, Any]]
+    ) -> dict[str, set[str]]:
         """
         Build a dependency graph from observations.
 
@@ -751,7 +750,7 @@ class ConnectionMapper:
         Note: Currently unused but available for future extensions
         that need graph operations.
         """
-        graph: Dict[str, Set[str]] = {}
+        graph: dict[str, set[str]] = {}
 
         for obs in observations:
             if obs.get("type") == "import_sight":

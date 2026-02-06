@@ -4,12 +4,11 @@ Test suite for CodeMarshal query answering system.
 Tests all question types and analyzers to ensure they work correctly.
 """
 
-import pytest
 from inquiry.answers import (
-    StructureAnalyzer,
-    ConnectionMapper,
     AnomalyDetector,
+    ConnectionMapper,
     PurposeExtractor,
+    StructureAnalyzer,
     ThinkingEngine,
 )
 

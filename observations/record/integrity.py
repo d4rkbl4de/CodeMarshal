@@ -18,7 +18,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 # Type-only imports to avoid circular dependencies
 from typing import TYPE_CHECKING, Any, Optional
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 # ============================================================================
 
 
-class HashAlgorithm(str, Enum):
+class HashAlgorithm(StrEnum):
     """Supported hash algorithms."""
 
     SHA256 = "sha256"  # Default - cryptographically strong, widely used
@@ -305,7 +305,7 @@ class HashTree:
         self,
         items: list[Any],
         algorithm: HashAlgorithm = HashAlgorithm.default(),
-        hash_func: Optional[callable] = None,
+        hash_func: callable | None = None,
     ):
         """
         Build a Merkle tree from items.
@@ -791,7 +791,7 @@ def verify_snapshot_against_root(
 # ============================================================================
 
 
-class CorruptionType(str, Enum):
+class CorruptionType(StrEnum):
     """Types of corruption that can be detected."""
 
     HASH_MISMATCH = "hash_mismatch"

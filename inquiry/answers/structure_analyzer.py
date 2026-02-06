@@ -52,7 +52,7 @@ OUTPUT FORMAT:
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 
 class StructureAnalyzer:
@@ -150,7 +150,7 @@ class StructureAnalyzer:
         # Reserved for future extensions
         pass
 
-    def analyze(self, observations: List[Dict[str, Any]], question: str) -> str:
+    def analyze(self, observations: list[dict[str, Any]], question: str) -> str:
         """
         Analyze observations and generate an answer to a structure question.
 
@@ -233,7 +233,7 @@ class StructureAnalyzer:
             # Example: "What's here?" or "Show me what exists"
             return self._get_general_structure(observations)
 
-    def _get_directory_structure(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_directory_structure(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate directory structure summary from observations.
 
@@ -295,7 +295,7 @@ class StructureAnalyzer:
         total_dirs: int = 0
         """Running count of directories from all observations."""
 
-        paths_observed: List[str] = []
+        paths_observed: list[str] = []
         """List to track unique paths observed (for deduplication)."""
 
         # Iterate through all observations
@@ -336,7 +336,7 @@ class StructureAnalyzer:
 
         # Build formatted output
         # Use list for efficient string building
-        lines: List[str] = [
+        lines: list[str] = [
             "Directory Structure Summary:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
             f"Total Files: {total_files}",
@@ -359,7 +359,7 @@ class StructureAnalyzer:
         # Join all lines with newline characters
         return "\n".join(lines)
 
-    def _get_modules_list(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_modules_list(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate list of Python modules from observations.
 
@@ -422,13 +422,13 @@ class StructureAnalyzer:
         - Deduplication via set() for efficiency
         """
         # Initialize tracking structures
-        modules: List[str] = []
+        modules: list[str] = []
         """List to accumulate module names before deduplication."""
 
         total_files: int = 0
         """Count from summary observations."""
 
-        paths: List[str] = []
+        paths: list[str] = []
         """Paths where observations were made."""
 
         # Process each observation
@@ -462,7 +462,7 @@ class StructureAnalyzer:
         # Check if we only have summary data (counts but no details)
         if not modules and total_files > 0:
             # Return informative message about limitation
-            lines: List[str] = [
+            lines: list[str] = [
                 "Python Modules Information:",
                 "=" * self._SECTION_SEPARATOR_LENGTH,
                 f"Total Files Observed: {total_files}",
@@ -479,7 +479,7 @@ class StructureAnalyzer:
             return "No Python modules found in observations."
 
         # Deduplicate and sort modules for clean display
-        unique_modules: List[str] = sorted(set(modules))
+        unique_modules: list[str] = sorted(set(modules))
 
         # Build formatted output
         lines = [
@@ -499,7 +499,7 @@ class StructureAnalyzer:
         return "\n".join(lines)
 
     def _get_files_in_directory(
-        self, observations: List[Dict[str, Any]], question: str
+        self, observations: list[dict[str, Any]], question: str
     ) -> str:
         """
         Get files in a specific directory mentioned in the question.
@@ -551,7 +551,7 @@ class StructureAnalyzer:
         """
         # Extract directory from question
         question_lower = question.lower()
-        target_dir: Optional[str] = None
+        target_dir: str | None = None
 
         # Look for "in " pattern
         # Examples: "files in core", "what's in src", "in tests"
@@ -564,7 +564,7 @@ class StructureAnalyzer:
                 target_dir = target_dir.rstrip("/\\")
 
         # Accumulate matching files
-        files_found: List[str] = []
+        files_found: list[str] = []
 
         # Process observations
         for obs in observations:
@@ -596,7 +596,7 @@ class StructureAnalyzer:
             return "No files found in observations."
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Files found: {len(files_found)}",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -612,7 +612,7 @@ class StructureAnalyzer:
 
         return "\n".join(lines)
 
-    def _get_general_structure(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_general_structure(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate general structure summary.
 
@@ -665,7 +665,7 @@ class StructureAnalyzer:
         - Space: O(1) fixed-size statistics dict
         """
         # Initialize statistics tracking
-        stats: Dict[str, int] = {
+        stats: dict[str, int] = {
             "total_observations": len(observations),
             "file_sight": 0,
             "import_sight": 0,
@@ -698,7 +698,7 @@ class StructureAnalyzer:
                 stats["boundary_sight"] += 1
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             "General Structure Summary:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
             f"Total Observations: {stats['total_observations']}",

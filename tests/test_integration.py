@@ -311,10 +311,10 @@ class TestEndToEndScenarios:
     def test_all_question_types_workflow(self):
         """Test that all question types work in sequence."""
         from inquiry.answers import (
-            StructureAnalyzer,
-            ConnectionMapper,
             AnomalyDetector,
+            ConnectionMapper,
             PurposeExtractor,
+            StructureAnalyzer,
             ThinkingEngine,
         )
 
@@ -332,7 +332,7 @@ class TestEndToEndScenarios:
             ("thinking", ThinkingEngine(), "Next steps?"),
         ]
 
-        for q_type, analyzer, question in questions:
+        for _, analyzer, question in questions:
             result = analyzer.analyze(observations, question)
             assert isinstance(result, str)
             assert len(result) > 0

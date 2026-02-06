@@ -39,20 +39,20 @@ from .boundary_sight import (
     observe_boundaries,
 )
 from .encoding_sight import (
-    check_line_endings,
-    detect_encoding,
     EncodingConfidence,
     EncodingObservation,
     EncodingSight,
     LineEndingType,
+    check_line_endings,
+    detect_encoding,
 )
 from .export_sight import (
     DefinitionType,
     ExportDefinition,
     ExportSight,
     ModuleExports,
-    observe_exports,
     Visibility,
+    observe_exports,
 )
 
 # Import all concrete eyes
@@ -60,9 +60,9 @@ from .file_sight import (
     DirectoryTree,
     FileMetadata,
     FileSight,
+    TraversalConfig,
     observe_directory,
     observe_file,
-    TraversalConfig,
 )
 from .import_sight import (
     ImportObservation,

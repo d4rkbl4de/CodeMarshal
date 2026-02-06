@@ -19,7 +19,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, StrEnum
 from typing import (
     Any,
     Literal,
@@ -38,7 +38,7 @@ class SchemaVersion(IntEnum):
     # V2 = 2  # Reserved for future expansion
 
 
-class EvidenceType(str, Enum):
+class EvidenceType(StrEnum):
     """Types of evidence that can be stored."""
 
     FILE_OBSERVATION = "file_observation"
@@ -52,7 +52,7 @@ class EvidenceType(str, Enum):
     NOTEBOOK_ENTRY = "notebook_entry"
 
 
-class IntegrityStatus(str, Enum):
+class IntegrityStatus(StrEnum):
     """Integrity status of stored evidence."""
 
     VALID = "valid"
@@ -61,7 +61,7 @@ class IntegrityStatus(str, Enum):
     UNVERIFIABLE = "unverifiable"
 
 
-class HashAlgorithm(str, Enum):
+class HashAlgorithm(StrEnum):
     """Supported hash algorithms for content verification."""
 
     SHA256 = "sha256"

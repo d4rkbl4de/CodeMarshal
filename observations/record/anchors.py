@@ -20,7 +20,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 # ============================================================================
 
 
-class AnchorType(str, Enum):
+class AnchorType(StrEnum):
     """Types of anchors for different entities."""
 
     FILE = "file"  # Individual file
@@ -79,7 +79,7 @@ class AnchorType(str, Enum):
             return cls.FILE  # Default
 
 
-class ContentFingerprintMethod(str, Enum):
+class ContentFingerprintMethod(StrEnum):
     """Methods for generating content fingerprints."""
 
     FULL_CONTENT_SHA256 = "full_content_sha256"

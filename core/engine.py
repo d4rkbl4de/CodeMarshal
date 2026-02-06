@@ -22,10 +22,11 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
+from core.memory_monitor_interface import MemoryMonitorInterface
+
 # Allowed imports per constitutional rules
 from core.context import RuntimeContext
 from core.interfaces import InquiryInterface, LensInterface, ObservationInterface
-from core.memory_monitor_interface import MemoryMonitorInterface
 from core.state import InvestigationPhase, InvestigationState
 from core.storage_interface import InvestigationStorageInterface
 
@@ -227,16 +228,13 @@ class Engine:
         start_time = datetime.datetime.now()
 
         try:
-            # Check if intent is allowed in current state
             # Map intents to phases for validation
-            intent_phase_map = {
-                HighLevelIntent.OBSERVE: InvestigationPhase.ENFORCEMENT_ACTIVE,
-                HighLevelIntent.QUERY: InvestigationPhase.INQUIRY_ACTIVE,
-                HighLevelIntent.DETECT_PATTERNS: InvestigationPhase.PATTERNS_CALCULATED,
-                HighLevelIntent.PRESENT: InvestigationPhase.PRESENTATION_ACTIVE,
-            }
-
-
+            # intent_phase_map = {
+            #     HighLevelIntent.OBSERVE: InvestigationPhase.ENFORCEMENT_ACTIVE,
+            #     HighLevelIntent.QUERY: InvestigationPhase.INQUIRY_ACTIVE,
+            #     HighLevelIntent.DETECT_PATTERNS: InvestigationPhase.PATTERNS_CALCULATED,
+            #     HighLevelIntent.PRESENT: InvestigationPhase.PRESENTATION_ACTIVE,
+            # }
 
             # Route to appropriate layer interface
             if request.intent == HighLevelIntent.OBSERVE:

@@ -71,7 +71,7 @@ This detector explicitly cannot:
 - Detect performance issues (need profiling)
 """
 
-from typing import Any, Dict, List, Set, Tuple, Optional
+from typing import Any
 
 
 class AnomalyDetector:
@@ -168,7 +168,7 @@ class AnomalyDetector:
         """
         pass
 
-    def analyze(self, observations: List[Dict[str, Any]], question: str) -> str:
+    def analyze(self, observations: list[dict[str, Any]], question: str) -> str:
         """
         Analyze observations and generate an answer to an anomaly question.
 
@@ -215,7 +215,7 @@ class AnomalyDetector:
             # General anomaly summary
             return self._get_anomaly_summary(observations)
 
-    def _find_boundary_violations(self, observations: List[Dict[str, Any]]) -> str:
+    def _find_boundary_violations(self, observations: list[dict[str, Any]]) -> str:
         """
         Find all boundary violations in observations.
 
@@ -240,7 +240,7 @@ class AnomalyDetector:
             str: Formatted list of boundary violations with details.
         """
         # Accumulate violations
-        violations: List[Dict[str, Any]] = []
+        violations: list[dict[str, Any]] = []
 
         # Scan all observations
         for obs in observations:
@@ -283,7 +283,7 @@ class AnomalyDetector:
             return "No boundary violations detected."
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Boundary Violations Found: {len(violations)}",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -302,7 +302,7 @@ class AnomalyDetector:
 
         return "\n".join(lines)
 
-    def _find_suspicious_patterns(self, observations: List[Dict[str, Any]]) -> str:
+    def _find_suspicious_patterns(self, observations: list[dict[str, Any]]) -> str:
         """
         Find suspicious patterns in observations.
 
@@ -326,11 +326,11 @@ class AnomalyDetector:
             str: Formatted list of suspicious patterns with details.
         """
         # Track suspicious findings
-        suspicious: List[Dict[str, Any]] = []
+        suspicious: list[dict[str, Any]] = []
 
         # Track files for orphan detection
-        files_with_imports: Set[str] = set()
-        all_files: Set[str] = set()
+        files_with_imports: set[str] = set()
+        all_files: set[str] = set()
 
         # First pass: collect all files and files with imports
         for obs in observations:
@@ -399,7 +399,7 @@ class AnomalyDetector:
             return "No suspicious patterns detected."
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             f"Suspicious Patterns Found: {len(suspicious)}",
             "=" * self._SECTION_SEPARATOR_LENGTH,
         ]
@@ -423,7 +423,7 @@ class AnomalyDetector:
 
         return "\n".join(lines)
 
-    def _get_anomaly_summary(self, observations: List[Dict[str, Any]]) -> str:
+    def _get_anomaly_summary(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate summary of all anomalies found.
 
@@ -446,7 +446,7 @@ class AnomalyDetector:
             str: Formatted anomaly summary with statistics.
         """
         # Initialize statistics
-        stats: Dict[str, int] = {
+        stats: dict[str, int] = {
             "boundary_violations": 0,
             "orphan_files": 0,
             "high_import_count": 0,
@@ -462,8 +462,8 @@ class AnomalyDetector:
                 stats["boundary_violations"] += len(obs.get("boundary_violations", []))
 
         # Count other anomalies
-        files_with_imports: Set[str] = set()
-        all_files: Set[str] = set()
+        files_with_imports: set[str] = set()
+        all_files: set[str] = set()
         high_import_files: int = 0
         relative_imports: int = 0
 
@@ -497,7 +497,7 @@ class AnomalyDetector:
         stats["relative_imports"] = relative_imports
 
         # Build formatted output
-        lines: List[str] = [
+        lines: list[str] = [
             "Anomaly Summary:",
             "=" * self._SECTION_SEPARATOR_LENGTH,
             f"Boundary Violations: {stats['boundary_violations']}",

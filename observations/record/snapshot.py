@@ -23,7 +23,7 @@ import uuid
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from functools import total_ordering
 from pathlib import Path, PurePath
 from typing import (
@@ -116,7 +116,7 @@ class SnapshotMetadata:
         return result
 
 
-class ObservationCategory(str, Enum):
+class ObservationCategory(StrEnum):
     """Categories of observations for organization."""
 
     STRUCTURE = "structure"  # Files, directories, paths
