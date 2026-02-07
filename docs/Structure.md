@@ -1,17 +1,39 @@
+# CodeMarshal Directory Structure
+
+**Version:** 2.0.0  
+**Last Updated:** February 7, 2026  
+
+---
+
 CodeMarshal/
 │
 ├── pyproject.toml
+├── README.md
 ├── README.truth.md
 ├── constitution.truth.md
 ├── MANIFEST.integrity.md
+├── ROADMAP.md
+├── IMPLEMENTATION_SUMMARY.md
+├── CLEANUP_COMPLETE.md
+│
+├── Dockerfile                    # Production container
+├── Dockerfile.dev               # Development container
+├── docker-compose.yml           # Docker orchestration
+├── .dockerignore               # Docker build optimization
+│
+├── .pre-commit-hooks.yaml      # Pre-commit hook config
+├── requirements.txt            # Python dependencies
+├── setup.ps1                   # Windows setup
+├── setup.sh                    # Linux/Mac setup
 │
 ├── core/ # EXECUTION SPINE (SYSTEM HEART)
-│ ├── **init**.py
+│ ├── __init__.py
 │ ├── runtime.py # Owns lifecycle of an investigation
 │ ├── engine.py # Coordinates layers without leakage
 │ ├── context.py # Global immutable runtime context
 │ ├── state.py # Investigation state machine
 │ ├── shutdown.py # Safe termination guarantees
+│ ├── memory_monitor_interface.py # v2.0 - Memory monitoring interface
 │
 ├── config/ # CONFIGURATION DISCIPLINE
 │ ├── **init**.py
@@ -139,12 +161,20 @@ CodeMarshal/
 ├── bridge/ # COMMAND & CONTROL
 │ ├── **init**.py
 │ │
-│ ├── commands/
-│ │ ├── **init**.py
-│ │ ├── investigate.py
-│ │ ├── observe.py
-│ │ ├── query.py
-│ │ └── export.py
+│ ├── commands/ # CLI COMMANDS
+│ │ ├── __init__.py
+│ │ ├── investigate.py          # Investigation command
+│ │ ├── observe.py              # Observation command
+│ │ ├── query.py                # Query command
+│ │ ├── export.py               # Export command
+│ │ │
+│ │ ├── config.py # v2.0 - Configuration management
+│ │ ├── backup.py # v2.0 - Backup operations
+│ │ ├── cleanup.py # v2.0 - Cleanup operations
+│ │ ├── repair.py # v2.0 - Repair operations
+│ │ ├── search.py # v2.0 - Code search
+│ │ ├── pattern.py # v2.0 - Pattern detection
+│ │ └── test_cmd.py # v2.0 - Test runner
 │ │
 │ ├── entry/
 │ │ ├── **init**.py
@@ -186,16 +216,50 @@ CodeMarshal/
 │ │ └── no_mutation.test.py
 │ │
 │ └── recovery/
-│ ├── **init**.py
+│ ├── __init__.py
 │ ├── backup.py
 │ ├── restore.py
 │ └── audit.py
 │
+├── patterns/ # PATTERN DETECTION SYSTEM (v2.0)
+│ ├── __init__.py
+│ ├── loader.py                 # Pattern loading and management
+│ │
+│ ├── builtin/                  # Built-in pattern libraries
+│ │ ├── security.yaml          # Security patterns (8 patterns)
+│ │ ├── performance.yaml       # Performance patterns (future)
+│ │ └── style.yaml            # Style patterns (future)
+│ │
+│ └── custom/                   # User-defined patterns
+│ └── user_patterns.yaml      # Custom user patterns
+│
+├── hooks/ # PRE-COMMIT HOOKS (v2.0)
+│ └── codemarshal-constitutional.py  # Constitutional violation detector
+│
+├── scripts/ # UTILITY SCRIPTS (v2.0)
+│ ├── docker-build.sh          # Docker build helper
+│ ├── docker-run.sh           # Docker run helper
+│ ├── docker-entrypoint.sh    # Container entrypoint
+│ ├── monitor_wrapper.sh      # Monitoring wrapper
+│ └── prepare_large_run.py    # Large run preparation
+│
+├── .github/ # GITHUB INTEGRATION (v2.0)
+│ └── workflows/
+│ └── codemarshal.yml       # CI/CD workflow
+│
 └── tests/ # SYSTEM-LEVEL TESTS
-├── **init**.py
-├── end_to_end.test.py
-├── performance.test.py
-└── invariants.test.py
+├── __init__.py
+├── end_to_end.test.py       # Integration tests
+├── performance.test.py      # Performance benchmarks
+├── invariants.test.py       # System invariants
+│
+├── test_cli/ # v2.0 - CLI command tests
+│ ├── test_config.py
+│ └── test_search.py
+│
+└── test_export/ # v2.0 - Export format tests
+├── test_html_exporter.py
+└── test_csv_exporter.py
 
 CONSTITUTION OF TRUTH (NON-NEGOTIABLE)
 TIER 1: FOUNDATIONAL TRUTHS (NEVER VIOLATE)

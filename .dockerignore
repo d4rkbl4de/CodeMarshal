@@ -1,0 +1,99 @@
+# .dockerignore
+# Files and directories to exclude from Docker build context
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv
+venv/
+ENV/
+env/
+
+# IDEs and editors
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+.hypothesis
+
+# Documentation
+docs/_build
+*.md
+!README.md
+
+# Docker files (don't need in context)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Data and storage (will be mounted as volumes)
+.codemarshal/
+storage/
+data/
+*.session.json
+*.observation.json
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Scripts that don't need to be in image
+scripts/docker-*.sh
+
+# Development files
+*.dev
+*.local
+.env
+.env.local
+
+# Backup files
+*.backup
+*.bak

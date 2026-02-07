@@ -27,6 +27,8 @@ class ExportFormat(Enum):
     JSON = "json"
     MARKDOWN = "markdown"
     PLAIN_TEXT = "plain_text"
+    HTML = "html"
+    CSV = "csv"
 
 
 @dataclass(frozen=True)
@@ -86,7 +88,7 @@ class BaseExporter:
     ) -> dict[str, Any]:
         """Create standard metadata header for all exports."""
         return {
-            "codemarshal_version": "0.1.0",  # Should come from pyproject.toml in real impl
+            "codemarshal_version": "2.0.0",
             "format": self.format_type.value,
             "exported_at": datetime.now(UTC).isoformat(),
             "snapshot_version": snapshot_version,
@@ -515,11 +517,330 @@ class PlainTextExporter(BaseExporter):
         return "\n".join(lines)
 
 
+class HTMLExporter(BaseExporter):
+    """HTML export format. Interactive navigation, visual hierarchy."""
+
+    def __init__(self):
+        super().__init__(ExportFormat.HTML)
+
+    def _define_limitations(self) -> ExportLimitations:
+        return ExportLimitations(
+            format_type=ExportFormat.HTML,
+            context_loss=[
+                "Some interactive features require JavaScript",
+                "Print versions may lose interactive elements",
+            ],
+            structure_loss=[
+                "Deep hierarchies may be flattened for display",
+                "Cross-references become hyperlinks (may break)",
+            ],
+            cannot_express=[
+                "Executable code",
+                "Dynamic content updates",
+                "Real-time collaboration",
+            ],
+        )
+
+    def export(
+        self,
+        snapshot: Snapshot | None = None,
+        anchors: list[Anchor] | None = None,
+        notebook_entries: list[NoteEntry] | None = None,
+        integrity_hashes: list[IntegrityRoot] | None = None,
+    ) -> str:
+        """Export as HTML with interactive navigation."""
+
+        html_parts = []
+
+        # HTML Header
+        html_parts.append("<!DOCTYPE html>")
+        html_parts.append("<html lang='en'>")
+        html_parts.append("<head>")
+        html_parts.append("  <meta charset='UTF-8'>")
+        html_parts.append(
+            "  <meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+        )
+        html_parts.append("  <title>CodeMarshal Investigation Report</title>")
+        html_parts.append("  <style>")
+        html_parts.append(
+            "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }"
+        )
+        html_parts.append(
+            "    .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }"
+        )
+        html_parts.append(
+            "    h1 { color: #333; border-bottom: 3px solid #007acc; padding-bottom: 10px; }"
+        )
+        html_parts.append("    h2 { color: #555; margin-top: 30px; }")
+        html_parts.append("    h3 { color: #666; }")
+        html_parts.append(
+            "    .metadata { background: #f8f9fa; padding: 15px; border-left: 4px solid #007acc; margin: 20px 0; }"
+        )
+        html_parts.append(
+            "    .anchor { background: #fff3cd; padding: 10px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #ffc107; }"
+        )
+        html_parts.append(
+            "    .note { background: #d1ecf1; padding: 10px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #17a2b8; }"
+        )
+        html_parts.append(
+            "    .hash { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 0.9em; }"
+        )
+        html_parts.append(
+            "    .limitations { background: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 4px; border: 1px solid #ffc107; }"
+        )
+        html_parts.append(
+            "    code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }"
+        )
+        html_parts.append(
+            "    pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; }"
+        )
+        html_parts.append(
+            "    table { width: 100%; border-collapse: collapse; margin: 20px 0; }"
+        )
+        html_parts.append(
+            "    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }"
+        )
+        html_parts.append("    th { background: #f8f9fa; font-weight: 600; }")
+        html_parts.append(
+            "    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }"
+        )
+        html_parts.append("  </style>")
+        html_parts.append("</head>")
+        html_parts.append("<body>")
+        html_parts.append("<div class='container'>")
+
+        # Header
+        html_parts.append("<h1>🔍 CodeMarshal Investigation Report</h1>")
+
+        # Metadata
+        metadata = self._create_metadata(
+            snapshot_version=getattr(snapshot, "version", None) if snapshot else None,
+            export_scope="html",
+        )
+        html_parts.append("<div class='metadata'>")
+        html_parts.append(
+            f"  <p><strong>Exported:</strong> {metadata['exported_at']}</p>"
+        )
+        html_parts.append(f"  <p><strong>Format:</strong> HTML</p>")
+        html_parts.append(
+            f"  <p><strong>Version:</strong> {metadata['codemarshal_version']}</p>"
+        )
+        html_parts.append("</div>")
+
+        # Limitations Warning
+        html_parts.append("<div class='limitations'>")
+        html_parts.append("  <h3>⚠️ Export Limitations</h3>")
+        html_parts.append(
+            "  <p><strong>Context Loss:</strong> "
+            + "; ".join(self.limitations.context_loss)
+            + "</p>"
+        )
+        html_parts.append(
+            "  <p><strong>Structure Loss:</strong> "
+            + "; ".join(self.limitations.structure_loss)
+            + "</p>"
+        )
+        html_parts.append("</div>")
+
+        # Snapshot Section
+        if snapshot:
+            html_parts.append("<h2>📊 Snapshot</h2>")
+            html_parts.append("<table>")
+            html_parts.append("<tr><th>Property</th><th>Value</th></tr>")
+            if hasattr(snapshot, "id"):
+                html_parts.append(
+                    f"<tr><td>ID</td><td><code>{snapshot.id}</code></td></tr>"
+                )
+            if hasattr(snapshot, "version"):
+                html_parts.append(
+                    f"<tr><td>Version</td><td>{snapshot.version}</td></tr>"
+                )
+            if hasattr(snapshot, "path"):
+                html_parts.append(f"<tr><td>Path</td><td>{snapshot.path}</td></tr>")
+            if hasattr(snapshot, "observation_count"):
+                html_parts.append(
+                    f"<tr><td>Observations</td><td>{snapshot.observation_count}</td></tr>"
+                )
+            html_parts.append("</table>")
+
+        # Anchors Section
+        if anchors:
+            html_parts.append("<h2>⚓ Anchors</h2>")
+            for i, anchor in enumerate(anchors, 1):
+                html_parts.append(f"<div class='anchor'>")
+                html_parts.append(f"  <h3>Anchor {i}</h3>")
+                if hasattr(anchor, "type"):
+                    html_parts.append(f"  <p><strong>Type:</strong> {anchor.type}</p>")
+                if hasattr(anchor, "location"):
+                    html_parts.append(
+                        f"  <p><strong>Location:</strong> <code>{anchor.location}</code></p>"
+                    )
+                if hasattr(anchor, "context"):
+                    html_parts.append(
+                        f"  <p><strong>Context:</strong> {anchor.context}</p>"
+                    )
+                html_parts.append("</div>")
+
+        # Notebook Entries Section
+        if notebook_entries:
+            html_parts.append("<h2>📝 Notebook Entries</h2>")
+            for i, entry in enumerate(notebook_entries, 1):
+                html_parts.append(f"<div class='note'>")
+                html_parts.append(f"  <h3>Entry {i}</h3>")
+                if hasattr(entry, "content"):
+                    html_parts.append(f"  <p>{entry.content}</p>")
+                if hasattr(entry, "timestamp"):
+                    html_parts.append(
+                        f"  <p><small>Timestamp: {entry.timestamp}</small></p>"
+                    )
+                html_parts.append("</div>")
+
+        # Integrity Section
+        if integrity_hashes:
+            html_parts.append("<h2>🔒 Integrity Verification</h2>")
+            for hash_obj in integrity_hashes:
+                html_parts.append("<div class='hash'>")
+                html_parts.append(
+                    f"  <p><strong>Algorithm:</strong> {hash_obj.algorithm.value if hasattr(hash_obj.algorithm, 'value') else hash_obj.algorithm}</p>"
+                )
+                html_parts.append(
+                    f"  <p><strong>Root Hash:</strong> <code>{hash_obj.root_hash}</code></p>"
+                )
+                html_parts.append(
+                    f"  <p><strong>Metadata Hash:</strong> <code>{hash_obj.metadata_hash}</code></p>"
+                )
+                html_parts.append(
+                    f"  <p><strong>Payload Hash:</strong> <code>{hash_obj.payload_hash}</code></p>"
+                )
+                html_parts.append("</div>")
+
+        # Footer
+        html_parts.append("<div class='footer'>")
+        html_parts.append(
+            "  <p>Generated by CodeMarshal Truth-Preserving Investigation System</p>"
+        )
+        html_parts.append(
+            "  <p><em>Constitutional Article 19: Backward Truth Compatibility</em></p>"
+        )
+        html_parts.append("</div>")
+
+        html_parts.append("</div>")
+        html_parts.append("</body>")
+        html_parts.append("</html>")
+
+        return "\n".join(html_parts)
+
+
+class CSVExporter(BaseExporter):
+    """CSV export format. Tabular data only, spreadsheet compatible."""
+
+    def __init__(self):
+        super().__init__(ExportFormat.CSV)
+
+    def _define_limitations(self) -> ExportLimitations:
+        return ExportLimitations(
+            format_type=ExportFormat.CSV,
+            context_loss=[
+                "All hierarchical structure is flattened",
+                "Rich text formatting is lost",
+                "Metadata becomes separate columns",
+            ],
+            structure_loss=[
+                "No nested structures or complex relationships",
+                "All data must fit in rows and columns",
+                "Arrays become delimited strings",
+            ],
+            cannot_express=[
+                "HTML formatting",
+                "Hierarchical relationships",
+                "Multiple observation types in one row",
+            ],
+        )
+
+    def export(
+        self,
+        snapshot: Snapshot | None = None,
+        anchors: list[Anchor] | None = None,
+        notebook_entries: list[NoteEntry] | None = None,
+        integrity_hashes: list[IntegrityRoot] | None = None,
+    ) -> str:
+        """Export as CSV format."""
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header with metadata
+        writer.writerow(["CodeMarshal Investigation Export"])
+        writer.writerow(["Format", "CSV"])
+        writer.writerow(["Exported At", datetime.now(UTC).isoformat()])
+        writer.writerow([])  # Empty row
+
+        # Snapshot data
+        if snapshot:
+            writer.writerow(["SNAPSHOT"])
+            writer.writerow(["Property", "Value"])
+            if hasattr(snapshot, "id"):
+                writer.writerow(["ID", snapshot.id])
+            if hasattr(snapshot, "version"):
+                writer.writerow(["Version", snapshot.version])
+            if hasattr(snapshot, "path"):
+                writer.writerow(["Path", snapshot.path])
+            if hasattr(snapshot, "observation_count"):
+                writer.writerow(["Observation Count", snapshot.observation_count])
+            writer.writerow([])  # Empty row
+
+        # Anchors data
+        if anchors:
+            writer.writerow(["ANCHORS"])
+            writer.writerow(["Index", "Type", "Location", "Context"])
+            for i, anchor in enumerate(anchors, 1):
+                anchor_type = getattr(anchor, "type", "")
+                location = getattr(anchor, "location", "")
+                context = getattr(anchor, "context", "")
+                writer.writerow([i, anchor_type, location, context])
+            writer.writerow([])  # Empty row
+
+        # Notebook entries
+        if notebook_entries:
+            writer.writerow(["NOTEBOOK ENTRIES"])
+            writer.writerow(["Index", "Content", "Timestamp"])
+            for i, entry in enumerate(notebook_entries, 1):
+                content = getattr(entry, "content", "")
+                timestamp = getattr(entry, "timestamp", "")
+                writer.writerow([i, content, timestamp])
+            writer.writerow([])  # Empty row
+
+        # Integrity hashes
+        if integrity_hashes:
+            writer.writerow(["INTEGRITY HASHES"])
+            writer.writerow(["Algorithm", "Root Hash", "Metadata Hash", "Payload Hash"])
+            for hash_obj in integrity_hashes:
+                algorithm = (
+                    hash_obj.algorithm.value
+                    if hasattr(hash_obj.algorithm, "value")
+                    else hash_obj.algorithm
+                )
+                writer.writerow(
+                    [
+                        algorithm,
+                        hash_obj.root_hash,
+                        hash_obj.metadata_hash,
+                        hash_obj.payload_hash,
+                    ]
+                )
+
+        return output.getvalue()
+
+
 # Registry of available exporters
 _EXPORTER_REGISTRY: dict[ExportFormat, BaseExporter] = {
     ExportFormat.JSON: JSONExporter(),
     ExportFormat.MARKDOWN: MarkdownExporter(),
     ExportFormat.PLAIN_TEXT: PlainTextExporter(),
+    ExportFormat.HTML: HTMLExporter(),
+    ExportFormat.CSV: CSVExporter(),
 }
 
 
@@ -572,5 +893,7 @@ def _get_format_description(format_type: ExportFormat) -> str:
         ExportFormat.JSON: "Structured data, machine-readable, preserves some hierarchy",
         ExportFormat.MARKDOWN: "Human-readable documentation, preserves some formatting",
         ExportFormat.PLAIN_TEXT: "Maximum compatibility, minimum structure, human-readable",
+        ExportFormat.HTML: "Interactive web format with visual hierarchy and navigation",
+        ExportFormat.CSV: "Tabular data, spreadsheet compatible, flattened structure",
     }
     return descriptions.get(format_type, "No description available")

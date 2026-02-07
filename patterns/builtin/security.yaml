@@ -1,0 +1,125 @@
+# Security Patterns
+# Built-in patterns for detecting security issues
+
+patterns:
+  - id: hardcoded_password
+    name: Hardcoded Password
+    pattern: >-
+      (password|passwd|pwd)\s*[=:]\s*["'][^"']+["']
+    severity: critical
+    description: Detects hardcoded password assignments
+    message: "Hardcoded password detected at {{file}}:{{line}}"
+    tags:
+      - security
+      - secrets
+      - critical
+    languages:
+      - python
+      - javascript
+      - java
+      - go
+      - ruby
+
+  - id: hardcoded_api_key
+    name: Hardcoded API Key
+    pattern: >-
+      (api_key|apikey|api-key)\s*[=:]\s*["'][^"']+["']
+    severity: critical
+    description: Detects hardcoded API keys
+    message: "Hardcoded API key detected at {{file}}:{{line}}"
+    tags:
+      - security
+      - secrets
+      - critical
+    languages:
+      - python
+      - javascript
+      - java
+      - go
+      - ruby
+
+  - id: hardcoded_token
+    name: Hardcoded Token
+    pattern: >-
+      (token|access_token|auth_token)\s*[=:]\s*["'][^"']+["']
+    severity: critical
+    description: Detects hardcoded authentication tokens
+    message: "Hardcoded token detected at {{file}}:{{line}}"
+    tags:
+      - security
+      - secrets
+      - critical
+    languages:
+      - python
+      - javascript
+      - java
+      - go
+      - ruby
+
+  - id: private_key
+    name: Private Key
+    pattern: >-
+      -----BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----
+    severity: critical
+    description: Detects private keys in source code
+    message: "Private key detected at {{file}}:{{line}}"
+    tags:
+      - security
+      - secrets
+      - critical
+
+  - id: eval_usage
+    name: Dangerous eval Usage
+    pattern: >-
+      \beval\s*\(
+    severity: critical
+    description: Detects eval() usage which can execute arbitrary code
+    message: "Dangerous eval() usage at {{file}}:{{line}}"
+    tags:
+      - security
+      - code-execution
+      - critical
+    languages:
+      - python
+      - javascript
+
+  - id: exec_usage
+    name: Dangerous exec Usage
+    pattern: >-
+      \bexec\s*\(
+    severity: critical
+    description: Detects exec() usage which can execute arbitrary code
+    message: "Dangerous exec() usage at {{file}}:{{line}}"
+    tags:
+      - security
+      - code-execution
+      - critical
+    languages:
+      - python
+
+  - id: debug_mode
+    name: Debug Mode Enabled
+    pattern: >-
+      (debug|DEBUG)\s*=\s*(True|true|1)
+    severity: warning
+    description: Detects debug mode enabled in production code
+    message: "Debug mode enabled at {{file}}:{{line}}"
+    tags:
+      - security
+      - configuration
+      - warning
+    languages:
+      - python
+      - javascript
+
+  - id: http_instead_https
+    name: HTTP Instead of HTTPS
+    pattern: >-
+      http://(?!localhost|127\.0\.0\.1)
+    severity: warning
+    description: Detects HTTP URLs instead of HTTPS
+    message: "HTTP URL detected (should use HTTPS) at {{file}}:{{line}}"
+    tags:
+      - security
+      - network
+      - warning

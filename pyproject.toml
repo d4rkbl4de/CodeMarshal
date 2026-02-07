@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codemarshal"
-version = "0.1.0"
+version = "2.0.0"
 description = "Truth-preserving cognitive investigation environment for code"
 readme = "README.truth.md"
 license = "MIT"

@@ -1,0 +1,32 @@
+# .pre-commit-hooks.yaml
+# CodeMarshal pre-commit hooks configuration
+# 
+# To use these hooks:
+# 1. Install pre-commit: pip install pre-commit
+# 2. Add to your .pre-commit-config.yaml:
+#
+#    repos:
+#      - repo: https://github.com/codemarshal/codemarshal
+#        rev: v2.0.0
+#        hooks:
+#          - id: codemarshal-constitutional
+#
+# 3. Run: pre-commit install
+
+- id: codemarshal-constitutional
+  name: CodeMarshal Constitutional Check
+  description: Detects constitutional violations before commit
+  entry: python hooks/codemarshal-constitutional.py --strict
+  language: system
+  stages: [pre-commit]
+  pass_filenames: true
+  always_run: false
+
+- id: codemarshal-security
+  name: CodeMarshal Security Scan
+  description: Scans for security patterns
+  entry: python -m bridge.entry.cli pattern scan --category security
+  language: system
+  stages: [pre-commit]
+  pass_filenames: false
+  always_run: true

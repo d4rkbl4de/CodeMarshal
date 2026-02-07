@@ -1,7 +1,7 @@
 # **CODEMARSHAL INTEGRATION EXAMPLES**
 
-**Version:** 0.1.0  
-**Last Updated:** January 16, 2026  
+**Version:** 2.0.0  
+**Last Updated:** February 7, 2026  
 
 ---
 
@@ -78,7 +78,7 @@ function investigateCurrentFile(context: vscode.ExtensionContext) {
     "name": "codemarshal-vscode",
     "displayName": "CodeMarshal Investigation",
     "description": "Truth-preserving code investigation in VS Code",
-    "version": "0.1.0",
+    "version": "2.0.0",
     "engines": {
         "vscode": "^1.75.0"
     },
@@ -363,7 +363,7 @@ stages:
   - report
 
 variables:
-  CODEMARSHAL_VERSION: "0.1.0"
+  CODEMARSHAL_VERSION: "2.0.0"
 
 constitutional_validation:
   stage: validate
@@ -810,7 +810,7 @@ def daily_investigation():
             "investigation": result["stdout"],
             "metadata": {
                 "type": "daily_investigation",
-                "version": "0.1.0"
+                "version": "2.0.0"
             }
         }, f, indent=2)
     
@@ -1100,6 +1100,6 @@ ensure_codemarshal_env()
 
 ---
 
-**Integration Examples Version: 0.1.0**  
+**Integration Examples Version: 2.0.0**  
 **Last Updated: January 16, 2026**  
 **Next Update: Based on community feedback and use cases**

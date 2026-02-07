@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .atomic import atomic_write
+from .atomic import atomic_write_text
 
 
 @dataclass(frozen=True)
@@ -104,7 +104,7 @@ class BackupManager:
                 "parent_backup_id": manifest.parent_backup_id,
             }
 
-        atomic_write(manifest_file, json.dumps(data, indent=2))
+        atomic_write_text(manifest_file, json.dumps(data, indent=2))
 
     def create_full_backup(
         self, source_dir: Path, backup_id: str | None = None
@@ -153,7 +153,7 @@ class BackupManager:
                     )
 
             except OSError as e:
-                print(f"⚠️ Failed to backup {source_file}: {e}", flush=True)
+                print(f"[WARN] Failed to backup {source_file}: {e}", flush=True)
 
         # Calculate checksum of backup
         backup_checksum = self._calculate_directory_checksum(backup_path)
@@ -176,7 +176,7 @@ class BackupManager:
             self._save_manifests()
 
         print(
-            f"✓ Full backup created: {backup_id} ({copied_count} files, {total_size // 1024 // 1024}MB)",
+            f"[OK] Full backup created: {backup_id} ({copied_count} files, {total_size // 1024 // 1024}MB)",
             flush=True,
         )
         return manifest
@@ -240,7 +240,7 @@ class BackupManager:
                 shutil.copy2(source_file, dest_file)
                 copied_count += 1
             except OSError as e:
-                print(f"⚠️ Failed to backup {source_file}: {e}", flush=True)
+                print(f"[WARN] Failed to backup {source_file}: {e}", flush=True)
 
         # Calculate checksum
         backup_checksum = self._calculate_directory_checksum(backup_path)
@@ -264,7 +264,7 @@ class BackupManager:
             self._save_manifests()
 
         print(
-            f"✓ Incremental backup created: {backup_id} ({copied_count} new files, {total_size // 1024 // 1024}MB)",
+            f"[OK] Incremental backup created: {backup_id} ({copied_count} new files, {total_size // 1024 // 1024}MB)",
             flush=True,
         )
         return manifest
@@ -375,7 +375,8 @@ class BackupManager:
 
             except OSError as e:
                 print(
-                    f"⚠️ Failed to remove backup {manifest.backup_id}: {e}", flush=True
+                    f"[WARN] Failed to remove backup {manifest.backup_id}: {e}",
+                    flush=True,
                 )
 
         return {

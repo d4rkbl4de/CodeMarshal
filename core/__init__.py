@@ -74,12 +74,12 @@ from core.state import InvestigationState as InvestigationState
 # -----------------------------------------------------------------------------
 
 # Version information
-__version__ = "0.1.0"
-__version_info__ = (0, 1, 0)
+__version__ = "2.0.0"
+__version_info__ = (2, 0, 0)
 
 # Kernel metadata
 KERNEL_NAME = "CodeMarshal Core"
-KERNEL_VERSION = "0.1.0"
+KERNEL_VERSION = "2.0.0"
 KERNEL_AUTHOR = "CodeMarshal System"
 KERNEL_LICENSE = "Truth-Preserving License"
 

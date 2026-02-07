@@ -48,6 +48,52 @@ from .observe import (
     observe_file_structure,
     observe_imports,
 )
+from .config import (
+    ConfigEditResult,
+    ConfigResetResult,
+    ConfigShowResult,
+    ConfigValidateResult,
+    execute_config_edit,
+    execute_config_reset,
+    execute_config_show,
+    execute_config_validate,
+)
+from .backup import (
+    BackupCreateResult,
+    BackupListResult,
+    BackupRestoreResult,
+    BackupVerifyResult,
+    execute_backup_create,
+    execute_backup_list,
+    execute_backup_restore,
+    execute_backup_verify,
+)
+from .cleanup import (
+    CleanupResult,
+    execute_cleanup,
+)
+from .repair import (
+    RepairResult,
+    execute_repair,
+)
+from .test_cmd import (
+    TestResult,
+    execute_test,
+)
+from .search import (
+    SearchCommandResult,
+    SearchResult,
+    SearchResults,
+    execute_search,
+)
+from .pattern import (
+    PatternAddResult,
+    PatternListResult,
+    PatternScanCommandResult,
+    execute_pattern_add,
+    execute_pattern_list,
+    execute_pattern_scan,
+)
 from .query import (
     PatternName,
     QueryRequest,
@@ -425,6 +471,45 @@ __all__ = [
     "export_observations_json",
     "export_notes_markdown",
     "export_constitutional_report",
+    # Config commands
+    "execute_config_show",
+    "execute_config_edit",
+    "execute_config_reset",
+    "execute_config_validate",
+    "ConfigShowResult",
+    "ConfigEditResult",
+    "ConfigResetResult",
+    "ConfigValidateResult",
+    # Backup commands
+    "execute_backup_create",
+    "execute_backup_list",
+    "execute_backup_restore",
+    "execute_backup_verify",
+    "BackupCreateResult",
+    "BackupListResult",
+    "BackupRestoreResult",
+    "BackupVerifyResult",
+    # Cleanup commands
+    "execute_cleanup",
+    "CleanupResult",
+    # Repair commands
+    "execute_repair",
+    "RepairResult",
+    # Test commands
+    "execute_test",
+    "TestResult",
+    # Search commands
+    "execute_search",
+    "SearchResult",
+    "SearchResults",
+    "SearchCommandResult",
+    # Pattern commands
+    "execute_pattern_list",
+    "execute_pattern_scan",
+    "execute_pattern_add",
+    "PatternListResult",
+    "PatternScanCommandResult",
+    "PatternAddResult",
     # Utility functions
     "get_command",
     "get_request_type",

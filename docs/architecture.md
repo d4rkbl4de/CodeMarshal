@@ -1,7 +1,7 @@
 # CodeMarshal Architecture Documentation
 
-**Version:** 1.0.0  
-**Last Updated:** February 5, 2026  
+**Version:** 2.0.0  
+**Last Updated:** February 7, 2026  
 **Document Type:** Architectural Reference
 
 ---
@@ -1136,7 +1136,7 @@ def execute_query(
 class ExportRequest:
     """Request for export."""
     type: ExportType                           # SESSION, OBSERVATION, NOTEBOOK
-    format: ExportFormat                       # JSON, MARKDOWN, HTML, PLAIN
+    format: ExportFormat                       # JSON, MARKDOWN, HTML, PLAIN, CSV
     session_id: str
     parameters: Dict[str, Any]                 # Options
 
@@ -1150,6 +1150,119 @@ def execute_export(
     """
     Execute export command.
     """
+```
+
+#### 4.1.5 v2.0 Additional Commands
+
+**Configuration Command (`bridge/commands/config.py`)**
+
+```python
+@dataclass
+class ConfigShowResult:
+    """Result of config show command."""
+    success: bool
+    config: dict
+    formatted_output: str
+
+@dataclass
+class ConfigEditResult:
+    """Result of config edit command."""
+    success: bool
+    config_path: Path
+    editor_used: str
+
+@dataclass
+class ConfigResetResult:
+    """Result of config reset command."""
+    success: bool
+    backup_path: Path
+
+@dataclass
+class ConfigValidateResult:
+    """Result of config validate command."""
+    success: bool
+    errors: list[str]
+    warnings: list[str]
+```
+
+**Backup Command (`bridge/commands/backup.py`)**
+
+```python
+@dataclass
+class BackupCreateResult:
+    """Result of backup create command."""
+    success: bool
+    backup_id: str
+    file_count: int
+    size_mb: int
+
+@dataclass
+class BackupListResult:
+    """Result of backup list command."""
+    success: bool
+    backups: list[dict]
+    count: int
+
+@dataclass
+class BackupRestoreResult:
+    """Result of backup restore command."""
+    success: bool
+    restored_files: int
+    errors: list[str]
+```
+
+**Search Command (`bridge/commands/search.py`)**
+
+```python
+@dataclass
+class SearchResult:
+    """Single search result."""
+    file_path: Path
+    line_number: int
+    line_content: str
+    matched_text: str
+    context_before: list[str]
+    context_after: list[str]
+
+class SearchCommand:
+    """Search codebase for text patterns."""
+    
+    def execute(
+        self,
+        query: str,
+        path: Path,
+        case_insensitive: bool = False,
+        context: int = 3,
+        glob: str = "*",
+        output_format: str = "text"
+    ) -> SearchCommandResult:
+        """Execute search with ripgrep or Python regex fallback."""
+```
+
+**Pattern Command (`bridge/commands/pattern.py`)**
+
+```python
+@dataclass
+class PatternDefinition:
+    """Pattern definition structure."""
+    id: str
+    name: str
+    pattern: str
+    severity: str
+    description: str
+    tags: list[str]
+    languages: list[str]
+
+class PatternScanner:
+    """Scan files for pattern matches."""
+    
+    def scan(
+        self,
+        path: Path,
+        patterns: list[PatternDefinition],
+        glob: str = "*"
+    ) -> PatternScanResult:
+        """Scan path for pattern matches."""
 ```
 
 #### 4.2 Coordination Subsystem
@@ -1225,17 +1338,30 @@ class ExportFormatter:
     """
 
     def format_json(self, data: Dict) -> str:
-        """Format as JSON."""
+        """Format as JSON - Structured data, machine-readable."""
 
     def format_markdown(self, data: Dict) -> str:
-        """Format as Markdown."""
+        """Format as Markdown - Human-readable documentation."""
 
     def format_html(self, data: Dict) -> str:
-        """Format as HTML."""
+        """Format as HTML - Interactive web reports (v2.0)."""
 
     def format_plain(self, data: Dict) -> str:
-        """Format as plain text."""
+        """Format as plain text - Maximum compatibility."""
+        
+    def format_csv(self, data: Dict) -> str:
+        """Format as CSV - Spreadsheet-compatible (v2.0)."""
 ```
+
+**Supported Formats (v2.0)**
+
+| Format | Status | Best For | Limitations |
+|--------|--------|----------|-------------|
+| JSON | ✅ Stable | Machine processing, API integration | Preserves structure |
+| Markdown | ✅ Stable | Documentation, GitHub rendering | Human readability |
+| Plain Text | ✅ Stable | Universal compatibility | Minimal formatting |
+| HTML | ✅ v2.0 | Interactive reports, web viewing | Requires browser |
+| CSV | ✅ v2.0 | Spreadsheet analysis, data science | Flattened structure |
 
 ---
 
@@ -2025,6 +2151,137 @@ class CustomFormatFormatter(AbstractExportFormatter):
 from bridge.integration.editor import AbstractEditorIntegration
 
 class CustomEditorIntegration(AbstractEditorIntegration):
+    """
+    Custom editor integration.
+    """
+    
+    def send_to_editor(self, data: Dict) -> bool:
+        # Implementation
+        pass
+```
+
+---
+
+## Docker & CI/CD Integration (v2.0)
+
+### Container Architecture
+
+**Production Container (`Dockerfile`)**
+
+```dockerfile
+# Multi-stage build for smaller production image
+FROM python:3.12-slim AS builder
+# ... build stage
+
+FROM python:3.12-slim
+# Runtime stage with non-root user
+# Includes ripgrep for fast search
+# Health checks enabled
+```
+
+**Development Container (`Dockerfile.dev`)**
+
+- Full development toolchain
+- pytest, black, ruff, mypy pre-installed
+- Volume mounts for live development
+- Interactive shell support
+
+### Docker Compose Configuration
+
+```yaml
+# docker-compose.yml
+services:
+  codemarshal:
+    image: codemarshal:2.0.0
+    volumes:
+      - ./projects:/data/projects
+      - codemarshal_data:/data
+    
+  codemarshal-dev:
+    image: codemarshal:dev
+    volumes:
+      - .:/app  # Live code mounting
+      - ./projects:/data/projects
+```
+
+### CI/CD Integration
+
+**GitHub Actions Workflow (`.github/workflows/codemarshal.yml`)**
+
+```yaml
+name: CodeMarshal Analysis
+on: [push, pull_request]
+
+jobs:
+  constitutional-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Security Pattern Scan
+        run: codemarshal pattern scan . --category=security
+      - name: Generate Reports
+        run: |
+          codemarshal export . --format=html --output=report.html
+          codemarshal export . --format=json --output=report.json
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: codemarshal-reports
+          path: codemarshal-*
+```
+
+### Pre-commit Hooks
+
+**Constitutional Check (`.pre-commit-hooks.yaml`)**
+
+```yaml
+- id: codemarshal-constitutional
+  name: CodeMarshal Constitutional Check
+  entry: python hooks/codemarshal-constitutional.py --strict
+  language: system
+  stages: [pre-commit]
+```
+
+Usage:
+```bash
+# Install pre-commit hook
+pip install pre-commit
+pre-commit install
+
+# Now checks run automatically before each commit
+git commit -m "feat: add new feature"
+# > Running CodeMarshal Constitutional Check...
+# > No violations detected ✓
+```
+
+---
+
+### Pattern System Extension (v2.0)
+
+**Custom Pattern Definition (`patterns/custom/my_patterns.yaml`)**
+
+```yaml
+patterns:
+  - id: custom_security_check
+    name: Custom Security Pattern
+    pattern: 'regex_pattern_here'
+    severity: critical
+    description: "Detects specific security issue"
+    message: "Found at {{file}}:{{line}}"
+    tags: [security, custom]
+    languages: [python, javascript]
+```
+
+**Loading Patterns**
+
+```python
+from patterns.loader import PatternLoader
+
+loader = PatternLoader()
+all_patterns = loader.load_all_patterns()
+builtin_patterns = loader.load_builtin_patterns('security')
+custom_patterns = loader.load_custom_patterns()
+```
     """
     Custom editor integration.
     """

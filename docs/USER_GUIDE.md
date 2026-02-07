@@ -1,7 +1,7 @@
 # **CODEMARSHAL USER GUIDE**
 
-**Version:** 0.1.0  
-**Last Updated:** February 5, 2026  
+**Version:** 2.0.0  
+**Last Updated:** February 7, 2026  
 **Status:** Production Ready
 
 ---
@@ -868,7 +868,7 @@ codemarshal <command> --help
 
 ---
 
-**User Guide Version: 0.1.0**
+**User Guide Version: 2.0.0**
 **Last Updated: February 5, 2026**
 **CodeMarshal Status: Production Ready**
 

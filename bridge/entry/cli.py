@@ -92,6 +92,18 @@ EXAMPLES:
             help="Path to configuration file (MUST be provided if used)",
         )
 
+        parser.add_argument(
+            "--version",
+            action="store_true",
+            help="Show version information and exit",
+        )
+
+        parser.add_argument(
+            "--info",
+            action="store_true",
+            help="Show system diagnostics and exit",
+        )
+
         # Subcommands
         subparsers = parser.add_subparsers(
             dest="command",
@@ -114,6 +126,27 @@ EXAMPLES:
 
         # tui command
         self._add_tui_parser(subparsers)
+
+        # config command
+        self._add_config_parser(subparsers)
+
+        # backup command
+        self._add_backup_parser(subparsers)
+
+        # cleanup command
+        self._add_cleanup_parser(subparsers)
+
+        # repair command
+        self._add_repair_parser(subparsers)
+
+        # test command
+        self._add_test_parser(subparsers)
+
+        # search command
+        self._add_search_parser(subparsers)
+
+        # pattern command
+        self._add_pattern_parser(subparsers)
 
         return parser
 
@@ -326,6 +359,502 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             help="Starting path for investigation (default: current directory)",
         )
 
+    def _add_config_parser(self, subparsers: Any) -> None:
+        """Add config command parser."""
+        parser = subparsers.add_parser(
+            "config",
+            help="Configuration management",
+            description="""
+Manage CodeMarshal configuration.
+Commands: show, edit, reset, validate
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        config_subparsers = parser.add_subparsers(
+            dest="config_command",
+            required=True,
+            title="config commands",
+        )
+
+        # config show
+        show_parser = config_subparsers.add_parser(
+            "show", help="Show current configuration"
+        )
+        show_parser.add_argument("--path", type=Path, help="Path to config file")
+        show_parser.add_argument(
+            "--format", choices=["yaml", "json"], default="yaml", help="Output format"
+        )
+        show_parser.add_argument(
+            "--secrets",
+            action="store_true",
+            help="Show sensitive values (masked by default)",
+        )
+
+        # config edit
+        edit_parser = config_subparsers.add_parser("edit", help="Edit configuration")
+        edit_parser.add_argument("--path", type=Path, help="Path to config file")
+        edit_parser.add_argument("--editor", help="Editor to use")
+
+        # config reset
+        reset_parser = config_subparsers.add_parser("reset", help="Reset to defaults")
+        reset_parser.add_argument("--path", type=Path, help="Path to config file")
+        reset_parser.add_argument(
+            "--confirm", action="store_true", help="Skip confirmation"
+        )
+        reset_parser.add_argument(
+            "--no-backup", action="store_true", help="Don't create backup"
+        )
+
+        # config validate
+        validate_parser = config_subparsers.add_parser(
+            "validate", help="Validate configuration"
+        )
+        validate_parser.add_argument("--path", type=Path, help="Path to config file")
+        validate_parser.add_argument(
+            "--strict", action="store_true", help="Fail on warnings"
+        )
+
+    def _add_backup_parser(self, subparsers: Any) -> None:
+        """Add backup command parser."""
+        parser = subparsers.add_parser(
+            "backup",
+            help="Backup operations",
+            description="""
+Manage CodeMarshal backups.
+Commands: create, list, restore, verify
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        backup_subparsers = parser.add_subparsers(
+            dest="backup_command",
+            required=True,
+            title="backup commands",
+        )
+
+        # backup create
+        create_parser = backup_subparsers.add_parser(
+            "create", help="Create a new backup"
+        )
+        create_parser.add_argument(
+            "--source", type=Path, required=True, help="Source directory to backup"
+        )
+        create_parser.add_argument(
+            "--type",
+            choices=["full", "incremental"],
+            default="full",
+            help="Type of backup",
+        )
+        create_parser.add_argument(
+            "--parent",
+            type=str,
+            default=None,
+            help="Parent backup ID for incremental backup",
+        )
+        create_parser.add_argument(
+            "--compress", action="store_true", help="Compress backup"
+        )
+
+        # backup list
+        list_parser = backup_subparsers.add_parser(
+            "list", help="List available backups"
+        )
+        list_parser.add_argument(
+            "--format", choices=["table", "json"], default="table", help="Output format"
+        )
+
+        # backup restore
+        restore_parser = backup_subparsers.add_parser(
+            "restore", help="Restore from backup"
+        )
+        restore_parser.add_argument("backup_id", type=str, help="Backup ID to restore")
+        restore_parser.add_argument(
+            "--target", type=Path, required=True, help="Target directory to restore to"
+        )
+        restore_parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Preview restore without actually restoring",
+        )
+
+        # backup verify
+        verify_parser = backup_subparsers.add_parser(
+            "verify", help="Verify backup integrity"
+        )
+        verify_parser.add_argument("backup_id", type=str, help="Backup ID to verify")
+
+    def _add_cleanup_parser(self, subparsers: Any) -> None:
+        """Add cleanup command parser."""
+        parser = subparsers.add_parser(
+            "cleanup",
+            help="Remove temporary files and cache",
+            description="""
+Remove temporary files, cache data, and build artifacts.
+Use --dry-run to preview what would be cleaned.
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        parser.add_argument(
+            "--path",
+            type=Path,
+            default=Path("."),
+            help="Directory to clean (default: current directory)",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Show what would be cleaned without actually cleaning",
+        )
+        parser.add_argument("--all", action="store_true", help="Clean all categories")
+        parser.add_argument(
+            "--cache", action="store_true", help="Clean cache files only"
+        )
+        parser.add_argument("--temp", action="store_true", help="Clean temp files only")
+        parser.add_argument(
+            "--artifacts", action="store_true", help="Clean build artifacts only"
+        )
+        parser.add_argument("--logs", action="store_true", help="Clean log files only")
+        parser.add_argument(
+            "--verbose", action="store_true", help="Show detailed output"
+        )
+
+    def _add_repair_parser(self, subparsers: Any) -> None:
+        """Add repair command parser."""
+        parser = subparsers.add_parser(
+            "repair",
+            help="Fix corrupted data and validate integrity",
+            description="""
+Fix corrupted data, validate integrity, and restore system state.
+Creates a backup before repairing unless --validate-only is used.
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        parser.add_argument(
+            "--path",
+            type=Path,
+            default=Path("."),
+            help="Directory to repair (default: current directory)",
+        )
+        parser.add_argument(
+            "--no-backup",
+            action="store_true",
+            help="Skip creating backup before repair",
+        )
+        parser.add_argument(
+            "--restore",
+            type=Path,
+            default=None,
+            help="Restore from backup file instead of repairing",
+        )
+        parser.add_argument(
+            "--validate-only", action="store_true", help="Only validate, don't repair"
+        )
+        parser.add_argument(
+            "--no-storage", action="store_true", help="Skip storage repair"
+        )
+        parser.add_argument(
+            "--no-investigations",
+            action="store_true",
+            help="Skip investigations repair",
+        )
+        parser.add_argument(
+            "--verbose", action="store_true", help="Show detailed output"
+        )
+
+    def _add_test_parser(self, subparsers: Any) -> None:
+        """Add test command parser."""
+        parser = subparsers.add_parser(
+            "test",
+            help="Run test suite",
+            description="""
+Run CodeMarshal's test suite using pytest.
+Supports coverage reporting, parallel execution, and various output formats.
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        parser.add_argument(
+            "--path",
+            type=Path,
+            default=Path("tests"),
+            help="Test directory or file (default: tests/)",
+        )
+        parser.add_argument(
+            "--pattern",
+            type=str,
+            default="test_*.py",
+            help="Test file pattern (default: test_*.py)",
+        )
+        parser.add_argument(
+            "--coverage", action="store_true", help="Enable coverage reporting"
+        )
+        parser.add_argument(
+            "--fail-fast", "-x", action="store_true", help="Stop on first failure"
+        )
+        parser.add_argument(
+            "--verbose", "-v", action="store_true", help="Verbose output"
+        )
+        parser.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
+        parser.add_argument(
+            "--markers",
+            type=str,
+            default=None,
+            help="Only run tests with these markers (comma-separated)",
+        )
+        parser.add_argument(
+            "--ignore",
+            type=str,
+            default=None,
+            help="Ignore these test files (comma-separated)",
+        )
+        parser.add_argument(
+            "--parallel", "-n", action="store_true", help="Run tests in parallel"
+        )
+        parser.add_argument(
+            "--junit-xml",
+            type=Path,
+            default=None,
+            help="Output JUnit XML report to this file",
+        )
+        parser.add_argument(
+            "--html-report",
+            type=Path,
+            default=None,
+            help="Output HTML coverage report to this directory",
+        )
+        parser.add_argument(
+            "--show-locals",
+            action="store_true",
+            help="Show local variables in tracebacks",
+        )
+        parser.add_argument(
+            "--tb-style",
+            choices=["auto", "long", "short", "line", "native", "no"],
+            default="short",
+            help="Traceback style",
+        )
+        parser.add_argument(
+            "--last-failed",
+            "--lf",
+            action="store_true",
+            help="Run only previously failed tests",
+        )
+        parser.add_argument(
+            "--no-header", action="store_true", help="Suppress header output"
+        )
+
+    def _add_search_parser(self, subparsers: Any) -> None:
+        """Add search command parser."""
+        parser = subparsers.add_parser(
+            "search",
+            help="Search codebase for text patterns",
+            description="""
+Search codebase for text patterns using ripgrep (if available) or Python regex.
+Supports regex patterns, file filtering, and context display.
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        parser.add_argument(
+            "query",
+            type=str,
+            help="Search pattern (regex)",
+        )
+        parser.add_argument(
+            "path",
+            type=Path,
+            nargs="?",
+            default=Path("."),
+            help="Directory to search (default: current directory)",
+        )
+        parser.add_argument(
+            "--case-insensitive",
+            "-i",
+            action="store_true",
+            help="Case-insensitive search",
+        )
+        parser.add_argument(
+            "--context",
+            "-C",
+            type=int,
+            default=3,
+            help="Lines of context around matches (default: 3)",
+        )
+        parser.add_argument(
+            "--glob",
+            "-g",
+            type=str,
+            default=None,
+            help="File glob pattern (e.g., '*.py')",
+        )
+        parser.add_argument(
+            "--type",
+            "-t",
+            type=str,
+            default=None,
+            help="File type filter (py, js, java, etc.)",
+        )
+        parser.add_argument(
+            "--limit",
+            "-l",
+            type=int,
+            default=100,
+            help="Maximum results (default: 100)",
+        )
+        parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json", "count"],
+            default="text",
+            help="Output format",
+        )
+        parser.add_argument(
+            "--json-file",
+            type=Path,
+            default=None,
+            help="Output JSON to file",
+        )
+        parser.add_argument(
+            "--threads",
+            type=int,
+            default=4,
+            help="Number of parallel threads (default: 4)",
+        )
+        parser.add_argument(
+            "--exclude",
+            "-e",
+            type=str,
+            default=None,
+            help="Exclude pattern",
+        )
+        parser.add_argument(
+            "--files-with-matches",
+            "-l",
+            action="store_true",
+            help="Show only filenames with matches",
+        )
+
+    def _add_pattern_parser(self, subparsers: Any) -> None:
+        """Add pattern command parser."""
+        parser = subparsers.add_parser(
+            "pattern",
+            help="Pattern detection and management",
+            description="""
+Detect code patterns using built-in and custom pattern detectors.
+Commands: list, scan, add
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        pattern_subparsers = parser.add_subparsers(
+            dest="pattern_command",
+            required=True,
+            title="pattern commands",
+        )
+
+        # pattern list
+        list_parser = pattern_subparsers.add_parser(
+            "list", help="List available patterns"
+        )
+        list_parser.add_argument(
+            "--category",
+            "-c",
+            type=str,
+            choices=["security", "performance", "style"],
+            default=None,
+            help="Filter by category",
+        )
+        list_parser.add_argument(
+            "--show-disabled", action="store_true", help="Include disabled patterns"
+        )
+        list_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["table", "json"],
+            default="table",
+            help="Output format",
+        )
+
+        # pattern scan
+        scan_parser = pattern_subparsers.add_parser(
+            "scan", help="Scan code for patterns"
+        )
+        scan_parser.add_argument(
+            "path",
+            type=Path,
+            nargs="?",
+            default=Path("."),
+            help="Directory or file to scan",
+        )
+        scan_parser.add_argument(
+            "--pattern",
+            "-p",
+            type=str,
+            action="append",
+            help="Specific pattern ID to run (can be used multiple times)",
+        )
+        scan_parser.add_argument(
+            "--category",
+            "-c",
+            type=str,
+            choices=["security", "performance", "style"],
+            default=None,
+            help="Run all patterns in category",
+        )
+        scan_parser.add_argument(
+            "--glob", "-g", type=str, default="*", help="File glob pattern"
+        )
+        scan_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["table", "json"],
+            default="table",
+            help="Output format",
+        )
+        scan_parser.add_argument(
+            "--max-files", type=int, default=10000, help="Maximum files to scan"
+        )
+
+        # pattern add
+        add_parser = pattern_subparsers.add_parser("add", help="Add a custom pattern")
+        add_parser.add_argument(
+            "--id", type=str, required=True, help="Unique pattern identifier"
+        )
+        add_parser.add_argument(
+            "--name", type=str, required=True, help="Human-readable name"
+        )
+        add_parser.add_argument(
+            "--pattern", type=str, required=True, help="Regex pattern"
+        )
+        add_parser.add_argument(
+            "--severity",
+            type=str,
+            choices=["critical", "warning", "info"],
+            default="warning",
+            help="Pattern severity",
+        )
+        add_parser.add_argument(
+            "--description", type=str, default="", help="Pattern description"
+        )
+        add_parser.add_argument(
+            "--message", type=str, default="", help="Message template"
+        )
+        add_parser.add_argument(
+            "--tags",
+            type=str,
+            action="append",
+            help="Tags (can be used multiple times)",
+        )
+        add_parser.add_argument(
+            "--languages",
+            type=str,
+            action="append",
+            help="Target languages (can be used multiple times)",
+        )
+
     def run(self, args: list[str] | None = None) -> int:
         """
         Run the CLI with provided arguments.
@@ -341,6 +870,14 @@ The TUI provides a single-focus, truth-preserving investigation interface.
         except SystemExit:
             # argparse already printed help or error
             return 1
+
+        # Handle version flag before requiring a command
+        if parsed_args.version:
+            return self._handle_version()
+
+        # Handle info flag before requiring a command
+        if parsed_args.info:
+            return self._handle_info()
 
         # Set up logging
         self._setup_logging(parsed_args.debug)
@@ -359,6 +896,20 @@ The TUI provides a single-focus, truth-preserving investigation interface.
                 return self._handle_export(parsed_args)
             elif parsed_args.command == "tui":
                 return self._handle_tui(parsed_args)
+            elif parsed_args.command == "config":
+                return self._handle_config(parsed_args)
+            elif parsed_args.command == "backup":
+                return self._handle_backup(parsed_args)
+            elif parsed_args.command == "cleanup":
+                return self._handle_cleanup(parsed_args)
+            elif parsed_args.command == "repair":
+                return self._handle_repair(parsed_args)
+            elif parsed_args.command == "test":
+                return self._handle_test(parsed_args)
+            elif parsed_args.command == "search":
+                return self._handle_search(parsed_args)
+            elif parsed_args.command == "pattern":
+                return self._handle_pattern(parsed_args)
             else:
                 # Should not happen due to argparse validation
                 self._refuse(f"Unknown command: {parsed_args.command}")
@@ -1019,6 +1570,500 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             self._refuse(f"TUI error: {str(e)}")
             return 1
 
+    def _handle_config(self, args: argparse.Namespace) -> int:
+        """Handle config command."""
+        from bridge.commands import (
+            execute_config_edit,
+            execute_config_reset,
+            execute_config_show,
+            execute_config_validate,
+        )
+
+        try:
+            if args.config_command == "show":
+                result = execute_config_show(
+                    path=args.path, format=args.format, show_secrets=args.secrets
+                )
+                if result.success:
+                    print(result.formatted_output)
+                    return 0
+                else:
+                    self._refuse(f"Failed to show config: {result.error}")
+                    return 1
+
+            elif args.config_command == "edit":
+                result = execute_config_edit(path=args.path, editor=args.editor)
+                if result.success:
+                    print(f"Configuration edited successfully")
+                    if result.backup_path:
+                        print(f"  Backup created: {result.backup_path}")
+                    return 0
+                else:
+                    self._refuse(f"Failed to edit config: {result.error}")
+                    return 1
+
+            elif args.config_command == "reset":
+                if not args.confirm:
+                    confirm = input("Reset configuration to defaults? [y/N]: ")
+                    if confirm.lower() != "y":
+                        print("Cancelled.")
+                        return 0
+
+                result = execute_config_reset(
+                    path=args.path,
+                    confirm=args.confirm,
+                    create_backup=not args.no_backup,
+                )
+                if result.success:
+                    print(f"Configuration reset to defaults")
+                    if result.backup_path:
+                        print(f"  Backup created: {result.backup_path}")
+                    return 0
+                else:
+                    self._refuse(f"Failed to reset config: {result.error}")
+                    return 1
+
+            elif args.config_command == "validate":
+                result = execute_config_validate(path=args.path, strict=args.strict)
+                if result.success:
+                    if result.warnings:
+                        print("Configuration valid (with warnings):")
+                        for warning in result.warnings:
+                            print(f"  ! {warning}")
+                    else:
+                        print("Configuration is valid")
+                    print(f"  Rules defined: {result.rule_count}")
+                    return 0
+                else:
+                    print("Configuration validation failed:")
+                    for error in result.errors:
+                        print(f"  X {error}")
+                    return 1
+
+            else:
+                self._refuse(f"Unknown config command: {args.config_command}")
+                return 1
+
+        except Exception as e:
+            logger.exception("Config command failed")
+            self._refuse(f"Config error: {str(e)}")
+            return 1
+
+    def _handle_backup(self, args: argparse.Namespace) -> int:
+        """Handle backup command."""
+        from bridge.commands import (
+            execute_backup_create,
+            execute_backup_list,
+            execute_backup_restore,
+            execute_backup_verify,
+        )
+
+        try:
+            if args.backup_command == "create":
+                result = execute_backup_create(
+                    source_path=args.source,
+                    backup_type=args.type,
+                    parent_backup_id=args.parent,
+                    compress=args.compress,
+                )
+                if result.success:
+                    print(f"Backup created: {result.backup_id}")
+                    print(f"  Files: {result.file_count}")
+                    print(f"  Size: {result.size_mb} MB")
+                    return 0
+                else:
+                    self._refuse(f"Failed to create backup: {result.error}")
+                    return 1
+
+            elif args.backup_command == "list":
+                result = execute_backup_list(output_format=args.format)
+                if result.success:
+                    if result.count == 0:
+                        print("No backups found")
+                    else:
+                        print(
+                            f"\n{'Backup ID':<30} {'Files':<10} {'Size (MB)':<12} {'Created':<25}"
+                        )
+                        print("=" * 77)
+                        for backup in result.backups:
+                            created = (
+                                backup["created_at"][:19]
+                                if len(backup["created_at"]) > 19
+                                else backup["created_at"]
+                            )
+                            print(
+                                f"{backup['backup_id']:<30} {backup['file_count']:<10} {backup['total_size_mb']:<12} {created:<25}"
+                            )
+                        print(f"\nTotal: {result.count} backup(s)")
+                    return 0
+                else:
+                    self._refuse(f"Failed to list backups: {result.error}")
+                    return 1
+
+            elif args.backup_command == "restore":
+                result = execute_backup_restore(
+                    backup_id=args.backup_id,
+                    target_path=args.target,
+                    dry_run=args.dry_run,
+                )
+                if result.success:
+                    print(result.message)
+                    return 0
+                else:
+                    self._refuse(f"Failed to restore backup: {result.error}")
+                    return 1
+
+            elif args.backup_command == "verify":
+                result = execute_backup_verify(backup_id=args.backup_id)
+                if result.success:
+                    if result.valid:
+                        print(f"Backup {args.backup_id} is valid")
+                        print(f"  Expected files: {result.expected_files}")
+                        print(f"  Actual files: {result.actual_files}")
+                        return 0
+                    else:
+                        self._refuse(
+                            f"Backup {args.backup_id} is invalid: {result.message}"
+                        )
+                        return 1
+                else:
+                    self._refuse(f"Failed to verify backup: {result.error}")
+                    return 1
+
+            else:
+                self._refuse(f"Unknown backup command: {args.backup_command}")
+                return 1
+
+        except Exception as e:
+            logger.exception("Backup command failed")
+            self._refuse(f"Backup error: {str(e)}")
+            return 1
+
+    def _handle_cleanup(self, args: argparse.Namespace) -> int:
+        """Handle cleanup command."""
+        from bridge.commands import execute_cleanup
+
+        try:
+            result = execute_cleanup(
+                path=args.path,
+                dry_run=args.dry_run,
+                clean_all=args.all,
+                clean_cache=args.cache,
+                clean_temp=args.temp,
+                clean_artifacts=args.artifacts,
+                clean_logs=args.logs,
+                verbose=args.verbose,
+            )
+            if result.success:
+                if result.dry_run:
+                    return 0
+                print(f"Cleanup completed")
+                print(f"  Removed: {result.removed_count} items")
+                print(f"  Freed: {result.freed_space_mb:.2f} MB")
+                if result.errors:
+                    print(f"  Errors: {len(result.errors)}")
+                    for error in result.errors[:5]:  # Show first 5 errors
+                        print(f"    - {error}")
+                return 0
+            else:
+                self._refuse(f"Cleanup failed: {result.message}")
+                return 1
+
+        except Exception as e:
+            logger.exception("Cleanup command failed")
+            self._refuse(f"Cleanup error: {str(e)}")
+            return 1
+
+    def _handle_repair(self, args: argparse.Namespace) -> int:
+        """Handle repair command."""
+        from bridge.commands import execute_repair
+
+        try:
+            result = execute_repair(
+                path=args.path,
+                create_backup=not args.no_backup,
+                restore_from=args.restore,
+                validate_only=args.validate_only,
+                repair_storage=not args.no_storage,
+                repair_investigations=not args.no_investigations,
+                verbose=args.verbose,
+            )
+            if result.success:
+                if args.validate_only:
+                    print("Validation completed")
+                else:
+                    print(f"Repair completed")
+                    print(f"  Fixed: {result.fixed_items} items")
+
+                if result.errors:
+                    print(f"  Errors: {len(result.errors)}")
+                    for error in result.errors[:5]:
+                        print(f"    - {error}")
+                return 0
+            else:
+                self._refuse(f"Repair failed: {result.message}")
+                return 1
+
+        except Exception as e:
+            logger.exception("Repair command failed")
+            self._refuse(f"Repair error: {str(e)}")
+            return 1
+
+    def _handle_test(self, args: argparse.Namespace) -> int:
+        """Handle test command."""
+        from bridge.commands import execute_test
+
+        try:
+            # Parse markers
+            markers = None
+            if args.markers:
+                markers = [m.strip() for m in args.markers.split(",")]
+
+            # Parse ignore list
+            ignore = None
+            if args.ignore:
+                ignore = [i.strip() for i in args.ignore.split(",")]
+
+            result = execute_test(
+                path=args.path,
+                pattern=args.pattern,
+                coverage=args.coverage,
+                fail_fast=args.fail_fast,
+                verbose=args.verbose,
+                quiet=args.quiet,
+                markers=markers,
+                ignore=ignore,
+                parallel=args.parallel,
+                junit_xml=args.junit_xml,
+                html_report=args.html_report,
+                show_locals=args.show_locals,
+                tb_style=args.tb_style,
+                last_failed=args.last_failed,
+                no_header=args.no_header,
+            )
+
+            # Print output
+            if result.output:
+                print(result.output)
+
+            # Print summary
+            print(f"\n{'=' * 60}")
+            print(f"Tests: {result.tests_run} | ", end="")
+            print(f"Passed: {result.tests_passed} | ", end="")
+            print(f"Failed: {result.tests_failed} | ", end="")
+            print(f"Skipped: {result.tests_skipped}")
+
+            if result.coverage_percent is not None:
+                print(f"Coverage: {result.coverage_percent:.1f}%")
+
+            print(f"{'=' * 60}")
+
+            if result.success:
+                return 0
+            else:
+                return result.exit_code if result.exit_code else 1
+
+        except Exception as e:
+            logger.exception("Test command failed")
+            self._refuse(f"Test error: {str(e)}")
+            return 1
+
+    def _handle_search(self, args: argparse.Namespace) -> int:
+        """Handle search command."""
+        from bridge.commands import execute_search
+
+        try:
+            result = execute_search(
+                query=args.query,
+                path=args.path,
+                case_insensitive=args.case_insensitive,
+                context=args.context,
+                glob=args.glob,
+                file_type=args.type,
+                limit=args.limit,
+                output_format=args.output,
+                json_file=args.json_file,
+                threads=args.threads,
+                exclude_pattern=args.exclude,
+                files_with_matches=args.files_with_matches,
+            )
+
+            if result.success:
+                return 0
+            else:
+                self._refuse(f"Search failed: {result.error}")
+                return 1
+
+        except Exception as e:
+            logger.exception("Search command failed")
+            self._refuse(f"Search error: {str(e)}")
+            return 1
+
+    def _handle_pattern(self, args: argparse.Namespace) -> int:
+        """Handle pattern command."""
+        from bridge.commands import (
+            execute_pattern_add,
+            execute_pattern_list,
+            execute_pattern_scan,
+        )
+
+        try:
+            if args.pattern_command == "list":
+                result = execute_pattern_list(
+                    category=args.category,
+                    show_disabled=args.show_disabled,
+                    output_format=args.output,
+                )
+                if result.success:
+                    print(f"\nAvailable Patterns ({result.total_count} total):")
+                    print("=" * 80)
+                    print(f"{'ID':<30} {'Name':<30} {'Severity':<10}")
+                    print("-" * 80)
+                    for pattern in result.patterns:
+                        print(
+                            f"{pattern.id:<30} {pattern.name:<30} {pattern.severity:<10}"
+                        )
+                    return 0
+                else:
+                    self._refuse(f"Failed to list patterns: {result.error}")
+                    return 1
+
+            elif args.pattern_command == "scan":
+                result = execute_pattern_scan(
+                    path=args.path,
+                    patterns=args.pattern,
+                    category=args.category,
+                    glob=args.glob,
+                    output_format=args.output,
+                    max_files=args.max_files,
+                )
+                if result.success:
+                    print(f"\nPattern Scan Results")
+                    print("=" * 80)
+                    print(f"Patterns scanned: {result.patterns_scanned}")
+                    print(f"Files scanned: {result.files_scanned}")
+                    print(f"Matches found: {result.matches_found}")
+                    print(f"Scan time: {result.scan_time_ms:.2f}ms")
+
+                    if result.matches:
+                        print("\nMatches:")
+                        print("-" * 80)
+                        for match in result.matches:
+                            severity_color = {
+                                "critical": "\033[91m",
+                                "warning": "\033[93m",
+                                "info": "\033[94m",
+                            }.get(match["severity"], "")
+                            reset_color = "\033[0m"
+                            print(
+                                f"{severity_color}[{match['severity'].upper()}]{reset_color} {match['file']}:{match['line']}"
+                            )
+                            print(f"  {match['message']}")
+                            print(f"  > {match['matched']}")
+                            print()
+
+                    return 0 if result.matches_found == 0 else 1
+                else:
+                    self._refuse(f"Scan failed: {result.error}")
+                    return 1
+
+            elif args.pattern_command == "add":
+                result = execute_pattern_add(
+                    pattern_id=args.id,
+                    name=args.name,
+                    pattern=args.pattern,
+                    severity=args.severity,
+                    description=args.description,
+                    message=args.message,
+                    tags=args.tags,
+                    languages=args.languages,
+                )
+                if result.success:
+                    print(f"✓ Pattern '{result.pattern_id}' added successfully")
+                    return 0
+                else:
+                    self._refuse(f"Failed to add pattern: {result.error}")
+                    return 1
+
+            else:
+                self._refuse(f"Unknown pattern command: {args.pattern_command}")
+                return 1
+
+        except Exception as e:
+            logger.exception("Pattern command failed")
+            self._refuse(f"Pattern error: {str(e)}")
+            return 1
+
+    def _handle_version(self) -> int:
+        """Handle --version flag."""
+        import platform
+
+        try:
+            from importlib.metadata import version
+
+            codemarshal_version = version("codemarshal")
+        except ImportError:
+            codemarshal_version = "1.0.0"
+        except Exception:
+            codemarshal_version = "unknown"
+
+        print(f"CodeMarshal v{codemarshal_version}")
+        print(f"Python: {platform.python_version()}")
+        print(f"Platform: {platform.platform()}")
+
+        return 0
+
+    def _handle_info(self) -> int:
+        """Handle --info flag."""
+        import platform
+
+        try:
+            from importlib.metadata import version, requires
+
+            codemarshal_version = version("codemarshal")
+        except ImportError:
+            codemarshal_version = "1.0.0"
+        except Exception:
+            codemarshal_version = "unknown"
+
+        print("CodeMarshal System Information")
+        print("=" * 40)
+        print(f"\nVersion: v{codemarshal_version}")
+        print(f"Python: {platform.python_version()}")
+        print(f"Platform: {platform.platform()}")
+
+        # Configuration info
+        print("\nConfiguration:")
+        try:
+            # Try to get default config path
+            config_path = Path.home() / ".config" / "codemarshal" / "config.yaml"
+            print(f"  Config Path: {config_path}")
+            if config_path.exists():
+                print("  Config Status: Exists")
+            else:
+                print("  Config Status: Not found (will use defaults)")
+        except Exception as e:
+            print(f"  Config Error: {e}")
+
+        # Storage info
+        print("\nStorage:")
+        try:
+            storage_dir = Path("storage")
+            if storage_dir.exists():
+                session_count = len(list(storage_dir.glob("sessions/*.session.json")))
+                obs_count = len(
+                    list(storage_dir.glob("observations/*.observation.json"))
+                )
+                print(f"  Sessions: {session_count}")
+                print(f"  Observations: {obs_count}")
+            else:
+                print("  Storage directory not initialized")
+        except Exception as e:
+            print(f"  Storage Error: {e}")
+
+        print("\n" + "=" * 40)
+        return 0
+
     def _generate_export_content(
         self,
         format_type: str,
@@ -1411,7 +2456,9 @@ The TUI provides a single-focus, truth-preserving investigation interface.
             print(text.encode(encoding, errors="replace").decode(encoding))
 
     # Output methods
-    def _show_investigation_result(self, result: Any, intent: str = None) -> None:
+    def _show_investigation_result(
+        self, result: Any, intent: str | None = None
+    ) -> None:
         """Show investigation result clearly."""
         self._safe_print("\nINVESTIGATION STARTED")
         self._safe_print("=" * 80)

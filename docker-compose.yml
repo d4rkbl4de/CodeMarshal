@@ -1,0 +1,120 @@
+# docker-compose.yml
+# CodeMarshal Docker Compose Configuration
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # Production CodeMarshal service
+  codemarshal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codemarshal:latest
+    container_name: codemarshal
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      - CODEMARSHAL_HOME=/data
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    # Volumes for persistent data
+    volumes:
+      - codemarshal_data:/data
+      - ./projects:/data/projects:ro
+      - ./config:/data/config:ro
+    
+    # Command to run (can be overridden)
+    command: ["--help"]
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "from bridge.commands import execute_search; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Development CodeMarshal service
+  codemarshal-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: codemarshal:dev
+    container_name: codemarshal-dev
+    
+    # Environment variables
+    environment:
+      - CODEMARSHAL_HOME=/data
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONPATH=/app
+    
+    # Volumes for development
+    volumes:
+      - codemarshal_data:/data
+      - .:/app
+      - ./projects:/data/projects
+      - ./config:/data/config
+    
+    # Keep container running
+    stdin_open: true
+    tty: true
+    
+    # Default command
+    command: ["/bin/bash"]
+    
+    # Ports (for potential web interface)
+    ports:
+      - "8080:8080"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+
+  # Optional: Redis for caching (future enhancement)
+  redis:
+    image: redis:7-alpine
+    container_name: codemarshal-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+# Named volumes for persistence
+volumes:
+  codemarshal_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Networks
+networks:
+  default:
+    name: codemarshal-network

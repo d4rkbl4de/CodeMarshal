@@ -107,6 +107,49 @@ As codebases grow (50K+ LOC), they become **impossible for any single developer 
 
 ---
 
+## 🎉 What's New in v2.0
+
+### Major New Features
+
+**🛠️ Enhanced CLI Infrastructure**
+- **Configuration Management**: `codemarshal config` commands (show, edit, reset, validate)
+- **Backup & Restore**: Full backup system with `codemarshal backup` and `codemarshal restore`
+- **System Maintenance**: `codemarshal cleanup` and `codemarshal repair` commands
+- **Testing**: Built-in test runner with `codemarshal test`
+- **System Info**: `--version` and `--info` global flags
+
+**🔍 Advanced Search & Analysis**
+- **Code Search**: `codemarshal search` with ripgrep integration and regex support
+- **Pattern Detection**: `codemarshal pattern` with 8 built-in security patterns
+- **Custom Patterns**: Add your own pattern detectors via YAML
+- **Multiple Output Formats**: JSON, CSV, text, and count modes
+
+**📊 New Export Formats**
+- **HTML Export**: Interactive web reports with visual hierarchy
+- **CSV Export**: Spreadsheet-compatible tabular data
+- All exports maintain truth preservation with documented limitations
+
+**🐳 Docker Support**
+- Production-ready Dockerfile with multi-stage builds
+- Development Dockerfile with full toolchain
+- Docker Compose configuration for easy deployment
+- Helper scripts for building and running containers
+
+**🔧 Integrations**
+- **Pre-commit Hooks**: Automatic constitutional violation detection
+- **GitHub Actions**: CI/CD workflow for automated analysis
+- **IDE Integration**: Foundation for editor extensions
+
+### Improvements
+
+- **Performance**: Parallel processing for search and pattern scanning
+- **Documentation**: Comprehensive guides and API documentation
+- **Testing**: 100+ new tests with >80% coverage
+- **Stability**: Fixed broken imports and version alignment
+- **Code Quality**: Comprehensive cleanup and audit remediation
+
+---
+
 ## 🚀 Quick Start
 
 ### In 5 Minutes or Less
@@ -497,30 +540,250 @@ codemarshal export . --filter="violations,complexity>75" --format=csv --output=i
 
 ### 🛠️ Utility Commands
 
+#### 📋 Global Flags
+
 ```bash
-# VERSION AND INFO
-codemarshal --version                                  # Show version
-codemarshal --help                                     # General help
-codemarshal observe --help                            # Command-specific help
-codemarshal --info                                     # System information
+codemarshal --version                                  # Show version information
+codemarshal --info                                     # Show system diagnostics
+codemarshal --debug                                    # Enable debug logging
+codemarshal --config=/path/to/config.yaml             # Use custom config file
+```
 
-# CONFIGURATION
-codemarshal config show                                # Show current configuration
-codemarshal config edit                                # Edit configuration
-codemarshal config reset                               # Reset to defaults
-codemarshal config validate                            # Validate configuration
+#### ⚙️ `codemarshal config` - Configuration Management
 
-# MAINTENANCE
-codemarshal cleanup                                    # Clean temporary files
-codemarshal repair                                     # Repair corrupted data
-codemarshal backup                                     # Create backup
-codemarshal restore --backup=backup.zip               # Restore from backup
+**Purpose**: Manage CodeMarshal configuration files
 
-# DEVELOPMENT
-codemarshal test                                       # Run self-tests
-codemarshal benchmark                                  # Performance benchmark
-codemarshal profile                                    # Profile performance
-codemarshal debug                                      # Debug mode
+```bash
+# SHOW CONFIGURATION
+codemarshal config show                               # Display current config
+codemarshal config show --format=json                # JSON output format
+codemarshal config show --format=yaml                # YAML output format (default)
+codemarshal config show --secrets                    # Show sensitive values
+
+# EDIT CONFIGURATION
+codemarshal config edit                               # Edit in $EDITOR
+codemarshal config edit --editor=vim                 # Specify editor
+codemarshal config edit --path=/custom/config.yaml   # Edit specific file
+
+# RESET CONFIGURATION
+codemarshal config reset                              # Reset to defaults
+codemarshal config reset --confirm                   # Skip confirmation prompt
+codemarshal config reset --no-backup                 # Don't create backup
+
+# VALIDATE CONFIGURATION
+codemarshal config validate                           # Validate config file
+codemarshal config validate --strict                 # Fail on warnings
+codemarshal config validate --path=/custom/config.yaml
+```
+
+**Configuration file locations** (in order of priority):
+1. `$CODEMARSHAL_CONFIG` environment variable
+2. `./.codemarshal/config.yaml` (project-specific)
+3. `~/.config/codemarshal/config.yaml` (user-specific)
+4. Default configuration (embedded)
+
+---
+
+#### 🔍 `codemarshal search` - Code Search
+
+**Purpose**: Search codebase for text patterns with regex support
+
+```bash
+# BASIC SEARCH
+codemarshal search "TODO"                             # Search for TODO comments
+codemarshal search "def " ./src                      # Search in specific directory
+codemarshal search "class.*:" --case-insensitive    # Case-insensitive search
+
+# ADVANCED SEARCH
+codemarshal search "pattern" --context=5             # Show 5 lines of context
+codemarshal search "pattern" --glob="*.py"           # Search only Python files
+codemarshal search "pattern" --type=py               # File type filter
+codemarshal search "pattern" --limit=50              # Limit results
+codemarshal search "pattern" --exclude="test_"       # Exclude pattern
+
+# OUTPUT OPTIONS
+codemarshal search "pattern" --output=text           # Text output (default)
+codemarshal search "pattern" --output=json           # JSON output
+codemarshal search "pattern" --output=count          # Count only
+codemarshal search "pattern" --json-file=results.json # Save to file
+codemarshal search "pattern" --files-with-matches    # Show filenames only
+
+# PERFORMANCE
+codemarshal search "pattern" --threads=8             # Parallel threads (default: 4)
+```
+
+**Features**:
+- Uses ripgrep when available (much faster)
+- Falls back to Python regex if ripgrep unavailable
+- Context lines around matches
+- File type and glob filtering
+- JSON export for programmatic use
+
+---
+
+#### 🔎 `codemarshal pattern` - Pattern Detection
+
+**Purpose**: Detect code patterns using built-in and custom detectors
+
+```bash
+# LIST PATTERNS
+codemarshal pattern list                              # List all patterns
+codemarshal pattern list --category=security         # Security patterns only
+codemarshal pattern list --show-disabled             # Include disabled patterns
+codemarshal pattern list --output=json               # JSON output
+
+# SCAN FOR PATTERNS
+codemarshal pattern scan                              # Scan current directory
+codemarshal pattern scan ./src                       # Scan specific path
+codemarshal pattern scan --category=security         # Security patterns only
+codemarshal pattern scan --pattern=hardcoded_password # Specific pattern
+codemarshal pattern scan --glob="*.py"               # Python files only
+codemarshal pattern scan --output=json               # JSON output
+
+# ADD CUSTOM PATTERN
+codemarshal pattern add \
+  --id=my_custom_pattern \
+  --name="My Pattern" \
+  --pattern="regex_here" \
+  --severity=warning \
+  --description="Description" \
+  --message="Found at {{file}}:{{line}}" \
+  --tags=custom,security \
+  --languages=python,javascript
+```
+
+**Built-in Pattern Categories**:
+- **security**: Hardcoded passwords, API keys, tokens, eval/exec usage
+- **performance**: Coming soon
+- **style**: Coming soon
+
+**Custom patterns** are saved to `patterns/custom/user_patterns.yaml`
+
+---
+
+#### 💾 `codemarshal backup` - Backup Operations
+
+**Purpose**: Create and manage CodeMarshal backups
+
+```bash
+# CREATE BACKUP
+codemarshal backup create --source=/path/to/project   # Create full backup
+codemarshal backup create --source=. --type=incremental # Incremental backup
+codemarshal backup create --parent=backup_id         # Parent for incremental
+codemarshal backup create --compress                 # Compress backup
+
+# LIST BACKUPS
+codemarshal backup list                               # List all backups
+codemarshal backup list --format=table               # Table format (default)
+codemarshal backup list --format=json                # JSON format
+
+# RESTORE BACKUP
+codemarshal backup restore BACKUP_ID --target=/path  # Restore to path
+codemarshal backup restore BACKUP_ID --target=. --dry-run # Preview only
+
+# VERIFY BACKUP
+codemarshal backup verify BACKUP_ID                  # Verify integrity
+```
+
+**Backup storage**: `~/.codemarshal/backups/`
+
+---
+
+#### 🧹 `codemarshal cleanup` - Cleanup Operations
+
+**Purpose**: Remove temporary files and cache data
+
+```bash
+# CLEAN ALL
+codemarshal cleanup                                   # Clean everything
+codemarshal cleanup --dry-run                        # Preview what would be cleaned
+
+# SELECTIVE CLEANUP
+codemarshal cleanup --cache                          # Clean cache only
+codemarshal cleanup --temp                           # Clean temp files only
+codemarshal cleanup --artifacts                      # Clean build artifacts
+codemarshal cleanup --logs                           # Clean log files
+codemarshal cleanup --all                            # Clean all categories
+
+# OPTIONS
+codemarshal cleanup --path=/path/to/clean            # Clean specific path
+codemarshal cleanup --verbose                        # Show detailed output
+```
+
+**What gets cleaned**:
+- Cache: `__pycache__`, `*.pyc`, `.pytest_cache`, etc.
+- Temp: `*.tmp`, `temp/`, `.tmp/`
+- Artifacts: `build/`, `dist/`, `node_modules/`
+- Logs: `*.log`, `logs/`
+- CodeMarshal: `.codemarshal/cache`, `.codemarshal/tmp`
+
+---
+
+#### 🔧 `codemarshal repair` - Repair Operations
+
+**Purpose**: Fix corrupted data and validate integrity
+
+```bash
+# VALIDATE ONLY
+codemarshal repair --validate-only                   # Check without repairing
+
+# REPAIR
+codemarshal repair                                    # Full repair
+codemarshal repair --no-backup                       # Skip pre-repair backup
+codemarshal repair --no-storage                      # Skip storage repair
+codemarshal repair --no-investigations               # Skip investigations repair
+codemarshal repair --verbose                         # Detailed output
+
+# RESTORE FROM BACKUP
+codemarshal repair --restore=/path/to/backup         # Restore instead of repair
+```
+
+**Repairs**:
+- Corrupted JSON files (fixes trailing commas)
+- Missing required files
+- Storage integrity issues
+- Investigation state issues
+
+---
+
+#### 🧪 `codemarshal test` - Testing
+
+**Purpose**: Run CodeMarshal's test suite
+
+```bash
+# RUN TESTS
+codemarshal test                                      # Run all tests
+codemarshal test --path=tests/                       # Specific directory
+codemarshal test --pattern="test_*.py"               # Pattern filter
+
+# COVERAGE
+codemarshal test --coverage                          # Enable coverage
+codemarshal test --coverage --html-report=./coverage # HTML report
+
+# OPTIONS
+codemarshal test --fail-fast                         # Stop on first failure
+codemarshal test --verbose                           # Verbose output
+codemarshal test --quiet                             # Minimal output
+codemarshal test --parallel                          # Parallel execution
+codemarshal test --markers="slow"                    # Run marked tests only
+```
+
+---
+
+#### 🐳 Docker Commands
+
+```bash
+# BUILD
+docker build -t codemarshal:latest .                 # Production image
+docker build -f Dockerfile.dev -t codemarshal:dev .  # Development image
+
+# RUN
+docker run --rm codemarshal:latest --version
+docker run --rm -v $(pwd):/data codemarshal:latest search "TODO" /data
+
+# DOCKER COMPOSE
+docker-compose up -d codemarshal                     # Production
+docker-compose up -d codemarshal-dev                 # Development
 ```
 
 ---

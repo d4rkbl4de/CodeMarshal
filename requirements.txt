@@ -1,5 +1,5 @@
-﻿-e git+https://github.com/d4rkbl4de/CodeMarshal.git@7c51547e8e95c10c1c0750e6481ae309c789ec9e#egg=codemarshal
-psutil==7.2.1
-PyYAML==6.0.3
-typing_extensions==4.15.0
-windows-curses==2.4.1
+-e .
+psutil>=7.2.0
+PyYAML>=6.0.0
+typing_extensions>=4.8.0
+windows-curses>=2.3.0; platform_system=="Windows"
