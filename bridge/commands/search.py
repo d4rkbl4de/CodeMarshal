@@ -190,7 +190,12 @@ class SearchCommand:
         files_with_matches: bool,
     ) -> SearchResults:
         """Use ripgrep for fast searching."""
-        cmd = ["rg", "--json", "--context", str(context)]
+        if files_with_matches:
+            cmd = ["rg", "--files-with-matches"]
+        else:
+            cmd = ["rg", "--json"]
+            if context:
+                cmd.extend(["--context", str(context)])
 
         if case_insensitive:
             cmd.append("--ignore-case")
@@ -202,13 +207,7 @@ class SearchCommand:
             cmd.extend(["--type", file_type])
 
         if exclude_pattern:
-            cmd.extend(["--ignore-case", exclude_pattern])
-
-        if files_with_matches:
-            cmd.append("--files-with-matches")
-
-        if limit:
-            cmd.extend(["--max-count", str(limit)])
+            cmd.extend(["--glob", f"!{exclude_pattern}"])
 
         cmd.extend([query, str(path)])
 
@@ -223,29 +222,61 @@ class SearchCommand:
             output_format="text",
         )
 
-        if result.returncode in (0, 1):  # 0 = matches, 1 = no matches
-            for line in result.stdout.strip().split("\n"):
-                if line:
-                    try:
-                        data = json.loads(line)
-                        search_result = self._parse_ripgrep_match(data)
-                        if search_result:
-                            results.results.append(search_result)
-                    except json.JSONDecodeError:
-                        pass
+        if result.returncode not in (0, 1):  # 0 = matches, 1 = no matches
+            error_message = result.stderr.strip() or "ripgrep failed"
+            raise ValueError(error_message)
+
+        if files_with_matches:
+            for line in result.stdout.splitlines():
+                if not line:
+                    continue
+                file_path = Path(line.strip())
+                results.results.append(
+                    SearchResult(
+                        file_path=file_path,
+                        line_number=0,
+                        line_content="",
+                        matched_text="",
+                        context_before=[],
+                        context_after=[],
+                        match_start=0,
+                        match_end=0,
+                    )
+                )
+                if limit and len(results.results) >= limit:
+                    break
+        else:
+            lines_cache: dict[Path, list[str]] = {}
+            for line in result.stdout.splitlines():
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                search_result = self._parse_ripgrep_match(
+                    data, context, lines_cache
+                )
+                if search_result:
+                    results.results.append(search_result)
+                    if limit and len(results.results) >= limit:
+                        break
 
         results.total_matches = len(results.results)
         results.files_with_matches = len(set(r.file_path for r in results.results))
 
         return results
 
-    def _parse_ripgrep_match(self, data: dict) -> SearchResult | None:
+    def _parse_ripgrep_match(
+        self, data: dict, context: int, lines_cache: dict[Path, list[str]]
+    ) -> SearchResult | None:
         """Parse ripgrep JSON output into SearchResult."""
         if data.get("type") != "match":
             return None
 
         data_obj = data.get("data", {})
-        path_obj = data.get("path", {})
+        path_obj = data_obj.get("path", {})
         lines_obj = data_obj.get("lines", {})
         submatches = data_obj.get("submatches", [])
 
@@ -263,9 +294,33 @@ class SearchCommand:
             match_end = match.get("end", 0)
             matched_text = line_text[match_start:match_end]
 
-        # Get context
-        context_before = []
-        context_after = []
+        # Get context by reading file if requested
+        context_before: list[str] = []
+        context_after: list[str] = []
+
+        if context > 0 and file_path:
+            lines = lines_cache.get(file_path)
+            if lines is None:
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        lines = f.readlines()
+                except (UnicodeDecodeError, PermissionError, OSError):
+                    lines = []
+                lines_cache[file_path] = lines
+
+            if lines and 1 <= line_number <= len(lines):
+                line_idx = line_number - 1
+                line_text = lines[line_idx].rstrip()
+                context_before = [
+                    lines[i].rstrip()
+                    for i in range(max(0, line_idx - context), line_idx)
+                ]
+                context_after = [
+                    lines[i].rstrip()
+                    for i in range(
+                        line_idx + 1, min(len(lines), line_idx + context + 1)
+                    )
+                ]
 
         return SearchResult(
             file_path=file_path,
@@ -323,12 +378,17 @@ class SearchCommand:
 
         results = SearchResults(
             query=query,
-            total_matches=len(all_results),
-            files_with_matches=len(set(r.file_path for r in all_results)),
-            results=all_results[:limit],
+            total_matches=0,
+            files_with_matches=0,
+            results=[],
             search_time_ms=0,
             output_format="text",
         )
+
+        trimmed_results = all_results[:limit] if limit else all_results
+        results.results = trimmed_results
+        results.total_matches = len(trimmed_results)
+        results.files_with_matches = len(set(r.file_path for r in trimmed_results))
 
         return results
 

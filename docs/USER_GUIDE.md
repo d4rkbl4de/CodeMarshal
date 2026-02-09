@@ -14,10 +14,11 @@
 4. [Detailed Usage Guide](#detailed-usage-guide)
 5. [Query System](#query-system)
 6. [Export System](#export-system)
-7. [TUI (Text User Interface)](#tui-text-user-interface)
-8. [Boundary Configuration](#boundary-configuration)
-9. [Examples & Workflows](#examples--workflows)
-10. [Troubleshooting](#troubleshooting)
+7. [Desktop GUI](#desktop-gui)
+8. [TUI (Text User Interface)](#tui-text-user-interface)
+9. [Boundary Configuration](#boundary-configuration)
+10. [Examples & Workflows](#examples--workflows)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -101,13 +102,18 @@ codemarshal export investigation_<id> --format=markdown --output=my_report.md --
 
 ### **Command Overview**
 
-CodeMarshal provides 5 main commands:
+CodeMarshal provides the following main commands:
 
 1. `investigate` - Create a tracked investigation
 2. `observe` - Collect observations only
 3. `query` - Ask questions about investigations
 4. `export` - Export investigation results
-5. `tui` - Launch interactive interface
+5. `gui` - Launch desktop GUI
+6. `tui` - Launch interactive interface
+7. `config` - Manage CodeMarshal configuration
+8. `backup` - Perform backup operations
+9. `cleanup` - Remove temporary files and cache
+10. `repair` - Fix corrupted data and validate integrity
 
 ---
 
@@ -238,7 +244,7 @@ codemarshal query <investigation_id> --question=<text> --question-type=<type> [o
 
 **Options:**
 
-- `--limit=<number>` - Limit number of results (default: 50)
+- `--limit=<number>` / `-m <number>` - Limit number of results (default: 50)
 - `--focus=<path>` - Focus on specific file or directory
 
 **Question Types:**
@@ -356,7 +362,7 @@ codemarshal export <investigation_id> --format=<type> --output=<path> [options]
 **Required Arguments:**
 
 - `<investigation_id>` - Investigation ID to export
-- `--format=<type>` - Export format: `json`, `markdown`, `html`, `plain`
+- `--format=<type>` - Export format: `json`, `markdown`, `html`, `plain`, `csv`
 - `--output=<path>` - Output file path
 
 **Options:**
@@ -399,6 +405,14 @@ codemarshal export <id> --format=plain --output=report.txt --confirm-overwrite
 
 Output: Plain text with ASCII formatting
 
+#### **CSV** - Tabular data for spreadsheets
+
+```bash
+codemarshal export <id> --format=csv --output=report.csv --confirm-overwrite --include-patterns
+```
+
+Output: Comma-separated values for tabular analysis (primarily patterns)
+
 **Output:**
 
 ```
@@ -413,7 +427,33 @@ Size:           1.6K
 
 ---
 
-### **5. TUI COMMAND**
+### **5. GUI COMMAND**
+
+**Purpose:** Launch the desktop GUI for single-focus investigation.
+
+**Syntax:**
+
+```bash
+codemarshal gui [path]
+```
+
+**Options:**
+
+- `path` - Optional starting path (default: current directory)
+
+**Examples:**
+
+```bash
+# Launch GUI in current directory
+codemarshal gui
+
+# Launch GUI for a specific project
+codemarshal gui ./src
+```
+
+---
+
+### **6. TUI COMMAND**
 
 **Purpose:** Launch the interactive Text User Interface for guided investigation.
 
@@ -457,8 +497,185 @@ codemarshal tui --path=./src
 
 1. Start in AWAITING_PATH state
 2. Press `o` to observe, enter path
-3. After observation, use `s`, `p`, `n`, or `e`
+3. After observation, use `s`, `p`, `n` or `e`
 4. Press `q` to quit
+
+---
+
+### **7. CONFIG COMMAND**
+
+**Purpose:** Manage CodeMarshal's configuration. This includes showing current settings, editing the configuration file, resetting to defaults, and validating the configuration structure.
+
+**Syntax:**
+
+```bash
+codemarshal config <subcommand> [options]
+```
+
+**Subcommands:**
+
+-   `show` - Display current configuration.
+    *   **Options:**
+        *   `--path=<path>` - Path to config file.
+        *   `--format=<type>` - Output format: `yaml`, `json` (default: `yaml`).
+        *   `--secrets` - Show sensitive values (masked by default).
+-   `edit` - Open and edit the configuration file in an external editor.
+    *   **Options:**
+        *   `--path=<path>` - Path to config file.
+        *   `--editor=<editor_cmd>` - Specify editor command (defaults to `$EDITOR` or `vi`).
+-   `reset` - Reset configuration to default settings.
+    *   **Options:**
+        *   `--path=<path>` - Path to config file.
+        *   `--confirm` - Skip confirmation prompt.
+        *   `--no-backup` - Do not create a backup before resetting.
+-   `validate` - Validate configuration against schema.
+    *   **Options:**
+        *   `--path=<path>` - Path to config file.
+        *   `--strict` - Fail on warnings as well as errors.
+
+**Examples:**
+
+```bash
+# Show current configuration
+codemarshal config show
+
+# Show configuration in JSON format, including secrets
+codemarshal config show --format=json --secrets
+
+# Edit configuration using VS Code
+codemarshal config edit --editor=code
+
+# Reset configuration to defaults with confirmation
+codemarshal config reset
+
+# Validate configuration in strict mode
+codemarshal config validate --strict
+```
+
+---
+
+### **8. BACKUP COMMAND**
+
+**Purpose:** Perform backup and restore operations for CodeMarshal data.
+
+**Syntax:**
+
+```bash
+codemarshal backup <subcommand> [options]
+```
+
+**Subcommands:**
+
+-   `create` - Create a new backup.
+    *   **Required Options:**
+        *   `--source=<path>` - Source directory to backup.
+    *   **Options:**
+        *   `--type=<type>` - Type of backup: `full`, `incremental` (default: `full`).
+        *   `--parent=<id>` - Parent backup ID for incremental backups.
+        *   `--compress` - Compress the backup.
+-   `list` - List available backups.
+    *   **Options:**
+        *   `--format=<type>` - Output format: `table`, `json` (default: `table`).
+-   `restore` - Restore data from a backup.
+    *   **Required Arguments:**
+        *   `<backup_id>` - ID of the backup to restore.
+    *   **Required Options:**
+        *   `--target=<path>` - Target directory to restore to.
+    *   **Options:**
+        *   `--dry-run` - Preview restore without actually restoring.
+-   `verify` - Verify the integrity of a backup.
+    *   **Required Arguments:**
+        *   `<backup_id>` - ID of the backup to verify.
+
+**Examples:**
+
+```bash
+# Create a full backup of the current investigation data
+codemarshal backup create --source=.codemarshal --type=full
+
+# List all available backups
+codemarshal backup list
+
+# Restore a specific backup to a target directory
+codemarshal backup restore my_backup_id --target=/tmp/restored_data
+
+# Verify the integrity of a backup
+codemarshal backup verify my_backup_id
+```
+
+---
+
+### **9. CLEANUP COMMAND**
+
+**Purpose:** Remove temporary files, cache data, and build artifacts generated by CodeMarshal or the project.
+
+**Syntax:**
+
+```bash
+codemarshal cleanup [options]
+```
+
+**Options:**
+
+-   `--path=<path>` - Directory to clean (default: current directory).
+-   `--dry-run` - Show what would be cleaned without actually cleaning.
+-   `--all` - Clean all categories (cache, temp, artifacts, logs).
+-   `--cache` - Clean cache files only.
+-   `--temp` - Clean temporary files only.
+-   `--artifacts` - Clean build artifacts only.
+-   `--logs` - Clean log files only.
+-   `--verbose` - Show detailed output of removed items.
+
+**Examples:**
+
+```bash
+# Preview cleanup in the current directory
+codemarshal cleanup --dry-run
+
+# Clean all temporary and cache files in a specific project
+codemarshal cleanup --path=/path/to/project --all
+
+# Clean only cache files verbosely
+codemarshal cleanup --cache --verbose
+```
+
+---
+
+### **10. REPAIR COMMAND**
+
+**Purpose:** Fix corrupted CodeMarshal data, validate integrity, and restore system state.
+
+**Syntax:**
+
+```bash
+codemarshal repair [options]
+```
+
+**Options:**
+
+-   `--path=<path>` - Directory to repair (default: current directory).
+-   `--no-backup` - Skip creating a backup before repair.
+-   `--restore=<path>` - Restore from a specified backup file instead of repairing.
+-   `--validate-only` - Only validate, do not perform any repairs.
+-   `--no-storage` - Skip storage repair operations.
+-   `--no-investigations` - Skip investigation data repair operations.
+-   `--verbose` - Show detailed output.
+
+**Examples:**
+
+```bash
+# Validate and attempt to repair CodeMarshal data in the current directory
+codemarshal repair
+
+# Only validate integrity without making any changes
+codemarshal repair --validate-only
+
+# Restore CodeMarshal data from a specific backup
+codemarshal repair --restore=/path/to/backup.zip
+
+# Repair storage only, with verbose output
+codemarshal repair --no-investigations --verbose
+```
 
 ---
 
@@ -622,6 +839,24 @@ Total Observations: 1
 
 ---
 
+## **DESKTOP GUI**
+
+The desktop GUI provides a single-focus, local-only interface for investigations. It is designed for high-contrast readability with a dark theme and detective-inspired typography.
+
+**Launch:**
+
+```bash
+codemarshal gui
+```
+
+**What it covers:**
+
+- Observe, investigate, patterns, export
+- Evidence-first display with clear limitations
+- No network dependencies
+
+---
+
 ## **TUI (TEXT USER INTERFACE)**
 
 ### **When to Use TUI**
@@ -735,7 +970,7 @@ codemarshal query investigation_456 --question="Are there any anomalies?" --ques
 codemarshal query investigation_456 --question="Show me boundary violations" --question-type=anomalies
 
 # Get recommendations
-codemarshal query investigation_456 --question="What are the risks?" --question-type=thinking
+codemarshal query investigation_456 --question="What are the risks?" --question="What are the risks?" --question-type=thinking
 codemarshal query investigation_456 --question="What should we refactor first?" --question-type=thinking
 
 # Export full report
@@ -857,10 +1092,13 @@ Types: structure, connections, anomalies, purpose, thinking
 
 Export:
 codemarshal export <id> --format=type --output=file [--confirm-overwrite]
-Formats: json, markdown, html, plain
+Formats: json, markdown, html, plain, csv
 
 TUI:
 codemarshal tui [--path=directory]
+
+GUI:
+codemarshal gui [path]
 
 Help:
 codemarshal --help

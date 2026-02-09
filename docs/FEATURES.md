@@ -72,6 +72,7 @@ codemarshal investigate <path>     # Start a new investigation
 codemarshal observe <path>         # Collect observations only
 codemarshal query <question>       # Ask specific questions
 codemarshal export <format>        # Export investigation results
+codemarshal gui                    # Launch desktop GUI
 ```
 
 #### **Configuration Management** (v2.0)
@@ -239,7 +240,14 @@ jobs:
 - Vim/Neovim plugin architecture
 - Emacs integration hooks
 
-### 6. 🎨 **Text User Interface (TUI)**
+### 6. 🖥 **Desktop GUI** (v2.1)
+
+- **Native PySide6 application** for Windows/Linux/macOS
+- **Single-focus workflow**: observe, investigate, patterns, export
+- **Dark, high-contrast theme** with detective-inspired typography
+- **Local-only operation** (no network dependencies)
+
+### 7. 🎨 **Text User Interface (TUI)**
 
 Interactive terminal interface:
 
@@ -257,7 +265,7 @@ Features:
 - Progress indicators for long operations
 - Error recovery and context preservation
 
-### 7. 📦 **Pattern System** (v2.0)
+### 8. 📦 **Pattern System** (v2.0)
 
 #### **Built-in Patterns**
 
@@ -288,7 +296,7 @@ patterns:
     languages: [python, javascript]
 ```
 
-### 8. 🔒 **Constitutional Enforcement**
+### 9. 🔒 **Constitutional Enforcement**
 
 24 non-negotiable principles enforced automatically:
 
@@ -327,7 +335,7 @@ patterns:
 - Truth in advertising
 - Continuous validation
 
-### 9. 🧪 **Testing & Quality**
+### 10. 🧪 **Testing & Quality**
 
 #### **Test Suite**
 
@@ -345,7 +353,7 @@ patterns:
 - Constitutional compliance validation
 - Automated testing via CI/CD
 
-### 10. ⚡ **Performance Features**
+### 11. ⚡ **Performance Features**
 
 - **Parallel processing** — Multi-threaded search and pattern scanning
 - **ripgrep integration** — Uses fastest search tool when available
@@ -416,7 +424,7 @@ patterns:
 
 - [ ] Jupyter Notebook export
 - [ ] Plugin system
-- [ ] Web dashboard
+- [ ] Desktop GUI
 - [ ] Performance patterns
 - [ ] Style patterns
 - [ ] More IDE integrations

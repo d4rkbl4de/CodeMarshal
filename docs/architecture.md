@@ -105,6 +105,14 @@ CodeMarshal implements what can be called a **pure observer pattern** where:
 - **Provenance is tracked**: Every piece of information can be traced to its source
 - **Limitations are declared**: Every observation explicitly states what it cannot see
 
+#### Immutability vs. Storage Management
+
+It is critical to distinguish between the immutability of **Observations** themselves and the mutable nature of the **Storage Layer** that manages these observations.
+
+- **Observations (Layer 1)**: Once recorded, these factual data points are immutable. Their content, associated hashes, and provenance are fixed. Any attempt to alter them would result in integrity violations.
+- **Storage Layer**: This layer is responsible for the persistent storage, retrieval, backup, and restoration of observations. While the observations it holds are immutable, the storage system itself is dynamic. It can create backups, restore from a previous state, and manage different versions of investigations. This mutability of the *storage mechanism* does not imply mutability of the *observations* within it. Restoration from a backup creates a new, valid investigation state based on previously immutable observations, not an alteration of existing observations.
+
+
 ---
 
 ## System Overview
@@ -693,7 +701,7 @@ class ThinkingQuestions:
 
 #### 2.3 Patterns Subsystem
 
-Numeric-only pattern analysis:
+Numeric-only pattern analysis: Patterns in the Inquiry layer operate strictly on the immutable observations collected by the Observations layer. They perform quantitative analysis without any interpretation or inference about the code's intent or quality.
 
 **Coupling Patterns (`inquiry/patterns/coupling.py`)**
 
@@ -866,6 +874,8 @@ class SessionHistory:
 ### Layer 3: Interface (How We Look)
 
 The Interface layer presents information to users through views, navigation, and indicators.
+It now includes a **desktop GUI** (PySide6) alongside the TUI and CLI, with strict single-focus
+principles and local-only operation.
 
 #### 3.1 Views Subsystem
 
@@ -1361,7 +1371,7 @@ class ExportFormatter:
 | Markdown | ✅ Stable | Documentation, GitHub rendering | Human readability |
 | Plain Text | ✅ Stable | Universal compatibility | Minimal formatting |
 | HTML | ✅ v2.0 | Interactive reports, web viewing | Requires browser |
-| CSV | ✅ v2.0 | Spreadsheet analysis, data science | Flattened structure |
+| CSV | ✅ v2.0 | Spreadsheet analysis, data science | Flattened structure; Primarily for pattern data, schema implicitly defined by CSVExporter implementation |
 
 ---
 
@@ -1587,6 +1597,9 @@ The constitution is defined in `constitution.truth.md` and contains 24 articles 
 | 20      | Deterministic Behavior | Same input, same output |
 | 21      | Complete Shutdown      | Graceful termination    |
 | 22      | Resource Bounds        | Memory and time limits  |
+
+**Clarification on Article 20: Deterministic Behavior**
+Article 20 guarantees that for a given, unchanging input state, CodeMarshal will always produce the same output. This deterministic processing is crucial for reproducibility and truth preservation. When file system metadata (such as modification times or sizes) is used in internal hashing (e.g., in `core/runtime.py`'s `_calculate_lightweight_code_hash`), its purpose is to detect *changes in the codebase itself*. A change in file metadata is treated as a change in the input state. Therefore, if the codebase (input state) changes, the resulting session or version hash will also change, reflecting the new input. This does not violate deterministic behavior; rather, it upholds it by ensuring that identical processing is applied only to identical inputs, and any variation in input (even metadata) is reflected in the output.
 
 #### Tier 6: Integration Rules
 
@@ -1996,6 +2009,8 @@ is_allowed = checker.is_import_allowed(
 **Article 12: Local Operation**
 
 CodeMarshal is designed to operate without network access:
+Despite Python's dynamic import mechanisms, CodeMarshal actively enforces strict network prohibitions at runtime when `network_enabled` is set to `False` in the `RuntimeConfiguration`. This is a critical constitutional guarantee (Article 19: Local Operation) to ensure truth preservation from local, untampered sources. The `integrity/prohibitions/no_network.py` module contains specific tests designed to detect and prevent any unintentional network access. This proactive sandboxing ensures that the system's operation remains local and isolated from external influences.
+
 
 ```python
 # Network prohibition test

@@ -6,12 +6,10 @@ Draws a clear line between what can be observed and what must be recorded as opa
 Treating binaries as 'just text that failed to decode' is how tools get exploited.
 """
 
-import codecs
 import logging
 import mimetypes
 import sys
 import warnings
-from codecs import UnicodeDecodeWarning
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -21,7 +19,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Suppress warnings about invalid binary sequences
-warnings.filterwarnings("ignore", category=UnicodeDecodeWarning)
+warnings.filterwarnings("ignore", category=UnicodeWarning)
 
 
 class BinaryClassification(Enum):

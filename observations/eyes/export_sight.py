@@ -182,6 +182,10 @@ class ModuleExports:
         )
 
 
+# Backward-compatible alias expected by inquiry layer
+ExportObservation = ModuleExports
+
+
 class ExportSight(AbstractEye):
     """
     Observes what a module publicly exposes.

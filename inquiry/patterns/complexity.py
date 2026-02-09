@@ -457,6 +457,65 @@ def calculate_complexity_pattern(
     return result
 
 
+class ComplexityPatterns:
+    """Lightweight wrapper for complexity metrics used by inquiry layer."""
+
+    def __init__(self, snapshot: CodeSnapshot, export_sight: ExportSight | None = None):
+        self._snapshot = snapshot
+        self._export_sight = export_sight
+        self._cached: dict[str, Any] | None = None
+
+    def _extract_file_contents(self) -> dict[Path, str]:
+        """Best-effort extraction of file contents from snapshot."""
+        if hasattr(self._snapshot, "file_contents"):
+            candidate = getattr(self._snapshot, "file_contents")
+            if isinstance(candidate, dict):
+                return {
+                    Path(path): str(content)
+                    for path, content in candidate.items()
+                }
+        if hasattr(self._snapshot, "get_file_contents"):
+            try:
+                candidate = self._snapshot.get_file_contents()  # type: ignore
+                if isinstance(candidate, dict):
+                    return {
+                        Path(path): str(content)
+                        for path, content in candidate.items()
+                    }
+            except Exception:
+                return {}
+        return {}
+
+    def _calculate(self) -> dict[str, Any]:
+        if self._cached is None:
+            file_contents = self._extract_file_contents()
+            if file_contents:
+                try:
+                    self._cached = calculate_complexity_pattern(
+                        file_contents, self._export_sight
+                    )
+                except Exception:
+                    self._cached = {}
+            else:
+                self._cached = {}
+        return self._cached
+
+    def get_module_complexities(self) -> dict[str, float]:
+        """Return module complexity values keyed by file path."""
+        data = self._calculate()
+        complexities: dict[str, float] = {}
+        for item in data.get("file_complexities", []):
+            file_path = item.get("file_path")
+            if not file_path:
+                continue
+            value = item.get("total_nodes", 0)
+            try:
+                complexities[str(file_path)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return complexities
+
+
 def validate_complexity_output(data: dict) -> tuple[bool, list[str]]:
     """Validate that complexity output maintains invariants.
 

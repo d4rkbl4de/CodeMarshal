@@ -218,6 +218,10 @@ class NoteEntry:
         return f"NoteEntry(id={self._id}, author={self._author_id}, anchors={len(self._anchors)})"
 
 
+# Backward-compatible alias used by integrations
+NotebookEntry = NoteEntry
+
+
 class NotebookManager:
     """
     Manages a collection of NoteEntry objects.

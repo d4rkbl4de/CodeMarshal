@@ -83,7 +83,7 @@ services:
     # Default command
     command: ["/bin/bash"]
     
-    # Ports (for potential web interface)
+    # Ports (for potential local integrations)
     ports:
       - "8080:8080"
     

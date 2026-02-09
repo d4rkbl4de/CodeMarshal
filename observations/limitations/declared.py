@@ -46,6 +46,10 @@ class Limitation:
         return self.id < other.id
 
 
+# Backward-compatible alias expected by inquiry layer
+DeclaredLimitation = Limitation
+
+
 # Registry of all limitations
 # Add new limitations here. Never remove or modify existing ones.
 # Changing a limitation requires creating a new ID.

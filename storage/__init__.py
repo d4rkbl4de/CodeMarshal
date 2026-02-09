@@ -178,7 +178,9 @@ def get_storage_path(investigation_id: str, evidence_type: str) -> str:
 
     This is a placeholder that will be implemented in layout.py.
     """
-    raise NotImplementedError("get_storage_path will be implemented in storage.layout")
+    from .layout import get_storage_path as _get_storage_path
+
+    return _get_storage_path(investigation_id, evidence_type)
 
 
 def detect_corruption(data: bytes, expected_hash: str) -> bool:

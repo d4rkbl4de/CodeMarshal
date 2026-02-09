@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import ClassVar
 
-from core.context import RuntimeContext
+from core.context import RuntimeContext, get_runtime_context
 
 
 class InvestigationPhase(Enum):
@@ -346,3 +346,21 @@ class InvestigationState:
                 f"Total transitions: {transitions}"
             )
         return f"Current: {self._current_phase.name}"
+
+
+# Global investigation state (optional convenience)
+_CURRENT_STATE: InvestigationState | None = None
+
+
+def set_current_state(state: InvestigationState) -> None:
+    """Set the global investigation state."""
+    global _CURRENT_STATE
+    _CURRENT_STATE = state
+
+
+def get_current_state() -> InvestigationState:
+    """Get the global investigation state, creating a default if missing."""
+    global _CURRENT_STATE
+    if _CURRENT_STATE is None:
+        _CURRENT_STATE = InvestigationState(get_runtime_context())
+    return _CURRENT_STATE

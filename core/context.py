@@ -230,6 +230,11 @@ class RuntimeContext:
         return str(self.session_id)
 
     @property
+    def investigation_id(self) -> str:
+        """Backward-compatible alias for session_id_str."""
+        return self.session_id_str
+
+    @property
     def start_timestamp_iso(self) -> str:
         """Get start timestamp as ISO 8601 string."""
         return self.start_timestamp.isoformat()
@@ -482,7 +487,11 @@ class RuntimeContext:
         if not isinstance(other, RuntimeContext):
             return False
 
-        return hash(self) == hash(other)
+        # Compare all dataclass fields directly to avoid hash collisions.
+        for field_name in self.__dataclass_fields__:
+            if getattr(self, field_name) != getattr(other, field_name):
+                return False
+        return True
 
     def __repr__(self) -> str:
         """Machine-readable representation."""
@@ -522,3 +531,27 @@ class RuntimeContext:
         ]
 
         return "\n".join(lines)
+
+
+# Global runtime context (optional convenience)
+_RUNTIME_CONTEXT: RuntimeContext | None = None
+
+
+def set_runtime_context(context: RuntimeContext) -> None:
+    """Set the global runtime context."""
+    global _RUNTIME_CONTEXT
+    _RUNTIME_CONTEXT = context
+
+
+def get_runtime_context() -> RuntimeContext:
+    """Get the global runtime context, creating a safe default if missing."""
+    global _RUNTIME_CONTEXT
+    if _RUNTIME_CONTEXT is None:
+        default_hash = hashlib.sha256(b"").hexdigest()
+        _RUNTIME_CONTEXT = RuntimeContext(
+            investigation_root=Path.cwd(),
+            constitution_hash=default_hash,
+            code_version_hash=default_hash,
+            execution_mode="CLI",
+        )
+    return _RUNTIME_CONTEXT

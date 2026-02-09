@@ -1,5 +1,5 @@
 """
-integrity/validation/patterns.test.py - Pattern validation tests
+integrity/validation/patterns_test.py - Pattern validation tests
 
 Tests that validate the pattern detection system's integrity,
 accuracy, and constitutional compliance.
@@ -195,3 +195,26 @@ class TestPatternPerformance:
         match = pattern.search(text)
         assert match is not None
         assert match.group() == "TODO"
+
+
+def validate_patterns() -> "ValidationResult":
+    """Run pattern validation tests and return a ValidationResult."""
+    from integrity import ValidationResult
+
+    try:
+        exit_code = pytest.main([__file__, "-q"])
+    except Exception as exc:
+        return ValidationResult(
+            passed=False,
+            violations=[{"check": "patterns", "error": str(exc)}],
+            details="Validation execution failed",
+        )
+
+    passed = exit_code == 0
+    violations = [] if passed else [{"check": "patterns", "details": "pytest failures"}]
+
+    return ValidationResult(
+        passed=passed,
+        violations=violations,
+        details=f"pytest exit code: {exit_code}",
+    )

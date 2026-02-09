@@ -568,7 +568,7 @@ def observe_file(file_path: str | Path) -> FileMetadata | None:
     tree: DirectoryTree = result.raw_payload
     if tree.files:
         # Return metadata for the single file
-        return next(iter(tree.files.values()))
+        return tree.files[0][1]
     return None
 
 

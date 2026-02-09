@@ -1,9 +1,13 @@
 """
-tests/invariants.test.py - System invariants tests
+tests/invariants_test.py - System invariants tests
 
 Tests that verify core system properties that must always hold true.
 These tests validate constitutional principles are maintained.
 """
+
+import importlib
+import pkgutil
+import warnings
 
 import pytest
 from dataclasses import dataclass
@@ -109,16 +113,69 @@ class TestSystemIntegrityInvariant:
 
     def test_no_circular_imports(self):
         """System has no circular import dependencies."""
-        # TODO: Use import checker to verify no cycles
-        # For now, basic smoke test
-        try:
-            import bridge.commands
-            import core.engine
-            import observations.record
+        optional_deps = {"PySide6", "rich", "textual", "click"}
 
-            assert True
-        except ImportError as e:
-            pytest.fail(f"Circular import detected: {e}")
+        def is_optional_missing(exc: ImportError) -> bool:
+            name = getattr(exc, "name", "") or ""
+            if name in optional_deps:
+                return True
+            message = str(exc)
+            return any(dep in message for dep in optional_deps)
+
+        packages = [
+            "bridge",
+            "core",
+            "config",
+            "storage",
+            "observations",
+            "inquiry",
+            "lens",
+            "integrity",
+            "desktop",
+            "patterns",
+        ]
+
+        failures: list[tuple[str, str]] = []
+        skipped: list[tuple[str, str]] = []
+
+        for package_name in packages:
+            try:
+                package = importlib.import_module(package_name)
+            except ImportError as exc:
+                if is_optional_missing(exc):
+                    skipped.append((package_name, str(exc)))
+                    continue
+                failures.append((package_name, repr(exc)))
+                continue
+
+            module_names = [package_name]
+            if hasattr(package, "__path__"):
+                for module in pkgutil.walk_packages(
+                    package.__path__, package.__name__ + "."
+                ):
+                    module_names.append(module.name)
+
+            for module_name in module_names:
+                try:
+                    importlib.import_module(module_name)
+                except ImportError as exc:
+                    if is_optional_missing(exc):
+                        skipped.append((module_name, str(exc)))
+                        continue
+                    failures.append((module_name, repr(exc)))
+                except Exception as exc:
+                    failures.append((module_name, repr(exc)))
+
+        if skipped:
+            details = "\n".join(f"- {name}: {reason}" for name, reason in skipped)
+            warnings.warn(
+                "Skipped modules due to missing optional dependencies:\n"
+                f"{details}"
+            )
+
+        if failures:
+            details = "\n".join(f"- {name}: {reason}" for name, reason in failures)
+            pytest.fail(f"Import failures detected:\n{details}")
 
     def test_all_commands_exported(self):
         """All CLI commands are properly exported."""

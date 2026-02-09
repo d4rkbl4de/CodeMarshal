@@ -21,6 +21,8 @@ __all__ = [
     # Terminal User Interface
     "launch_tui",
     "TruthPreservingTUI",
+    # Desktop GUI
+    "launch_gui",
     # Programmatic API
     "CodeMarshalAPI",
     "create_http_server",
@@ -41,11 +43,19 @@ def launch_tui(*args, **kwargs):
     return _launch_tui(*args, **kwargs)
 
 
+def launch_gui(*args, **kwargs):
+    """Lazy GUI launcher to avoid importing PySide6 at package import time."""
+    from .gui import launch_gui as _launch_gui
+
+    return _launch_gui(*args, **kwargs)
+
+
 # Import guards to prevent unauthorized access
 # These modules should NOT be imported directly from outside
 _PRIVATE_MODULES = {
     "bridge.entry.cli": "Use cli_main() or CodeMarshalCLI instead",
     "bridge.entry.tui": "Use launch_tui() or TruthPreservingTUI instead",
+    "bridge.entry.gui": "Use launch_gui() instead",
     "bridge.entry.api": "Use CodeMarshalAPI or create_http_server instead",
 }
 
@@ -58,6 +68,10 @@ ENTRY_POINTS = {
     "tui": {
         "function": "bridge.entry:launch_tui",
         "description": "Terminal User Interface for guided investigation",
+    },
+    "gui": {
+        "function": "bridge.entry:launch_gui",
+        "description": "Desktop GUI for single-focus investigation",
     },
     "api": {
         "class": "bridge.entry:CodeMarshalAPI",
@@ -104,6 +118,10 @@ def validate_entry_point(entry_point: str) -> bool:
             from .tui import launch_tui
 
             return callable(launch_tui)
+        elif entry_point == "gui":
+            from .gui import launch_gui
+
+            return callable(launch_gui)
         elif entry_point == "api":
             # Verify API is importable
             from .api import CodeMarshalAPI
@@ -217,6 +235,14 @@ try:
         name="tui",
         function=launch_tui_func,
         description="Terminal User Interface: Guided, linear investigation",
+    )
+
+    # Register GUI entry point (lazy wrapper)
+    launch_gui_func = launch_gui
+    EntryPointRegistry.register(
+        name="gui",
+        function=launch_gui_func,
+        description="Desktop GUI: Single-focus, local-only investigation",
     )
 
     # Register API entry point
@@ -337,4 +363,7 @@ EXAMPLE USAGE PATTERNS:
    from bridge.entry import create_http_server
    app, host, port = create_http_server()
    app.run(host=host, port=port, debug=True)
+
+7. Desktop GUI (from command line):
+   $ codemarshal gui /path/to/code
 """

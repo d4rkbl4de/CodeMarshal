@@ -198,10 +198,10 @@ CodeMarshal/
 │ │
 │ ├── validation/
 │ │ ├── **init**.py
-│ │ ├── observations.test.py
-│ │ ├── patterns.test.py
-│ │ ├── interface.test.py
-│ │ └── integration.test.py
+│ │ ├── observations_test.py
+│ │ ├── patterns_test.py
+│ │ ├── interface_test.py
+│ │ └── integration_test.py
 │ │
 │ ├── monitoring/
 │ │ ├── **init**.py
@@ -211,9 +211,9 @@ CodeMarshal/
 │ │
 │ ├── prohibitions/
 │ │ ├── **init**.py
-│ │ ├── no_network.test.py
-│ │ ├── no_runtime_imports.test.py
-│ │ └── no_mutation.test.py
+│ │ ├── no_network.py
+│ │ ├── no_runtime_imports.py
+│ │ └── no_mutation.py
 │ │
 │ └── recovery/
 │ ├── __init__.py
@@ -251,7 +251,7 @@ CodeMarshal/
 ├── __init__.py
 ├── end_to_end.test.py       # Integration tests
 ├── performance.test.py      # Performance benchmarks
-├── invariants.test.py       # System invariants
+├── invariants_test.py       # System invariants
 │
 ├── test_cli/ # v2.0 - CLI command tests
 │ ├── test_config.py

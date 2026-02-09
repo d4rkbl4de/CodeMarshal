@@ -1,5 +1,5 @@
 """
-integrity/validation/interface.test.py - Interface validation tests
+integrity/validation/interface_test.py - Interface validation tests
 
 Tests that validate CodeMarshal's interface contracts and protocols.
 Ensures that interfaces are properly defined and implemented.
@@ -117,3 +117,26 @@ class TestErrorHandling:
         impl = FullImplementation()
         assert hasattr(impl, "base_method")
         assert hasattr(impl, "extended_method")
+
+
+def validate_interface() -> "ValidationResult":
+    """Run interface validation tests and return a ValidationResult."""
+    from integrity import ValidationResult
+
+    try:
+        exit_code = pytest.main([__file__, "-q"])
+    except Exception as exc:
+        return ValidationResult(
+            passed=False,
+            violations=[{"check": "interface", "error": str(exc)}],
+            details="Validation execution failed",
+        )
+
+    passed = exit_code == 0
+    violations = [] if passed else [{"check": "interface", "details": "pytest failures"}]
+
+    return ValidationResult(
+        passed=passed,
+        violations=violations,
+        details=f"pytest exit code: {exit_code}",
+    )

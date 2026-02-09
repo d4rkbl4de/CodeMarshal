@@ -144,6 +144,11 @@ def atomic_read_binary(target_path: str | Path) -> bytes:
         raise AtomicReadError(f"Failed to read file {target_path}: {e}") from e
 
 
+def atomic_read(target_path: str | Path) -> bytes:
+    """Backward-compatible alias for atomic_read_binary."""
+    return atomic_read_binary(target_path)
+
+
 def atomic_write_binary(
     target_path: str | Path, data: bytes, *, suffix: str = ".tmp"
 ) -> None:
@@ -209,6 +214,13 @@ def atomic_write_text(
         raise AtomicWriteError(f"Failed to encode text as {encoding}: {e}") from e
 
     atomic_write_binary(target_path, data, suffix=suffix)
+
+
+def atomic_write(
+    target_path: str | Path, text: str, *, encoding: str = "utf-8", suffix: str = ".tmp"
+) -> None:
+    """Backward-compatible alias for atomic_write_text."""
+    atomic_write_text(target_path, text, encoding=encoding, suffix=suffix)
 
 
 def atomic_write_json_compatible(

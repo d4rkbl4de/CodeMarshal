@@ -195,17 +195,18 @@ class FilesystemValidator:
             FilesystemValidationError: If validation fails (alternative to dict return).
         """
         # Convert to absolute path relative to root if needed
+        # Avoid resolving symlinks here so policy can control boundary checks.
         if not path.is_absolute():
-            absolute_path = (self._root / path).resolve()
+            absolute_path = (self._root / path).absolute()
         else:
-            absolute_path = path
+            absolute_path = path.absolute()
 
         # Check if path exists (if required)
         if require_exists:
             try:
-                # Use strict=False to avoid following symlinks for existence check
-                absolute_path.resolve(strict=False)
-            except (FileNotFoundError, PermissionError) as e:
+                # Stat without resolving symlinks to honor policy later.
+                absolute_path.stat()
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 return {
                     "valid": False,
                     "canonical_path": None,
@@ -438,54 +439,49 @@ class FilesystemValidator:
         symlink_chain: list[Path] = []
         current = path
 
-        # Follow symlink chain up to max depth
-        for depth in range(self._policy.max_symlink_depth + 1):
-            if depth > 0 and current.is_symlink():
-                # Record this symlink
-                symlink_chain.append(current)
-                self._visited_symlinks.add(current)
+        depth = 0
+        while current.is_symlink():
+            if depth >= self._policy.max_symlink_depth:
+                raise SymlinkViolationError(
+                    f"Symlink chain exceeds maximum depth {self._policy.max_symlink_depth}: "
+                    f"{symlink_chain + [current]}"
+                )
 
-            # Check if current path is a symlink
-            if current.is_symlink():
-                # Read the target
-                try:
-                    target = current.readlink()
-                except (OSError, PermissionError) as e:
-                    raise SymlinkViolationError(f"Cannot read symlink {current}: {e}") from e
+            # Record this symlink
+            symlink_chain.append(current)
+            self._visited_symlinks.add(current)
 
-                # Resolve target relative to symlink's directory
-                if target.is_absolute():
-                    next_path = target
-                else:
-                    next_path = (current.parent / target).resolve()
+            # Read the target
+            try:
+                target = current.readlink()
+            except (OSError, PermissionError) as e:
+                raise SymlinkViolationError(f"Cannot read symlink {current}: {e}") from e
 
-                # Check if target is in allowed list (if specified)
-                if self._policy.allowed_symlink_targets:
-                    if next_path not in self._policy.allowed_symlink_targets:
-                        raise SymlinkViolationError(
-                            f"Symlink target not in allowed list: {current} -> {next_path}"
-                        )
-
-                # Check if target is within root (unless escape is allowed)
-                if not self._policy.allow_escape_root:
-                    try:
-                        next_path.relative_to(self._root)
-                    except ValueError as e:
-                        raise SymlinkViolationError(
-                            f"Symlink escapes investigation root: {current} -> {next_path}"
-                        ) from e
-
-                # Move to next link in chain
-                current = next_path
+            # Resolve target relative to symlink's directory
+            if target.is_absolute():
+                next_path = target
             else:
-                # Not a symlink, we're done
-                break
-        else:
-            # Loop completed without break = exceeded max depth
-            raise SymlinkViolationError(
-                f"Symlink chain exceeds maximum depth {self._policy.max_symlink_depth}: "
-                f"{symlink_chain}"
-            )
+                next_path = (current.parent / target).resolve()
+
+            # Check if target is in allowed list (if specified)
+            if self._policy.allowed_symlink_targets:
+                if next_path not in self._policy.allowed_symlink_targets:
+                    raise SymlinkViolationError(
+                        f"Symlink target not in allowed list: {current} -> {next_path}"
+                    )
+
+            # Check if target is within root (unless escape is allowed)
+            if not self._policy.allow_escape_root:
+                try:
+                    next_path.relative_to(self._root)
+                except ValueError as e:
+                    raise SymlinkViolationError(
+                        f"Symlink escapes investigation root: {current} -> {next_path}"
+                    ) from e
+
+            # Move to next link in chain
+            current = next_path
+            depth += 1
 
         return symlink_chain
 

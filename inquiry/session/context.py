@@ -46,7 +46,7 @@ from uuid import UUID, uuid4
 from observations.record.anchors import get_anchor, validate_anchor_reference
 
 # Allowed imports from observations.record
-from observations.record.version import get_snapshot_version
+from observations.record.version import get_latest_snapshot, get_snapshot_version
 
 logger = logging.getLogger(__name__)
 
@@ -398,32 +398,14 @@ def create_initial_context(
     Raises:
         ValueError: If no snapshots found or validation fails
     """
-    # TODO: Implement get_latest_snapshot in observations.record.version
-    # For now, we'll use a placeholder implementation
-    # This should be replaced when observations.record.version is implemented
-
     try:
-        # This is a temporary implementation
-        # In production, we would call:
-        # latest_snapshot = get_latest_snapshot(storage_path)
-        # if latest_snapshot is None:
-        #     raise ValueError("No observation snapshots found")
-
-        # For now, create a mock snapshot ID
-        # This will be replaced with real implementation
-        import uuid
-
-        mock_snapshot_id = uuid.uuid4()
-
-        logger.warning(
-            "Using mock snapshot ID %s. Replace with real implementation "
-            "when observations.record.version is available.",
-            mock_snapshot_id,
-        )
+        latest_snapshot = get_latest_snapshot(storage_path)
+        if latest_snapshot is None:
+            raise ValueError("No observation snapshots found")
 
         # Create context
         context = create_context(
-            snapshot_id=mock_snapshot_id,
+            snapshot_id=latest_snapshot,
             anchor_id=initial_anchor_id,
             question_type=QuestionType.STRUCTURE,
             storage_path=storage_path,

@@ -777,10 +777,10 @@ class CSVExporter(BaseExporter):
         writer.writerow(["Exported At", datetime.now(UTC).isoformat()])
         writer.writerow([])  # Empty row
 
-        # Snapshot data
+        # Snapshot data (always include section header)
+        writer.writerow(["SNAPSHOT"])
+        writer.writerow(["Property", "Value"])
         if snapshot:
-            writer.writerow(["SNAPSHOT"])
-            writer.writerow(["Property", "Value"])
             if hasattr(snapshot, "id"):
                 writer.writerow(["ID", snapshot.id])
             if hasattr(snapshot, "version"):
@@ -789,7 +789,9 @@ class CSVExporter(BaseExporter):
                 writer.writerow(["Path", snapshot.path])
             if hasattr(snapshot, "observation_count"):
                 writer.writerow(["Observation Count", snapshot.observation_count])
-            writer.writerow([])  # Empty row
+        else:
+            writer.writerow(["Status", "No snapshot provided"])
+        writer.writerow([])  # Empty row
 
         # Anchors data
         if anchors:

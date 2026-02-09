@@ -27,6 +27,40 @@ ValidationError: TypeAlias = str
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class ValidationResult:
+    """Summary of validation outcomes used by inquiry layer."""
+
+    valid_count: int
+    invalid_count: int
+    skipped_count: int
+    errors: tuple[ValidationError, ...] = ()
+
+    @property
+    def total_count(self) -> int:
+        """Total number of items considered."""
+        return self.valid_count + self.invalid_count + self.skipped_count
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ValidationLimitation:
+    """Simple limitation record for analysis layers."""
+
+    source_path: str
+    limitation_type: str
+    description: str
+    severity: str = "low"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to serializable dictionary."""
+        return {
+            "source_path": self.source_path,
+            "limitation_type": self.limitation_type,
+            "description": self.description,
+            "severity": self.severity,
+        }
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class LimitationSet:
     """Immutable, validated set of observational limitations."""
 

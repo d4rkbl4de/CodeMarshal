@@ -1,5 +1,5 @@
 """
-integrity/validation/observations.test.py - Observation system validation tests
+integrity/validation/observations_test.py - Observation system validation tests
 
 Tests that validate the observation system's integrity, immutability,
 and constitutional compliance.
@@ -158,3 +158,26 @@ class TestObservationLimits:
         deserialized = json.loads(serialized)
 
         assert deserialized["data"] == {}
+
+
+def validate_observations() -> "ValidationResult":
+    """Run observation validation tests and return a ValidationResult."""
+    from integrity import ValidationResult
+
+    try:
+        exit_code = pytest.main([__file__, "-q"])
+    except Exception as exc:
+        return ValidationResult(
+            passed=False,
+            violations=[{"check": "observations", "error": str(exc)}],
+            details="Validation execution failed",
+        )
+
+    passed = exit_code == 0
+    violations = [] if passed else [{"check": "observations", "details": "pytest failures"}]
+
+    return ValidationResult(
+        passed=passed,
+        violations=violations,
+        details=f"pytest exit code: {exit_code}",
+    )

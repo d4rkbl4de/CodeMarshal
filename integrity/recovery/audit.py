@@ -63,6 +63,14 @@ MAX_AUDIT_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB per audit file
 AUDIT_RETENTION_DAYS: int = 365  # Keep audit logs for 1 year
 
 
+def _read_audit_text(path: Path) -> str:
+    """Read audit file content as UTF-8 text with safe fallback."""
+    content = atomic_read(path)
+    if isinstance(content, bytes):
+        return content.decode("utf-8", errors="ignore")
+    return str(content)
+
+
 def create_audit_directory(audit_root: Path | None = None) -> Path:
     """
     Create and secure audit directory structure.
@@ -146,7 +154,7 @@ def get_latest_audit_hash(audit_file: Path) -> str | None:
         return None
 
     try:
-        lines = atomic_read(audit_file).splitlines()
+        lines = _read_audit_text(audit_file).splitlines()
         if not lines:
             return None
 
@@ -259,7 +267,7 @@ def log_audit_event(
         # Read existing content
         existing_content = ""
         if audit_file.exists():
-            existing_content = atomic_read(audit_file)
+            existing_content = _read_audit_text(audit_file)
 
         # Append new event
         new_content = existing_content
@@ -301,7 +309,7 @@ def verify_audit_chain(audit_file: Path) -> tuple[bool, list[dict[str, Any]]]:
         return False, [{"error": "Audit file does not exist"}]
 
     try:
-        content = atomic_read(audit_file)
+        content = _read_audit_text(audit_file)
         lines = content.splitlines()
         issues = []
         previous_hash = None
@@ -407,7 +415,7 @@ def query_audit_events(
 
         for audit_file in audit_files:
             try:
-                content = atomic_read(audit_file)
+                content = _read_audit_text(audit_file)
                 for line in content.splitlines():
                     if not line.strip():
                         continue
@@ -475,7 +483,7 @@ def create_audit_summary(audit_root: Path | None = None) -> AuditSummary:
 
         # Count events in file
         try:
-            content = atomic_read(audit_file)
+            content = _read_audit_text(audit_file)
             event_count = sum(1 for line in content.splitlines() if line.strip())
             total_events += event_count
 

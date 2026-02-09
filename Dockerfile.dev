@@ -72,7 +72,7 @@ USER developer
 RUN git config --global user.email "developer@codemarshal.local" && \
     git config --global user.name "CodeMarshal Developer"
 
-# Expose port for potential web interface
+# Expose port for potential local integrations (optional)
 EXPOSE 8080
 
 # Volume for persistent data

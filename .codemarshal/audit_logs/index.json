@@ -1,0 +1,13 @@
+{
+  "created": "2026-02-09T14:09:49.095064+00:00",
+  "audit_version": 1,
+  "hash_algorithm": "sha256",
+  "components": [
+    "recovery",
+    "observations",
+    "inquiry",
+    "lens",
+    "system"
+  ],
+  "retention_days": 365
+}

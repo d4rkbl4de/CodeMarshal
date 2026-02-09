@@ -696,6 +696,11 @@ def get_default_config() -> Config:
     return loader.load_defaults()
 
 
+def get_active_config(cli_args: dict[str, Any] | None = None) -> Config:
+    """Backward-compatible alias for load_config."""
+    return load_config(cli_args)
+
+
 __all__ = [
     "Config",
     "GlobalConfig",
@@ -707,4 +712,5 @@ __all__ = [
     "ConfigLoader",
     "load_config",
     "get_default_config",
+    "get_active_config",
 ]

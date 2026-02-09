@@ -14,6 +14,7 @@ This is a router, not a worker.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import importlib
 import logging
 import sys
@@ -148,13 +149,8 @@ class Engine:
         self._lens_interface: LensInterface | None = None
         self._logger = logging.getLogger("codemarshal.engine")
 
-        # Initialize memory monitoring
-        try:
-            # Memory monitoring is optional - only use if available
-            self._memory_monitor = None
-        except Exception:
-            # Memory monitoring not available, use None
-            self._memory_monitor = None
+        # Initialize memory monitoring (optional)
+        self._memory_monitor = memory_monitor
 
         if storage is not None:
             self._storage = storage
@@ -181,6 +177,23 @@ class Engine:
             logger.propagate = False
 
         return logger
+
+    def _check_memory_status(self, phase_name: str) -> None:
+        """Log current memory status if memory monitor is active."""
+        if self._memory_monitor:
+            try:
+                stats = self._memory_monitor.get_stats()
+                self._logger.info(
+                    f"Memory status ({phase_name}): Used {stats.used_mb:.2f}MB ({stats.percent_used:.2f}%) "
+                    f"of Total {stats.total_mb:.2f}MB."
+                )
+                if self._memory_monitor.check_threshold():
+                    self._logger.warning(
+                        f"Memory usage exceeds threshold: {stats.percent_used:.2f}%"
+                    )
+            except Exception as e:
+                self._logger.debug(f"Memory monitor check failed: {e}")
+
 
     def register_observation_interface(self, interface: ObservationInterface) -> None:
         """Register observation layer interface."""
@@ -375,6 +388,9 @@ class Engine:
                 reason="Beginning observation phase",
             )
 
+            # Use memory monitor to check initial status
+            self._check_memory_status("before_observation")
+
             # Check if we should use streaming for large-scale operations
             # Streaming prevents memory accumulation for 1K+ files
             use_streaming = self._context.parameters.get(
@@ -462,6 +478,12 @@ class Engine:
                 )
             )
 
+            if not inquiry_result.success:
+                raise CoordinationError(
+                    f"Inquiry phase failed: {inquiry_result.error_message}",
+                    "inquiry_phase",
+                )
+
             # Save questions to storage (Article 15 compliance)
             question_ids = []
             if inquiry_result.data:
@@ -498,6 +520,12 @@ class Engine:
                     requestor="engine",
                 )
             )
+
+            if not patterns_result.success:
+                raise CoordinationError(
+                    f"Pattern phase failed: {patterns_result.error_message}",
+                    "pattern_phase",
+                )
 
             # Save patterns to storage (Article 15 compliance)
             pattern_ids = []
@@ -555,11 +583,44 @@ class Engine:
             # Log presentation completion for audit trail
             self._logger.info(f"Presentation completed: {presentation_result.success}")
 
+            self._state.transition_to(
+                InvestigationPhase.TERMINATED_NORMAL,
+                reason="Investigation lifecycle completed successfully",
+            )
+
             self._logger.info("Investigation lifecycle completed successfully")
 
         except Exception as e:
             self._logger.error(f"Investigation lifecycle failed: {e}")
             raise
+
+    def execute_observations_only(self) -> dict[str, Any]:
+        """
+        Execute only the observation phase and return results.
+        """
+        self._logger.info("Starting observation-only workflow")
+
+        use_streaming = self._context.parameters.get("streaming", True)
+
+        observation_result = self.coordinate(
+            CoordinationRequest.create(
+                intent=HighLevelIntent.OBSERVE,
+                target_path=self._context.investigation_root,
+                parameters={
+                    "streaming": use_streaming,
+                    "session_id": self._context.session_id,
+                },
+                requestor="engine",
+            )
+        )
+
+        if not observation_result.success:
+            raise CoordinationError(
+                f"Observation-only phase failed: {observation_result.error_message}",
+                "observation_only",
+            )
+
+        return observation_result.data or {}
 
     def start_investigation(
         self,
@@ -629,16 +690,38 @@ class Engine:
     ) -> str:
         """Submit observation request for bridge compatibility."""
         # Map observation types to internal format
-        mapped_types = []
+        alias_map = {
+            "file": "file_sight",
+            "directory": "file_sight",
+            "structure": "file_sight",
+            "import": "import_sight",
+            "export": "export_sight",
+            "boundary": "boundary_sight",
+            "encoding": "encoding_sight",
+        }
+        mapped_types: list[str] = []
         for obs_type in observation_types:
-            if obs_type.lower() in ["file", "directory", "structure"]:
-                mapped_types.append(obs_type.lower())
+            normalized = obs_type.lower()
+            if normalized in alias_map:
+                mapped_types.append(alias_map[normalized])
+            elif normalized.endswith("_sight"):
+                mapped_types.append(normalized)
+
+        if not mapped_types:
+            raise CoordinationError(
+                "No valid observation types provided", "observation_only"
+            )
 
         # Create coordination request
+        request_parameters = dict(parameters or {})
+        request_parameters["observation_types"] = mapped_types
+        if limitations is not None:
+            request_parameters["limitations"] = limitations
+
         request = CoordinationRequest.create(
             intent=HighLevelIntent.OBSERVE,
             target_path=Path(target_path),
-            parameters=parameters or {},
+            parameters=request_parameters,
         )
 
         result = self.coordinate(request)

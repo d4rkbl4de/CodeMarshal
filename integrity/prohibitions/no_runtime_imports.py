@@ -5,6 +5,7 @@ Runtime Import Prohibition Enforcement
 Enforces static-only imports in truth-critical modules (core/, observations/, inquiry/, lens/).
 Prevents dynamic imports (importlib.import_module, __import__) that violate deterministic
 operation (Tier 13) and observation purity (Tier 1).
+Module: integrity.prohibitions.no_runtime_imports
 
 Violations are logged to integrity/monitoring/errors.py and reported as structured violations.
 """

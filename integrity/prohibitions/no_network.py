@@ -4,6 +4,7 @@ Network Access Prohibition Enforcement
 
 Enforces local-only operation in truth-critical modules (core/, observations/, inquiry/, lens/).
 Prevents network calls that violate local operation requirement (Tier 12).
+Module: integrity.prohibitions.no_network
 
 Violations are logged to integrity/monitoring/errors.py and reported as structured violations.
 """

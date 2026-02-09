@@ -9,6 +9,8 @@
 
 This guide provides practical examples for integrating CodeMarshal into various development workflows and tools. Each example demonstrates constitutional compliance and truth-preserving investigation practices.
 
+Note: Examples use `codemarshal` on PATH. If you rely on a virtual environment, use `./venv/bin/codemarshal` (macOS/Linux) or `.\venv\Scripts\codemarshal.exe` (Windows).
+
 ---
 
 ## **EDITOR INTEGRATION**
@@ -20,6 +22,7 @@ This guide provides practical examples for integrating CodeMarshal into various 
 // src/extension.ts
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { exec } from 'child_process';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -54,9 +57,13 @@ function investigateCurrentFile(context: vscode.ExtensionContext) {
     }
     
     // Run CodeMarshal investigation
-    const codemarshalPath = path.join(workspacePath, 'venv', 'Scripts', 'codemarshal.exe');
-    
-    exec(`"${codemarshalPath}" investigate "${filePath}"`, 
+    const isWindows = process.platform === 'win32';
+    const venvCandidate = isWindows
+        ? path.join(workspacePath, 'venv', 'Scripts', 'codemarshal.exe')
+        : path.join(workspacePath, 'venv', 'bin', 'codemarshal');
+    const codemarshalPath = fs.existsSync(venvCandidate) ? venvCandidate : 'codemarshal';
+
+    exec(`"${codemarshalPath}" investigate "${filePath}" --scope=file --intent=initial_scan`, 
          { cwd: workspacePath },
          (error, stdout, stderr) => {
              if (error) {
@@ -123,14 +130,29 @@ function investigateCurrentFile(context: vscode.ExtensionContext) {
 -- ~/.config/nvim/lua/codemarshal.lua
 local M = {}
 
+local function resolve_codemarshal()
+    local venv = vim.fn.getcwd() .. "/venv"
+    local is_windows = vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+    local candidate = is_windows
+        and (venv .. "/Scripts/codemarshal.exe")
+        or (venv .. "/bin/codemarshal")
+
+    if vim.fn.executable(candidate) == 1 then
+        return candidate
+    end
+
+    return "codemarshal"
+end
+
 function M.investigate_current_file()
     local file_path = vim.fn.expand('%:p')
     local workspace_path = vim.fn.getcwd()
     
     -- Run CodeMarshal investigation
     local cmd = string.format(
-        'cd %s && ./venv/Scripts/codemarshal.exe investigate "%s"',
+        'cd %s && "%s" investigate "%s" --scope=file --intent=initial_scan',
         workspace_path,
+        resolve_codemarshal(),
         file_path
     )
     
@@ -157,8 +179,9 @@ function M.investigate_directory()
     if dir_path == '' then return end
     
     local cmd = string.format(
-        'cd %s && ./venv/Scripts/codemarshal.exe investigate "%s"',
+        'cd %s && "%s" investigate "%s" --scope=project --intent=initial_scan --confirm-large',
         vim.fn.getcwd(),
+        resolve_codemarshal(),
         dir_path
     )
     
@@ -176,8 +199,9 @@ function M.export_session()
     if session_id == '' then return end
     
     local cmd = string.format(
-        'cd %s && ./venv/Scripts/codemarshal.exe export %s --format=json --output=session_%s.json',
+        'cd %s && "%s" export %s --format=json --output=session_%s.json',
         vim.fn.getcwd(),
+        resolve_codemarshal(),
         session_id,
         session_id
     )
@@ -234,13 +258,18 @@ jobs:
       with:
         python-version: '3.11'
         
-    - name: Install CodeMarshal
+    - name: Ensure CodeMarshal is available
       run: |
-        pip install -e .
+        # Assumes CodeMarshal is pre-installed or available from a local artifact
+        # e.g., via a custom action that sets up the environment, or a local build step.
+        # For network-free CI, avoid 'pip install' from PyPI.
+        # Example: verify executable exists
+        command -v codemarshal >/dev/null 2>&1 || { echo >&2 "CodeMarshal not found. Ensure it's pre-installed or available."; exit 1; }
         
     - name: Run constitutional validation
       run: |
         python -m integrity.validation.complete_constitutional
+
         
     - name: Run network prohibition tests
       run: |
@@ -279,24 +308,28 @@ jobs:
       with:
         python-version: '3.11'
         
-    - name: Install CodeMarshal
+    - name: Ensure CodeMarshal is available
       run: |
-        pip install -e .
+        # Assumes CodeMarshal is pre-installed or available from a local artifact
+        command -v codemarshal >/dev/null 2>&1 || { echo >&2 "CodeMarshal not found. Ensure it's pre-installed or available."; exit 1; }
         
     - name: Investigate changes
       run: |
         # Get changed files
         git diff --name-only HEAD~1 HEAD > changed_files.txt
         
-        # Run investigation on changed files
+        # Run a full investigation once (required for queries)
+        codemarshal investigate . --scope=project --intent=initial_scan --confirm-large
+
+        # Query against the most recent session, focusing on each changed file
         for file in $(cat changed_files.txt); do
           echo "Investigating: $file"
-          ./venv/Scripts/codemarshal.exe query "$file" "What does this file do?" --analyze
+          codemarshal query latest --question="What does this file do?" --question-type=purpose --focus="$file"
         done
         
     - name: Generate investigation report
       run: |
-        ./venv/Scripts/codemarshal.exe export latest --format=markdown --output=pr_investigation.md
+        codemarshal export latest --format=markdown --output=pr_investigation.md
         
     - name: Upload investigation report
       uses: actions/upload-artifact@v3
@@ -328,22 +361,23 @@ jobs:
       with:
         python-version: '3.11'
         
-    - name: Install CodeMarshal
+    - name: Ensure CodeMarshal is available
       run: |
-        pip install -e .
+        # Assumes CodeMarshal is pre-installed or available from a local artifact
+        command -v codemarshal >/dev/null 2>&1 || { echo >&2 "CodeMarshal not found. Ensure it's pre-installed or available."; exit 1; }
         
     - name: Full architectural investigation
       run: |
-        ./venv/Scripts/codemarshal.exe investigate . --scope=architectural --intent=deep_analysis
+        codemarshal investigate . --scope=project --intent=architecture_review --confirm-large
         
     - name: Check architectural boundaries
       run: |
-        ./venv/Scripts/codemarshal.exe query . "What are the architectural layers?" --analyze
-        ./venv/Scripts/codemarshal.exe query . "Find boundary violations" --scope=project
+        codemarshal query latest --question="What are the architectural layers?" --question-type=structure
+        codemarshal query latest --question="Find boundary violations" --question-type=anomalies --focus=.
         
     - name: Generate architectural report
       run: |
-        ./venv/Scripts/codemarshal.exe export latest --format=html --output=architectural_review.html --include-evidence
+        codemarshal export latest --format=html --output=architectural_review.html --include-patterns
         
     - name: Upload architectural review
       uses: actions/upload-artifact@v3
@@ -368,7 +402,10 @@ variables:
 constitutional_validation:
   stage: validate
   script:
-    - pip install -e .
+    - # Assumes CodeMarshal is pre-installed or available from a local artifact.
+    - # For network-free CI, avoid 'pip install' from PyPI.
+    - # Example: verify executable exists
+    - command -v codemarshal >/dev/null 2>&1 || { echo >&2 "CodeMarshal not found. Ensure it's pre-installed or available."; exit 1; }
     - python -m integrity.validation.complete_constitutional
     - python -m integrity.prohibitions.network_prohibition
   artifacts:
@@ -384,9 +421,10 @@ constitutional_validation:
 investigation:
   stage: investigate
   script:
-    - pip install -e .
-    - ./venv/Scripts/codemarshal.exe investigate . --scope=project --intent=initial_scan
-    - ./venv/Scripts/codemarshal.exe query . "What are the main components?" --analyze
+    - # Assumes CodeMarshal is pre-installed or available from a local artifact.
+    - command -v codemarshal >/dev/null 2>&1 || { echo >&2 "CodeMarshal not found. Ensure it's pre-installed or available."; exit 1; }
+    - codemarshal investigate . --scope=project --intent=initial_scan --confirm-large
+    - codemarshal query latest --question="What are the main components?" --question-type=structure
   artifacts:
     paths:
       - investigation_results/
@@ -396,8 +434,9 @@ investigation:
 reporting:
   stage: report
   script:
-    - pip install -e .
-    - ./venv/Scripts/codemarshal.exe export latest --format=markdown --output=weekly_report.md --include-timeline
+    - # Assumes CodeMarshal is pre-installed or available from a local artifact.
+    - command -v codemarshal >/dev/null 2>&1 || { echo >&2 "CodeMarshal not found. Ensure it's pre-installed or available."; exit 1; }
+    - codemarshal export latest --format=markdown --output=weekly_report.md --include-patterns
   artifacts:
     paths:
       - weekly_report.md
@@ -416,17 +455,17 @@ reporting:
 # Makefile for CodeMarshal-integrated development
 .PHONY: investigate validate export clean install
 
-CODEMARSHAL = ./venv/Scripts/codemarshal.exe
+CODEMARSHAL ?= codemarshal
 
 # Investigation targets
 investigate:
-	$(CODEMARSHAL) investigate . --scope=project
+	$(CODEMARSHAL) investigate . --scope=project --intent=initial_scan --confirm-large
 
 investigate-deep:
-	$(CODEMARSHAL) investigate . --scope=project --intent=deep_analysis
+	$(CODEMARSHAL) investigate . --scope=project --intent=dependency_analysis --confirm-large
 
 investigate-arch:
-	$(CODEMARSHAL) investigate . --scope=architectural
+	$(CODEMARSHAL) investigate . --scope=project --intent=architecture_review --confirm-large
 
 # Validation targets
 validate:
@@ -436,7 +475,7 @@ validate:
 
 validate-quick:
 	@echo "Quick validation check..."
-	$(CODEMARSHAL) --validate-constitution
+	python -m integrity --validate-only
 
 # Export targets
 export-json:
@@ -511,10 +550,10 @@ RUN useradd -m -u 1000 codemarshal
 USER codemarshal
 
 # Default command
-CMD ["./venv/Scripts/codemarshal.exe", "--help"]
+CMD ["codemarshal", "--help"]
 
 # Investigation command
-ENTRYPOINT ["./venv/Scripts/codemarshal.exe", "investigate", "."]
+ENTRYPOINT ["codemarshal", "investigate", ".", "--scope=project", "--intent=initial_scan", "--confirm-large"]
 ```
 
 #### **Docker Compose**
@@ -529,7 +568,7 @@ services:
       - ./code:/workspace:rw
       - ./results:/output:rw
     working_dir: /workspace
-    command: ["./venv/Scripts/codemarshal.exe", "investigate", "/workspace"]
+    command: ["codemarshal", "investigate", "/workspace", "--scope=project", "--intent=initial_scan", "--confirm-large"]
     environment:
       - CODEMARSHAL_OUTPUT_DIR=/output
       - CODEMARSHAL_CONFIG_PATH=/workspace/.codemarshal.yaml
@@ -540,7 +579,7 @@ services:
       - ./code:/workspace:rw
       - ./results:/output:rw
     working_dir: /workspace
-    command: ["./venv/Scripts/codemarshal.exe", "investigate", "/workspace", "--scope=architectural"]
+    command: ["codemarshal", "investigate", "/workspace", "--scope=project", "--intent=architecture_review", "--confirm-large"]
     depends_on:
       - codemarshal
 
@@ -552,8 +591,8 @@ services:
     working_dir: /workspace
     command: >
       bash -c "
-        ./venv/Scripts/codemarshal.exe investigate /workspace --scope=project &&
-        ./venv/Scripts/codemarshal.exe export latest --format=json --output=/output/batch_results.json
+        codemarshal investigate /workspace --scope=project --intent=initial_scan --confirm-large &&
+        codemarshal export latest --format=json --output=/output/batch_results.json
       "
 ```
 
@@ -581,6 +620,7 @@ class CodeMarshalAPI:
         """Find CodeMarshal installation."""
         # Try common locations
         candidates = [
+            Path("./venv/bin/codemarshal"),
             Path("./venv/Scripts/codemarshal.exe"),
             Path.home() / ".local" / "bin" / "codemarshal",
             Path("/usr/local/bin/codemarshal")
@@ -609,12 +649,26 @@ class CodeMarshalAPI:
         
         return {"stdout": result.stdout, "stderr": result.stderr}
     
-    def query(self, path: str, question: str, **kwargs) -> Dict[str, Any]:
-        """Ask question about code."""
-        cmd = [str(self.codemarshal_path), "query", path, question]
+    def query(
+        self,
+        investigation_id: str,
+        question: str,
+        question_type: str = "structure",
+        focus: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Ask question about an investigation."""
+        cmd = [
+            str(self.codemarshal_path),
+            "query",
+            investigation_id,
+            "--question",
+            question,
+            "--question-type",
+            question_type,
+        ]
         
-        if kwargs.get('analyze'):
-            cmd.append("--analyze")
+        if focus:
+            cmd.extend(["--focus", focus])
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
@@ -623,12 +677,28 @@ class CodeMarshalAPI:
         
         return {"answer": result.stdout}
     
-    def export(self, session_id: str, format: str = "json", **kwargs) -> Dict[str, Any]:
+    def export(
+        self,
+        session_id: str,
+        format: str = "json",
+        output: Optional[str] = None,
+        confirm_overwrite: bool = False,
+    ) -> Dict[str, Any]:
         """Export investigation session."""
-        cmd = [str(self.codemarshal_path), "export", session_id, f"--format={format}"]
+        if not output:
+            raise ValueError("output is required for export")
         
-        if kwargs.get('output'):
-            cmd.extend(["--output", kwargs['output']])
+        cmd = [
+            str(self.codemarshal_path),
+            "export",
+            session_id,
+            f"--format={format}",
+            "--output",
+            output,
+        ]
+        
+        if confirm_overwrite:
+            cmd.append("--confirm-overwrite")
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
@@ -645,11 +715,11 @@ result = api.investigate(".", scope="project", intent="initial_scan")
 print("Investigation results:", result["stdout"])
 
 # Ask specific question
-answer = api.query(".", "What are the main modules?", analyze=True)
+answer = api.query("latest", "What are the main modules?", question_type="structure")
 print("Query answer:", answer["answer"])
 
 # Export session
-export_result = api.export("latest", format="markdown", output="report.md")
+export_result = api.export("latest", format="markdown", output="report.md", confirm_overwrite=True)
 print("Exported:", export_result["exported"])
 ```
 
@@ -661,6 +731,7 @@ print("Exported:", export_result["exported"])
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from typing import Optional
 import uvicorn
 from codemarshal_api import CodeMarshalAPI
 
@@ -673,9 +744,10 @@ class InvestigationRequest(BaseModel):
     intent: str = "initial_scan"
 
 class QueryRequest(BaseModel):
-    path: str
+    investigation_id: str
     question: str
-    analyze: bool = False
+    question_type: str = "structure"
+    focus: Optional[str] = None
 
 @app.post("/investigate")
 async def investigate(request: InvestigationRequest):
@@ -693,9 +765,10 @@ async def investigate(request: InvestigationRequest):
 async def query(request: QueryRequest):
     try:
         result = api.query(
-            request.path,
+            request.investigation_id,
             request.question,
-            analyze=request.analyze
+            question_type=request.question_type,
+            focus=request.focus,
         )
         return JSONResponse(content=result)
     except Exception as e:
@@ -796,7 +869,7 @@ def daily_investigation():
     result = api.investigate(
         str(workspace_path),
         scope="project",
-        intent="daily_check"
+        intent="initial_scan"
     )
     
     # Generate report
@@ -895,18 +968,23 @@ def test_full_investigation_workflow(investigation_workspace):
     api = CodeMarshalAPI()
     
     # Step 1: Investigate
-    result = api.investigate(str(investigation_workspace))
+    result = api.investigate(
+        str(investigation_workspace),
+        scope="project",
+        intent="initial_scan",
+    )
     assert "Investigation started" in result["stdout"]
     
     # Step 2: Query
     answer = api.query(
-        str(investigation_workspace),
-        "What are the main files?"
+        "latest",
+        "What are the main files?",
+        question_type="structure",
     )
     assert "main.py" in answer["answer"]
     
     # Step 3: Export
-    export_result = api.export("latest", format="json")
+    export_result = api.export("latest", format="json", output="report.json", confirm_overwrite=True)
     assert export_result["exported"]
     
     print("✅ Full investigation workflow test passed")
@@ -1011,6 +1089,7 @@ import os
 def find_codemarshal():
     """Find CodeMarshal in common locations."""
     candidates = [
+        "./venv/bin/codemarshal",
         "./venv/Scripts/codemarshal.exe",
         shutil.which("codemarshal"),
         os.path.expanduser("~/.local/bin/codemarshal"),
@@ -1031,8 +1110,11 @@ print(f"Using CodeMarshal at: {codemarshal_path}")
 #### **Permission Issues**
 ```bash
 # Fix permission issues
-chmod +x ./venv/Scripts/codemarshal.exe
-sudo chown $USER:$USER ./venv/Scripts/codemarshal.exe
+chmod +x ./venv/bin/codemarshal
+sudo chown $USER:$USER ./venv/bin/codemarshal
+
+# Windows (PowerShell)
+# Unblock-File .\venv\Scripts\codemarshal.exe
 
 # For Docker
 RUN useradd -m -u 1000 codemarshal
@@ -1054,7 +1136,8 @@ def ensure_codemarshal_env():
         
         venv_path = os.path.join(os.getcwd(), 'venv')
         if os.path.exists(venv_path):
-            activate_script = os.path.join(venv_path, 'Scripts', 'activate')
+            activate_dir = "Scripts" if os.name == "nt" else "bin"
+            activate_script = os.path.join(venv_path, activate_dir, 'activate')
             exec(open(activate_script).read())
     
     # Check CodeMarshal installation

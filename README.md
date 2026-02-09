@@ -163,10 +163,13 @@ cd CodeMarshal
 # 2. Analyze your first project
 codemarshal observe /path/to/your/project --constitutional
 
-# 3. Explore interactively
+# 3. Explore interactively (desktop GUI)
+codemarshal gui
+
+# 4. Explore interactively (terminal)
 codemarshal tui
 
-# 4. Create a shareable report
+# 5. Create a shareable report
 codemarshal export /path/to/your/project --format=html --output=report.html
 ```
 
@@ -414,6 +417,26 @@ codemarshal query . --compare="main vs feature/branch" --pattern=coupling
 
 ---
 
+### 🖥 `codemarshal gui` - Desktop Interface
+
+**Purpose**: Launch the desktop GUI for single-focus investigation
+
+```bash
+# LAUNCH GUI
+codemarshal gui
+
+# Optional: start with a specific path
+codemarshal gui /path/to/project
+```
+
+**GUI Design Principles**:
+
+1. **Single Focus**: One primary content area
+2. **Truth-Preserving Aesthetics**: Visual design enhances clarity
+3. **Local Operation**: No network dependencies
+
+---
+
 ### 🎨 `codemarshal tui` - Interactive Interface
 
 **Purpose**: Single-focus, truth-preserving visual exploration
@@ -598,7 +621,8 @@ codemarshal search "class.*:" --case-insensitive    # Case-insensitive search
 codemarshal search "pattern" --context=5             # Show 5 lines of context
 codemarshal search "pattern" --glob="*.py"           # Search only Python files
 codemarshal search "pattern" --type=py               # File type filter
-codemarshal search "pattern" --limit=50              # Limit results
+codemarshal search "pattern" --limit=50              # Limit results (long form)
+codemarshal search "pattern" -m 50                   # Limit results (short form)
 codemarshal search "pattern" --exclude="test_"       # Exclude pattern
 
 # OUTPUT OPTIONS
@@ -1351,7 +1375,7 @@ python -m pytest tests/performance.test.py -v
 python -m pytest tests/end_to_end.test.py -v
 
 # Run invariant tests
-python -m pytest tests/invariants.test.py -v
+python -m pytest tests/invariants_test.py -v
 ```
 
 ### Testing Your Configuration
@@ -2061,7 +2085,7 @@ CodeMarshal is now production-ready with:
 
 - Performance optimization for large codebases
 - Additional export formats (CSV, PDF)
-- Web interface
+- Desktop GUI
 - CI/CD integration plugins
 
 ---

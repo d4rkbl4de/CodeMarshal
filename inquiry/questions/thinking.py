@@ -81,10 +81,10 @@ class Thought(Generic[T]):
     """
 
     # Required fields (constitutional)
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     anchor: T  # Generic anchor type
     content: str
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Optional metadata
     tags: set[str] = field(default_factory=set)

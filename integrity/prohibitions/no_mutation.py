@@ -4,6 +4,7 @@ Mutation Prohibition Enforcement
 
 Enforces immutability of observations and state in truth-critical modules.
 Prevents mutation that violates immutable observations requirement (Tier 9).
+Module: integrity.prohibitions.no_mutation
 
 Violations are logged to integrity/monitoring/errors.py and reported as structured violations.
 """

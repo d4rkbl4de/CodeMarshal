@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 # Type-only imports to avoid circular dependencies
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
     from observations.record.snapshot import Snapshot
@@ -305,7 +305,7 @@ class HashTree:
         self,
         items: list[Any],
         algorithm: HashAlgorithm = HashAlgorithm.default(),
-        hash_func: callable | None = None,
+        hash_func: Callable[[Any, HashAlgorithm], str] | None = None,
     ):
         """
         Build a Merkle tree from items.

@@ -631,6 +631,58 @@ def get_storage_path(investigation_id: str, evidence_type: str) -> str:
     return str(paths[0])
 
 
+def get_investigation_path(investigation_id: str) -> Path:
+    """
+    Get the canonical investigation root for a given ID.
+
+    Args:
+        investigation_id: Unique investigation identifier
+
+    Returns:
+        Path to investigation root
+    """
+    validated_id = _validate_path_component(investigation_id, "investigation_id")
+    return Path.cwd() / "observations" / validated_id
+
+
+def get_snapshot_paths(investigation_id: str) -> list[Path]:
+    """
+    Get all snapshot JSON paths for an investigation.
+
+    Args:
+        investigation_id: Unique investigation identifier
+
+    Returns:
+        List of snapshot paths
+    """
+    inv_root = get_investigation_path(investigation_id)
+
+    candidates: list[Path] = []
+    primary = snapshots_directory(inv_root)
+    if primary.exists():
+        candidates.extend(primary.glob("*.json"))
+
+    alternate = inv_root / "snapshots"
+    if alternate.exists() and alternate != primary:
+        candidates.extend(alternate.glob("*.json"))
+
+    return sorted(candidates)
+
+
+def get_observation_store_path(investigation_id: str) -> Path:
+    """
+    Get the observations store directory for an investigation.
+
+    Args:
+        investigation_id: Unique investigation identifier
+
+    Returns:
+        Path to observation storage directory
+    """
+    inv_root = get_investigation_path(investigation_id)
+    return _safe_join_path(evidence_directory(inv_root), "observations")
+
+
 def get_all_expected_paths(
     investigation_root: Path, context: LayoutContext
 ) -> dict[StorageRole, list[Path]]:
@@ -709,6 +761,9 @@ __all__ = [
     "schema_file_path",
     "versions_directory",
     "version_marker_file",
+    "get_investigation_path",
+    "get_snapshot_paths",
+    "get_observation_store_path",
     "get_all_expected_paths",
     "validate_path_component",
 ]

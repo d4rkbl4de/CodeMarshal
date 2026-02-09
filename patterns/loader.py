@@ -29,6 +29,8 @@ class PatternMatch:
     message: str
     description: str
     tags: list[str]
+    context_before: list[str] = field(default_factory=list)
+    context_after: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -169,8 +171,9 @@ class PatternLoader:
 class PatternScanner:
     """Scan files for pattern matches."""
 
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4, context_lines: int = 0):
         self.max_workers = max_workers
+        self.context_lines = context_lines
 
     def scan(
         self,
@@ -263,27 +266,87 @@ class PatternScanner:
 
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
+                content = f.read()
+            lines = content.splitlines()
 
-            for line_idx, line in enumerate(lines):
-                for pattern in patterns:
-                    # Skip if pattern is language-specific and doesn't match
-                    if pattern.languages and file_lang:
-                        if file_lang not in pattern.languages:
-                            continue
+            for pattern in patterns:
+                # Skip if pattern is language-specific and doesn't match
+                if pattern.languages:
+                    if not file_lang or file_lang not in pattern.languages:
+                        continue
 
-                    # Search for pattern
-                    regex = re.compile(pattern.pattern)
-                    match = regex.search(line)
+                is_multiline = "\\n" in pattern.pattern or "(?s)" in pattern.pattern
+                flags = re.MULTILINE | (re.DOTALL if is_multiline else 0)
+                regex = re.compile(pattern.pattern, flags)
 
-                    if match:
+                if is_multiline:
+                    for match in regex.finditer(content):
+                        line_number = content.count("\n", 0, match.start()) + 1
+                        line_idx = max(0, line_number - 1)
+                        line_content = lines[line_idx].rstrip() if line_idx < len(lines) else ""
                         matched_text = match.group()
 
-                        # Format message with context
+                        message = pattern.message
+                        message = message.replace("{{file}}", str(file_path))
+                        message = message.replace("{{line}}", str(line_number))
+                        message = message.replace("{{match}}", matched_text)
+
+                        context_before = [
+                            lines[i].rstrip()
+                            for i in range(
+                                max(0, line_idx - self.context_lines), line_idx
+                            )
+                        ]
+                        context_after = [
+                            lines[i].rstrip()
+                            for i in range(
+                                line_idx + 1,
+                                min(len(lines), line_idx + self.context_lines + 1),
+                            )
+                        ]
+
+                        matches.append(
+                            PatternMatch(
+                                pattern_id=pattern.id,
+                                pattern_name=pattern.name,
+                                file_path=file_path,
+                                line_number=line_number,
+                                line_content=line_content,
+                                matched_text=matched_text,
+                                severity=pattern.severity,
+                                message=message,
+                                description=pattern.description,
+                                tags=pattern.tags,
+                                context_before=context_before,
+                                context_after=context_after,
+                            )
+                        )
+                else:
+                    for line_idx, line in enumerate(lines):
+                        match = regex.search(line)
+                        if not match:
+                            continue
+
+                        matched_text = match.group()
+
                         message = pattern.message
                         message = message.replace("{{file}}", str(file_path))
                         message = message.replace("{{line}}", str(line_idx + 1))
                         message = message.replace("{{match}}", matched_text)
+
+                        context_before = [
+                            lines[i].rstrip()
+                            for i in range(
+                                max(0, line_idx - self.context_lines), line_idx
+                            )
+                        ]
+                        context_after = [
+                            lines[i].rstrip()
+                            for i in range(
+                                line_idx + 1,
+                                min(len(lines), line_idx + self.context_lines + 1),
+                            )
+                        ]
 
                         matches.append(
                             PatternMatch(
@@ -297,6 +360,8 @@ class PatternScanner:
                                 message=message,
                                 description=pattern.description,
                                 tags=pattern.tags,
+                                context_before=context_before,
+                                context_after=context_after,
                             )
                         )
 

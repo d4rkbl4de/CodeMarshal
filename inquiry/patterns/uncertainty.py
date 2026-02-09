@@ -42,11 +42,9 @@ class UncertaintyMeasurement:
 
     uncertainty_type: UncertaintyType
     count: int  # Number of occurrences
-    total_possible: int | None = None  # Denominator for ratio
-    coverage_ratio: float | None = (
-        None  # 0.0 to 1.0, computed if total_possible provided
-    )
     confidence_dampener: float  # Multiplier for downstream confidence (0.0 to 1.0)
+    total_possible: int | None = None  # Denominator for ratio
+    coverage_ratio: float | None = None  # 0.0 to 1.0, computed if total_possible provided
 
     @property
     def missing_count(self) -> int:

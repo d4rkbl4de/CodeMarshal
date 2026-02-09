@@ -3,7 +3,8 @@ Concrete implementation of ObservationInterface for engine coordination.
 """
 
 import datetime
-from pathlib import Path
+from dataclasses import asdict, is_dataclass
+from pathlib import Path, PurePath
 from typing import Any
 
 import yaml
@@ -22,6 +23,21 @@ from .eyes.boundary_sight import BoundaryDefinition, BoundarySight
 
 
 # ...
+def _coerce_for_json(value: Any) -> Any:
+    """Convert payloads to JSON-compatible structures."""
+    if isinstance(value, (Path, PurePath)):
+        return str(value)
+    if is_dataclass(value):
+        return _coerce_for_json(asdict(value))
+    if isinstance(value, dict):
+        return {k: _coerce_for_json(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_coerce_for_json(v) for v in value]
+    if hasattr(value, "__dict__"):
+        return _coerce_for_json(value.__dict__)
+    return value
+
+
 class MinimalObservationInterface(ObservationInterface):
     """Minimal implementation of ObservationInterface to enable engine execution."""
 
@@ -190,6 +206,14 @@ class MinimalObservationInterface(ObservationInterface):
                                     {
                                         "type": obs_type,
                                         "result": result.raw_payload.__dict__,
+                                    }
+                                )
+                            else:
+                                # Preserve other payload types (e.g., DirectoryTree)
+                                observations.append(
+                                    {
+                                        "type": obs_type,
+                                        "result": _coerce_for_json(result.raw_payload),
                                     }
                                 )
                         else:
@@ -443,6 +467,14 @@ class MinimalObservationInterface(ObservationInterface):
                                     }
                                 )
                                 file_count += len(result.raw_payload.modules)
+                            else:
+                                # Preserve other payload types (e.g., DirectoryTree)
+                                observations.append(
+                                    {
+                                        "type": obs_type,
+                                        "result": _coerce_for_json(result.raw_payload),
+                                    }
+                                )
                         else:
                             # Fallback for other observation types
                             observations.append(
@@ -541,6 +573,13 @@ class MinimalObservationInterface(ObservationInterface):
                                     "result": result.raw_payload.__dict__,
                                 }
                             )
+                        else:
+                            observations.append(
+                                {
+                                    "type": obs_type,
+                                    "result": _coerce_for_json(result.raw_payload),
+                                }
+                            )
 
                     files_processed += 1
 
@@ -585,7 +624,7 @@ class MinimalObservationInterface(ObservationInterface):
         - Article 13: Deterministic (processes files in sorted order)
         - Article 15: Checkpoints (each file write is a checkpoint)
         """
-        from core.storage_integration import InvestigationStorage
+        from storage.investigation_storage import InvestigationStorage
 
         # Get storage instance
         storage = InvestigationStorage()
@@ -667,6 +706,15 @@ class MinimalObservationInterface(ObservationInterface):
                                         {
                                             "type": obs_type,
                                             "result": result.raw_payload.__dict__,
+                                        }
+                                    )
+                                else:
+                                    file_observations.append(
+                                        {
+                                            "type": obs_type,
+                                            "result": _coerce_for_json(
+                                                result.raw_payload
+                                            ),
                                         }
                                     )
                             else:

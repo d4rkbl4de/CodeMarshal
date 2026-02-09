@@ -46,6 +46,9 @@ class ErrorSeverity(Enum):
     ERROR = auto()  # Tier 3-4 issues requiring attention
     WARNING = auto()  # Performance or minor issues
     INFO = auto()  # Informational messages
+    LOW = auto()  # Low-severity issues (legacy)
+    MEDIUM = auto()  # Medium-severity issues (legacy)
+    HIGH = auto()  # High-severity issues (legacy)
     UNCERTAINTY = auto()  # Explicit uncertainty markers
 
 
@@ -73,6 +76,7 @@ class ErrorCategory(Enum):
     RESOURCE_EXHAUSTED = auto()  # Memory, disk, or CPU limits
     INTEGRITY_VIOLATION = auto()  # Constitutional violation detected
     UNEXPECTED_ERROR = auto()  # Unknown or unclassified error
+    AUDIT_FAILURE = auto()  # Audit logging failed
 
     # Performance errors
     TIMEOUT = auto()  # Operation timed out
@@ -385,6 +389,7 @@ class ErrorMonitor:
 
     def get_errors(
         self,
+        error_id: str | None = None,
         severity: ErrorSeverity | None = None,
         category: ErrorCategory | None = None,
         resolved: bool | None = None,
@@ -395,6 +400,7 @@ class ErrorMonitor:
         Get errors with optional filtering.
 
         Args:
+            error_id: Filter by error ID
             severity: Filter by severity level
             category: Filter by category
             resolved: Filter by resolution status
@@ -410,6 +416,8 @@ class ErrorMonitor:
         # Filter errors
         filtered_errors = []
         for error in reversed(errors):  # Newest first
+            if error_id is not None and error.error_id != error_id:
+                continue
             if severity is not None and error.severity != severity:
                 continue
             if category is not None and error.category != category:
@@ -756,6 +764,66 @@ def record_uncertainty(
     )
 
 
+def _coerce_severity(severity: Any) -> ErrorSeverity:
+    """Coerce a severity value to ErrorSeverity with safe fallback."""
+    if isinstance(severity, ErrorSeverity):
+        return severity
+    if isinstance(severity, str):
+        name = severity.strip().upper()
+        if name in ErrorSeverity.__members__:
+            return ErrorSeverity[name]
+    return ErrorSeverity.ERROR
+
+
+def log_error(
+    message: str,
+    severity: Any = ErrorSeverity.ERROR,
+    category: ErrorCategory = ErrorCategory.UNEXPECTED_ERROR,
+    module: str = "integrity",
+    function: str = "log_error",
+    **context: Any,
+) -> None:
+    """
+    Log an error without requiring a full ErrorMonitor instance.
+
+    This is a lightweight fallback used by recovery/prohibition modules.
+    """
+    coerced_severity = _coerce_severity(severity)
+    timestamp = datetime.now(UTC).isoformat()
+    context_repr = json.dumps(context, default=str) if context else ""
+    print(
+        f"[{timestamp}] [{coerced_severity.name}] {category.name}: {message} "
+        f"({module}.{function}) {context_repr}".strip(),
+        file=sys.stderr,
+    )
+
+
+def log_integrity_violation(
+    violation_type: str,
+    location: dict[str, str],
+    details: str,
+    severity: str = "warning",
+) -> None:
+    """
+    Log an integrity violation in a structured, truth-preserving manner.
+    """
+    location_str = (
+        ", ".join(f"{key}={value}" for key, value in location.items())
+        if location
+        else ""
+    )
+    message = f"Integrity violation [{violation_type}] {details}"
+    if location_str:
+        message = f"{message} ({location_str})"
+    log_error(
+        message=message,
+        severity=severity,
+        category=ErrorCategory.INTEGRITY_VIOLATION,
+        module="integrity.monitoring.errors",
+        function="log_integrity_violation",
+    )
+
+
 def check_constitutional_errors(context: RuntimeContext) -> list[dict[str, Any]]:
     """
     Check for constitutional violations in error records.
@@ -850,7 +918,7 @@ def test_error_monitoring() -> dict[str, Any]:
         try:
             with monitor.capture_errors(
                 severity=ErrorSeverity.WARNING,
-                category=ErrorCategory.PERFORMANCE_FAILED,
+                category=ErrorCategory.SLOW_PERFORMANCE,
                 module="test",
                 function="context_test",
                 custom="data",
@@ -859,7 +927,7 @@ def test_error_monitoring() -> dict[str, Any]:
         except ValueError:
             pass
 
-        captured_errors = monitor.get_errors(category=ErrorCategory.PERFORMANCE_FAILED)
+        captured_errors = monitor.get_errors(category=ErrorCategory.SLOW_PERFORMANCE)
         assert len(captured_errors) == 1
         assert "Test exception" in captured_errors[0].message
         assert captured_errors[0].context.get("custom") == "data"

@@ -212,6 +212,14 @@ class MemoryMonitor:
                 self._warning_callback(snapshot)
             self._enable_chunking()
 
+    def check_current_memory(self) -> None:
+        """
+        Perform an immediate memory check and trigger callbacks if thresholds are exceeded.
+        This method allows external callers to actively engage the monitor's logic.
+        """
+        with self._lock:
+            self._check_memory()
+
     def _enable_chunking(self) -> None:
         """Enable chunking strategy to reduce memory usage."""
         self._chunking_enabled = True

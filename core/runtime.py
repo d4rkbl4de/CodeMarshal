@@ -457,7 +457,6 @@ class Runtime:
         base_string = (
             f"{self._config.investigation_root}"
             f"{self._config.execution_mode.name}"
-            f"{datetime.datetime.now(datetime.UTC).date().isoformat()}"
         )
 
         namespace = uuid.uuid5(uuid.NAMESPACE_DNS, "codemarshal.internal")

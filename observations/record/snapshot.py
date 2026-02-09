@@ -545,23 +545,19 @@ class Snapshot:
         # Parse anchors if present
         anchors = None
         if "anchors" in data:
-            if TYPE_CHECKING:
-                pass
+            from observations.record.anchors import Anchor
+
             anchor_objs = []
             for anchor_dict in data["anchors"]:
-                # Anchor.from_dict will be implemented in anchors.py
-                # For now, we'll pass the dict
-                anchor_objs.append(anchor_dict)
+                anchor_objs.append(Anchor.from_dict(anchor_dict))
             anchors = tuple(anchor_objs)
 
         # Parse integrity if present
         integrity_root = None
         if "integrity" in data:
-            if TYPE_CHECKING:
-                pass
-            integrity_root = data[
-                "integrity"
-            ]  # Will be properly parsed in integrity.py
+            from observations.record.integrity import IntegrityRoot
+
+            integrity_root = IntegrityRoot.from_dict(data["integrity"])
 
         return cls(
             version=data["version"],
@@ -587,6 +583,11 @@ class Snapshot:
         return self.metadata.snapshot_id
 
     @property
+    def id(self) -> str:
+        """Backward-compatible alias for snapshot_id."""
+        return self.snapshot_id
+
+    @property
     def created_at(self) -> datetime:
         """Get the creation timestamp."""
         return self.metadata.created_at
@@ -597,9 +598,19 @@ class Snapshot:
         return self.metadata.source_path
 
     @property
+    def path(self) -> str:
+        """Backward-compatible alias for source_path."""
+        return self.source_path
+
+    @property
     def total_observations(self) -> int:
         """Get total number of observations."""
         return self.payload.total_observations
+
+    @property
+    def observation_count(self) -> int:
+        """Backward-compatible alias for total_observations."""
+        return self.total_observations
 
     def has_anchors(self) -> bool:
         """Check if snapshot has anchors."""
@@ -836,6 +847,56 @@ class SnapshotBuilder:
         self.end_time = datetime.now(UTC)
 
 
+def load_snapshot(path: str | Path | None = None) -> Snapshot:
+    """Load a snapshot from a JSON file.
+
+    If path is None, attempts to locate the most recent snapshot in the
+    current working directory (including a ./snapshots subdirectory).
+    """
+    if path is None:
+        base_path = Path.cwd()
+        try:
+            from observations.record.version import get_latest_snapshot
+
+            latest_id = get_latest_snapshot(str(base_path))
+        except Exception:
+            latest_id = None
+
+        candidates: list[Path] = []
+        if latest_id is not None:
+            candidates.append(base_path / "snapshots" / f"{latest_id}.json")
+            candidates.append(base_path / f"{latest_id}.json")
+
+        for candidate in candidates:
+            if candidate.exists():
+                path = candidate
+                break
+
+        if path is None:
+            raise FileNotFoundError(
+                f"No snapshot found in {base_path} (or {base_path / 'snapshots'})"
+            )
+
+    path_obj = Path(path)
+    return Snapshot.from_json(path_obj.read_text(encoding="utf-8"))
+
+
+def save_snapshot(snapshot: Snapshot, path: str | Path | None = None) -> Path:
+    """Save a snapshot to a JSON file.
+
+    If path is None, writes to ./snapshots/<snapshot_id>.json.
+    """
+    if path is None:
+        snapshots_dir = Path.cwd() / "snapshots"
+        snapshots_dir.mkdir(parents=True, exist_ok=True)
+        path = snapshots_dir / f"{snapshot.snapshot_id}.json"
+
+    path_obj = Path(path)
+    json_text = snapshot.to_json(indent=2)
+    path_obj.write_text(json_text, encoding="utf-8")
+    return path_obj
+
+
 # Export public API
 __all__ = [
     "Snapshot",
@@ -844,6 +905,8 @@ __all__ = [
     "SnapshotPayload",
     "ObservationGroup",
     "SnapshotBuilder",
+    "load_snapshot",
+    "save_snapshot",
 ]
 
 # Backward compatibility alias

@@ -10,6 +10,7 @@ import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # Import from observations layer (allowed per architecture)
 from observations.eyes.import_sight import ImportObservation, ImportSight
@@ -464,6 +465,55 @@ def calculate_density_pattern(
         }
 
     return result
+
+
+class DensityPatterns:
+    """Lightweight wrapper for density metrics used by inquiry layer."""
+
+    def __init__(self, snapshot: CodeSnapshot, import_sight: ImportSight | None = None):
+        self._snapshot = snapshot
+        self._import_sight = import_sight
+        self._cached: dict[str, Any] | None = None
+
+    def _calculate(self) -> dict[str, Any]:
+        if self._cached is None:
+            try:
+                self._cached = calculate_density_pattern(
+                    self._snapshot, self._import_sight
+                )
+            except Exception:
+                self._cached = {}
+        return self._cached
+
+    def get_module_densities(self) -> dict[str, float]:
+        """Return module density values keyed by module name."""
+        data = self._calculate()
+        densities: dict[str, float] = {}
+        for item in data.get("module_references", []):
+            module_name = item.get("module_name")
+            if not module_name:
+                continue
+            value = item.get("reference_density", item.get("reference_count", 0))
+            try:
+                densities[str(module_name)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return densities
+
+    def get_file_densities(self) -> dict[str, float]:
+        """Return file density values keyed by file path."""
+        data = self._calculate()
+        densities: dict[str, float] = {}
+        for item in data.get("file_densities", []):
+            file_path = item.get("file_path")
+            if not file_path:
+                continue
+            value = item.get("import_count", 0)
+            try:
+                densities[str(file_path)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return densities
 
 
 def validate_density_output(data: dict) -> tuple[bool, list[str]]:

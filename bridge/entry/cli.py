@@ -31,7 +31,7 @@ from bridge.commands.investigate import (
 from core.engine import Engine
 from core.runtime import ExecutionMode, Runtime, RuntimeConfiguration
 from inquiry.session.context import QuestionType, SessionContext
-from integrity.adapters.memory_monitor_adapter import IntegrityMemoryMonitorAdapter
+from integrity.adapters.memory_monitor_adapter import create_memory_monitor_adapter
 from lens.navigation.context import FocusType, create_navigation_context
 from lens.navigation.workflow import WorkflowStage
 from lens.views import ViewType
@@ -123,6 +123,9 @@ EXAMPLES:
 
         # export command
         self._add_export_parser(subparsers)
+
+        # gui command
+        self._add_gui_parser(subparsers)
 
         # tui command
         self._add_tui_parser(subparsers)
@@ -311,7 +314,7 @@ Export preserves truth without alteration.
         parser.add_argument(
             "--format",
             required=True,
-            choices=["json", "markdown", "html", "plain"],
+            choices=["json", "markdown", "html", "plain", "csv"],
             help="Export format (MUST be specified)",
         )
 
@@ -355,6 +358,26 @@ The TUI provides a single-focus, truth-preserving investigation interface.
         parser.add_argument(
             "--path",
             type=Path,
+            default=Path(".").absolute(),
+            help="Starting path for investigation (default: current directory)",
+        )
+
+    def _add_gui_parser(self, subparsers: Any) -> None:
+        """Add GUI command parser."""
+        parser = subparsers.add_parser(
+            "gui",
+            help="Launch Desktop GUI",
+            description="""
+Launch the CodeMarshal Desktop GUI for single-focus investigation.
+The GUI is local-only and does not use network dependencies.
+            """,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        parser.add_argument(
+            "path",
+            type=Path,
+            nargs="?",
             default=Path(".").absolute(),
             help="Starting path for investigation (default: current directory)",
         )
@@ -699,7 +722,7 @@ Supports regex patterns, file filtering, and context display.
         )
         parser.add_argument(
             "--limit",
-            "-l",
+            "-m",
             type=int,
             default=100,
             help="Maximum results (default: 100)",
@@ -894,6 +917,8 @@ Commands: list, scan, add
                 return self._handle_query(parsed_args)
             elif parsed_args.command == "export":
                 return self._handle_export(parsed_args)
+            elif parsed_args.command == "gui":
+                return self._handle_gui(parsed_args)
             elif parsed_args.command == "tui":
                 return self._handle_tui(parsed_args)
             elif parsed_args.command == "config":
@@ -967,7 +992,7 @@ Commands: list, scan, add
                 runtime._context,
                 runtime._state,
                 storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
+                memory_monitor=create_memory_monitor_adapter(runtime._context),
             )
             session_context = SessionContext(
                 snapshot_id=uuid.uuid4(),
@@ -1101,7 +1126,7 @@ Commands: list, scan, add
                 runtime._context,
                 runtime._state,
                 storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
+                memory_monitor=create_memory_monitor_adapter(runtime._context),
             )
 
             # Register interfaces
@@ -1475,9 +1500,9 @@ Commands: list, scan, add
             format_map = {
                 "json": ExportFormat.JSON,
                 "markdown": ExportFormat.MARKDOWN,
-                "html": ExportFormat.HTML,
-                "plain": ExportFormat.PLAINTEXT,
-            }
+                                        "html": ExportFormat.HTML,
+                                        "plain": ExportFormat.PLAINTEXT,
+                                        "csv": ExportFormat.CSV,            }
             export_format = format_map.get(str(args.format).lower())
             if not export_format:
                 self._refuse(f"Unsupported export format: {args.format}")
@@ -1544,6 +1569,22 @@ Commands: list, scan, add
         except Exception as e:
             logger.exception("Export command failed")
             self._refuse(f"Export error: {str(e)}")
+            return 1
+
+    def _handle_gui(self, args: argparse.Namespace) -> int:
+        """Handle GUI command."""
+        try:
+            from bridge.entry.gui import launch_gui
+
+            if not args.path.exists():
+                self._refuse(f"Path does not exist: {args.path}")
+                return 1
+
+            return launch_gui(args.path)
+
+        except Exception as e:
+            logger.exception("GUI command failed")
+            self._refuse(f"GUI error: {str(e)}")
             return 1
 
     def _handle_tui(self, args: argparse.Namespace) -> int:

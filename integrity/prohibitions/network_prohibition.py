@@ -1,5 +1,5 @@
 """
-network_prohibition.test.py - Network Dependency Prohibition Testing
+network_prohibition.py - Network Dependency Prohibition Testing
 
 Article 12: All analysis works without network connectivity.
 No cloud dependencies for core functionality. Truth should not depend on external services.
@@ -557,7 +557,7 @@ def test_network_blocking_mechanisms():
                 return True
 
     # Check for network prohibition tests (this file!)
-    if Path("integrity/prohibitions/network_prohibition.test.py").exists():
+    if Path("integrity/prohibitions/network_prohibition.py").exists():
         print("✅ Network prohibition tests exist")
         return True
 

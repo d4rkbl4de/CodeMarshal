@@ -27,10 +27,8 @@ from typing import Any
 from core.context import RuntimeContext
 
 # Observations imports
-from observations.record.snapshot import (
-    load_snapshot,
-)
-from storage.atomic import atomic_write
+from observations.record.utils import load_snapshot
+from storage.atomic import atomic_write_json_compatible
 
 # Storage imports
 from storage.layout import (
@@ -221,9 +219,14 @@ class DriftMonitor:
             snapshot_paths = get_snapshot_paths(self.context.investigation_id)
             for path in snapshot_paths:
                 if path.stem == version:
-                    snapshot = load_snapshot(path)
-                    self._snapshot_cache[version] = snapshot
-                    return snapshot
+                    snapshot_obj = load_snapshot(path)
+                    snapshot_dict = (
+                        snapshot_obj.to_dict()
+                        if hasattr(snapshot_obj, "to_dict")
+                        else snapshot_obj
+                    )
+                    self._snapshot_cache[version] = snapshot_dict
+                    return snapshot_dict
         except Exception as e:
             # Record failure but don't crash
             self.record_drift(
@@ -257,10 +260,10 @@ class DriftMonitor:
 
         # Use the system's integrity hash function
         try:
-            from observations.record.integrity import compute_observation_hash
+            from observations.record.integrity import compute_dict_hash
 
-            obs_hash = compute_observation_hash(observation)
-        except ImportError:
+            obs_hash = compute_dict_hash(observation)
+        except Exception:
             # Fallback: compute hash locally
             content = json.dumps(observation, sort_keys=True).encode("utf-8")
             obs_hash = hashlib.sha256(content).hexdigest()
@@ -594,7 +597,12 @@ class DriftMonitor:
 
             for path in snapshot_paths:
                 try:
-                    snapshot = load_snapshot(path)
+                    snapshot_obj = load_snapshot(path)
+                    snapshot = (
+                        snapshot_obj.to_dict()
+                        if hasattr(snapshot_obj, "to_dict")
+                        else snapshot_obj
+                    )
                     if snapshot.get("input_hash") == input_hash:
                         # Found matching historical snapshot
                         historical_obs = {
@@ -863,7 +871,7 @@ class DriftMonitor:
         }
 
         # Atomic write
-        atomic_write(data, path)
+        atomic_write_json_compatible(path, data, indent=2)
 
         return path
 

@@ -10,6 +10,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Any
 
 # Import from observations layer (allowed per architecture)
 from observations.eyes.import_sight import ImportSight
@@ -555,6 +556,28 @@ def _find_connected_components(
             components.append(sorted(component))
 
     return sorted(components, key=len, reverse=True)
+
+
+class CouplingPatterns:
+    """Lightweight wrapper for coupling metrics used by inquiry layer."""
+
+    def __init__(self, graph: Any):
+        self.graph = graph
+        self.module_count = getattr(graph, "module_count", 0)
+        if not self.module_count and hasattr(graph, "nodes"):
+            self.module_count = len(getattr(graph, "nodes", {}))
+        self.unique_connections = getattr(graph, "unique_connections", 0)
+        if not self.unique_connections and hasattr(graph, "edges"):
+            self.unique_connections = len(getattr(graph, "edges", []))
+        self.total_connections = getattr(graph, "total_connections", 0)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to serializable dictionary."""
+        return {
+            "module_count": self.module_count,
+            "unique_connections": self.unique_connections,
+            "total_connections": self.total_connections,
+        }
 
 
 def validate_coupling_output(data: dict) -> tuple[bool, list[str]]:

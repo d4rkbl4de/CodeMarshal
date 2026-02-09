@@ -27,7 +27,7 @@ from bridge.commands import execute_query as query
 from bridge.results import ExportResult, InvestigateResult, ObserveResult, QueryResult
 from core.runtime import ExecutionMode, Runtime, RuntimeConfiguration
 from inquiry.session.context import QuestionType, SessionContext
-from integrity.adapters.memory_monitor_adapter import IntegrityMemoryMonitorAdapter
+from integrity.adapters.memory_monitor_adapter import create_memory_monitor_adapter
 from lens.navigation.context import create_initial_navigation_context
 from storage.investigation_storage import InvestigationStorage
 
@@ -344,7 +344,7 @@ class CodeMarshalAPI:
                 runtime._context,
                 runtime._state,
                 storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
+                memory_monitor=create_memory_monitor_adapter(runtime._context),
             )
             nav_context = create_initial_navigation_context()
             session_context = SessionContext(
@@ -414,7 +414,7 @@ class CodeMarshalAPI:
                 runtime._context,
                 runtime._state,
                 storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
+                memory_monitor=create_memory_monitor_adapter(runtime._context),
             )
             session_context = SessionContext(
                 snapshot_id=uuid.uuid4(),
@@ -489,7 +489,7 @@ class CodeMarshalAPI:
                 runtime._context,
                 runtime._state,
                 storage=InvestigationStorage(),
-                memory_monitor=IntegrityMemoryMonitorAdapter(),
+                memory_monitor=create_memory_monitor_adapter(runtime._context),
             )
             session_context = SessionContext(
                 snapshot_id=uuid.uuid4(),

@@ -384,33 +384,38 @@ class VersionUpgrader:
             return [(from_version, to_version)]
 
         # Find multi-step upgrade path through intermediate versions
-        # For now, implement simple BFS to find shortest path
+        # Implement simple BFS to find shortest path using registered edges only
         from collections import deque
 
-        queue = deque([(from_version, [from_version])])
-        visited = {from_version}
+        queue = deque([from_version])
+        parents: dict[SnapshotVersion, SnapshotVersion | None] = {from_version: None}
 
         while queue:
-            current_version, path = queue.popleft()
+            current_version = queue.popleft()
 
-            # Check if we can upgrade directly to target
-            if current_version.can_upgrade_to(to_version):
-                return [(current_version, to_version)]
-
-            # Explore all possible upgrades from current version
+            # Explore all registered upgrades from current version
             for potential_version in cls._upgrade_registry.keys():
-                if potential_version[0] == str(current_version):
-                    next_version = SnapshotVersion.parse(potential_version[1])
-                    if next_version not in visited:
-                        visited.add(next_version)
-                        new_path = path + [next_version]
-                        if next_version == to_version:
-                            # Build path from sequence
-                            result = []
-                            for i in range(len(new_path) - 1):
-                                result.append((new_path[i], new_path[i + 1]))
-                            return result
-                        queue.append((next_version, new_path))
+                if potential_version[0] != str(current_version):
+                    continue
+
+                next_version = SnapshotVersion.parse(potential_version[1])
+                if next_version in parents:
+                    continue
+
+                parents[next_version] = current_version
+                if next_version == to_version:
+                    # Build path by walking parents
+                    path = [next_version]
+                    while parents[path[-1]] is not None:
+                        path.append(parents[path[-1]])
+                    path.reverse()
+
+                    result = []
+                    for i in range(len(path) - 1):
+                        result.append((path[i], path[i + 1]))
+                    return result
+
+                queue.append(next_version)
 
         return None
 
@@ -610,3 +615,65 @@ def get_snapshot_version(
 
     except Exception:
         return None
+
+
+def get_latest_snapshot(storage_path: str) -> UUID | None:
+    """
+    Get the most recent snapshot ID from storage.
+
+    Args:
+        storage_path: Path to observation storage
+
+    Returns:
+        UUID of latest snapshot, or None if none found
+    """
+    base_path = Path(storage_path)
+    candidates = []
+
+    # Prefer snapshots directory, but allow flat layout
+    snapshots_dir = base_path / "snapshots"
+    if snapshots_dir.exists():
+        candidates.extend(snapshots_dir.glob("*.json"))
+    candidates.extend(base_path.glob("*.json"))
+
+    latest_id: UUID | None = None
+    latest_time: datetime | None = None
+
+    for snapshot_file in candidates:
+        try:
+            with open(snapshot_file, encoding="utf-8") as f:
+                data = json.load(f)
+
+            # Filter out non-snapshot JSON files
+            if not isinstance(data, dict):
+                continue
+            if not {"version", "metadata", "payload"}.issubset(data.keys()):
+                continue
+            if not isinstance(data.get("metadata"), dict):
+                continue
+
+            metadata = data.get("metadata", {})
+            created_at_str = metadata.get("created_at") or data.get("created_at")
+            snapshot_id_str = metadata.get("snapshot_id") or data.get("snapshot_id")
+
+            if not snapshot_id_str:
+                # Fall back to filename without extension
+                snapshot_id_str = snapshot_file.stem
+
+            # Parse timestamp if available, else use file mtime
+            if created_at_str:
+                created_at = datetime.fromisoformat(created_at_str)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=UTC)
+            else:
+                created_at = datetime.fromtimestamp(
+                    snapshot_file.stat().st_mtime, tz=UTC
+                )
+
+            if latest_time is None or created_at > latest_time:
+                latest_time = created_at
+                latest_id = UUID(str(snapshot_id_str))
+        except Exception:
+            continue
+
+    return latest_id

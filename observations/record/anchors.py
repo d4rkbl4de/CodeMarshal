@@ -230,6 +230,16 @@ class Anchor:
         """Check if this is an artifact anchor."""
         return self.anchor_type == AnchorType.ARTIFACT
 
+    @property
+    def type(self) -> str:
+        """Backward-compatible alias for anchor_type value."""
+        return self.anchor_type.value
+
+    @property
+    def location(self) -> str | None:
+        """Backward-compatible alias for the best available path."""
+        return self.relative_path or self.original_path
+
     def to_dict(self) -> dict[str, Any]:
         """Convert anchor to JSON-serializable dictionary."""
         return {
@@ -1251,10 +1261,12 @@ def validate_anchor_reference(anchor: Anchor, snapshot_id: UUID) -> bool:
 
 # Alias for compatibility
 ObservationAnchor = Anchor
+EvidenceAnchor = Anchor
 
 __all__ = [
     "Anchor",
     "ObservationAnchor",
+    "EvidenceAnchor",
     "AnchorType",
     "get_anchor",
     "validate_anchor_reference",
