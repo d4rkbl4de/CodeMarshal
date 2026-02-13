@@ -281,13 +281,30 @@ def execute_observation(
         # Convert set to list for serialization
         type_list = [t.value for t in request.types]
 
-        observation_id = engine.submit_observation(
+        include_results = bool(request.parameters.get("include_results", False))
+
+        observation_result = engine.submit_observation(
             observation_types=type_list,
             target_path=str(request.target_path),
             parameters=request.parameters,
             session_id=request.session_id,
             limitations=limitations,
+            return_result=include_results,
         )
+        if include_results and hasattr(observation_result, "data"):
+            observation_id = (
+                observation_result.data.get("observation_id", "unknown")
+                if observation_result.data
+                else "unknown"
+            )
+            observation_data = observation_result.data
+        else:
+            observation_id = (
+                observation_result
+                if isinstance(observation_result, str)
+                else "unknown"
+            )
+            observation_data = None
     except Exception as e:
         raise RuntimeError(f"Failed to delegate observation: {e}") from e
 
@@ -295,6 +312,7 @@ def execute_observation(
     return {
         "success": True,
         "observation_id": observation_id,
+        "data": observation_data,
         "intent_record": intent_record,
         "status": "collecting",
         "limitations": limitations,

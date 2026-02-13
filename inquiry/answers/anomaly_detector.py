@@ -71,6 +71,7 @@ This detector explicitly cannot:
 - Detect performance issues (need profiling)
 """
 
+import statistics
 from typing import Any
 
 
@@ -153,6 +154,12 @@ class AnomalyDetector:
     _MAX_ANOMALIES_DISPLAY: int = 50
     """Maximum anomalies to list (prevents spam)."""
 
+    _OUTLIER_Z_THRESHOLD: float = 2.5
+    """Z-score threshold for statistical outliers."""
+
+    _MAX_OUTLIERS_DISPLAY: int = 10
+    """Maximum number of outliers to display."""
+
     _ORPHAN_THRESHOLD: int = 0
     """Files with this many imports are considered orphans."""
 
@@ -203,7 +210,15 @@ class AnomalyDetector:
         question_lower = question.lower()
 
         # Route based on question keywords
-        if "boundary" in question_lower or "violation" in question_lower:
+        if "statistical" in question_lower or "outlier" in question_lower:
+            # Statistical outlier detection
+            return self._detect_statistical_outliers(observations)
+
+        elif "architecture" in question_lower:
+            # Architectural anomalies based on boundary crossings
+            return self._detect_architecture_anomalies(observations)
+
+        elif "boundary" in question_lower or "violation" in question_lower:
             # Specific question about boundary violations
             return self._find_boundary_violations(observations)
 
@@ -423,6 +438,138 @@ class AnomalyDetector:
 
         return "\n".join(lines)
 
+    def _detect_statistical_outliers(self, observations: list[dict[str, Any]]) -> str:
+        """
+        Detect statistical outliers using import count distributions.
+        """
+        import_counts: list[int] = []
+        per_file_counts: dict[str, int] = {}
+
+        for obs in observations:
+            if obs.get("type") == "import_sight":
+                file_path = obs.get("file", "")
+                statements = obs.get("statements", [])
+                if not file_path:
+                    continue
+                count = len(statements)
+                per_file_counts[file_path] = count
+                import_counts.append(count)
+
+        if len(import_counts) < 2:
+            return "Statistical Outliers: insufficient import data for analysis."
+
+        mean_value = statistics.mean(import_counts)
+        stdev_value = statistics.pstdev(import_counts)
+
+        if stdev_value == 0:
+            return "Statistical Outliers: no variation in import counts detected."
+
+        outliers: list[tuple[str, int, float]] = []
+        for file_path, count in per_file_counts.items():
+            z_score = (count - mean_value) / stdev_value
+            if abs(z_score) >= self._OUTLIER_Z_THRESHOLD:
+                outliers.append((file_path, count, z_score))
+
+        if not outliers:
+            return "Statistical Outliers: no outliers detected at current threshold."
+
+        outliers.sort(key=lambda item: abs(item[2]), reverse=True)
+
+        lines: list[str] = [
+            "Statistical Outliers:",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+            f"Samples: {len(import_counts)}",
+            f"Mean Imports per File: {mean_value:.2f}",
+            f"Std Dev: {stdev_value:.2f}",
+            "",
+            "Outliers (by z-score):",
+        ]
+
+        for file_path, count, z_score in outliers[: self._MAX_OUTLIERS_DISPLAY]:
+            direction = "high" if z_score > 0 else "low"
+            lines.append(
+                f"  - {file_path}: {count} imports (z={z_score:.2f}, {direction})"
+            )
+
+        if len(outliers) > self._MAX_OUTLIERS_DISPLAY:
+            remaining = len(outliers) - self._MAX_OUTLIERS_DISPLAY
+            lines.append(f"  ... and {remaining} more")
+
+        lines.append("")
+        lines.append("Note: Outliers use static import counts only.")
+
+        return "\n".join(lines)
+
+    def _detect_architecture_anomalies(self, observations: list[dict[str, Any]]) -> str:
+        """
+        Detect architectural anomalies based on boundary crossings.
+        """
+        crossing_counts: dict[tuple[str, str], int] = {}
+        examples: dict[tuple[str, str], list[str]] = {}
+        total_crossings = 0
+
+        for obs in observations:
+            if obs.get("type") != "boundary_sight":
+                continue
+            crossings = obs.get("crossings", [])
+
+            for crossing in crossings:
+                if isinstance(crossing, dict):
+                    source_boundary = crossing.get("source_boundary", "")
+                    target_boundary = crossing.get("target_boundary", "")
+                    source_module = crossing.get("source_module", "")
+                    target_module = crossing.get("target_module", "")
+                else:
+                    source_boundary = getattr(crossing, "source_boundary", "")
+                    target_boundary = getattr(crossing, "target_boundary", "")
+                    source_module = getattr(crossing, "source_module", "")
+                    target_module = getattr(crossing, "target_module", "")
+
+                if source_boundary or target_boundary:
+                    key = (source_boundary or "unknown", target_boundary or "unknown")
+                else:
+                    key = (source_module or "unknown", target_module or "unknown")
+
+                crossing_counts[key] = crossing_counts.get(key, 0) + 1
+                total_crossings += 1
+
+                if source_module and target_module:
+                    examples.setdefault(key, [])
+                    if len(examples[key]) < 3:
+                        examples[key].append(f"{source_module} -> {target_module}")
+
+        if total_crossings == 0:
+            return "Architecture Anomalies: no boundary crossings detected."
+
+        sorted_pairs = sorted(
+            crossing_counts.items(), key=lambda item: item[1], reverse=True
+        )
+
+        lines: list[str] = [
+            "Architecture Anomalies:",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+            f"Boundary crossings observed: {total_crossings}",
+            "",
+            "Crossing Hotspots:",
+        ]
+
+        for (source_boundary, target_boundary), count in sorted_pairs[
+            : self._MAX_ANOMALIES_DISPLAY
+        ]:
+            lines.append(f"  - {source_boundary} -> {target_boundary}: {count}")
+            if (source_boundary, target_boundary) in examples:
+                sample_list = ", ".join(examples[(source_boundary, target_boundary)])
+                lines.append(f"    Examples: {sample_list}")
+
+        if len(sorted_pairs) > self._MAX_ANOMALIES_DISPLAY:
+            remaining = len(sorted_pairs) - self._MAX_ANOMALIES_DISPLAY
+            lines.append(f"  ... and {remaining} more")
+
+        lines.append("")
+        lines.append("Note: Architecture anomalies reflect boundary crossings only.")
+
+        return "\n".join(lines)
+
     def _get_anomaly_summary(self, observations: list[dict[str, Any]]) -> str:
         """
         Generate summary of all anomalies found.
@@ -518,4 +665,4 @@ class AnomalyDetector:
 # Module exports
 __all__ = ["AnomalyDetector"]
 __version__ = "1.0.0"
-__modified__ = "2026-02-05"
+__modified__ = "2026-02-09"

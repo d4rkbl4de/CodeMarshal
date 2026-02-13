@@ -121,6 +121,7 @@ class PatternScanCommand:
         glob: str = "*",
         output_format: str = "table",
         max_files: int = 10000,
+        context_lines: int = 2,
     ) -> PatternScanCommandResult:
         """
         Execute pattern scan command.
@@ -138,7 +139,7 @@ class PatternScanCommand:
         """
         try:
             loader = PatternLoader()
-            scanner = PatternScanner()
+            scanner = PatternScanner(context_lines=context_lines)
 
             # Load patterns to scan
             if patterns:
@@ -187,6 +188,8 @@ class PatternScanCommand:
                         "message": match.message,
                         "description": match.description,
                         "tags": match.tags,
+                        "context_before": match.context_before,
+                        "context_after": match.context_after,
                     }
                 )
 
@@ -298,10 +301,13 @@ def execute_pattern_scan(
     glob: str = "*",
     output_format: str = "table",
     max_files: int = 10000,
+    context_lines: int = 2,
 ) -> PatternScanCommandResult:
     """Convenience function for pattern scan."""
     cmd = PatternScanCommand()
-    return cmd.execute(path, patterns, category, glob, output_format, max_files)
+    return cmd.execute(
+        path, patterns, category, glob, output_format, max_files, context_lines
+    )
 
 
 def execute_pattern_add(

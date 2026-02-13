@@ -1,7 +1,7 @@
 # **CODEMARSHAL API DOCUMENTATION**
 
-**Version:** 2.0.0  
-**Last Updated:** February 7, 2026
+**Version:** 2.1.0  
+**Last Updated:** February 12, 2026
 
 ---
 
@@ -166,6 +166,57 @@ print(f"Modules imported: {observation.module_imports}")
 deps = import_sight.analyze_dependencies(observation)
 print(f"Dependency graph: {deps}")
 ```
+
+### **Export Observation**
+
+#### **ExportSight Class**
+
+```python
+class ExportSight(AbstractEye):
+    """Observes module exports without execution."""
+
+    def observe(self, path: Path) -> ExportObservation:
+        """Observe public definitions in Python files."""
+```
+
+#### **Usage Example**
+
+```python
+from observations.eyes.export_sight import ExportSight
+
+export_sight = ExportSight()
+observation = export_sight.observe(Path("/path/to/project/module.py"))
+
+print(f"Exported definitions: {len(observation.definitions)}")
+```
+
+### **Multi-Language Observation**
+
+#### **LanguageDetector Class**
+
+```python
+from observations.eyes.language_detector import LanguageDetector
+
+detector = LanguageDetector()
+detection = detector.detect_language_for_path(Path("/path/to/file.ts"))
+print(detection.primary, detection.confidence)
+```
+
+#### **Language-Specific Eyes**
+
+```python
+from observations.eyes.javascript_sight import JavaScriptSight
+from observations.eyes.java_sight import JavaSight
+from observations.eyes.go_sight import GoSight
+
+js_sight = JavaScriptSight()
+java_sight = JavaSight()
+go_sight = GoSight()
+```
+
+These eyes expose `imports` and `exports` (or `classes`) in their raw payloads,
+and are automatically selected by the observation interface when collecting
+`import_sight` and `export_sight` across multi-language repositories.
 
 ---
 
@@ -339,40 +390,37 @@ def execute_export(
 #### **Usage Example**
 
 ```python
-from bridge.commands.investigate import execute_investigation, InvestigationRequest
-from bridge.commands.export import execute_export, ExportRequest
+from pathlib import Path
 
-# Create investigation request
-investigate_request = InvestigationRequest(
-    path=Path("/path/to/project"),
-    scope="project",
-    intent="initial_scan"
-)
+from bridge.commands.export import ExportFormat, ExportRequest, ExportType, execute_export
+from bridge.integration.jupyter_exporter import JupyterExporter
+from bridge.integration.pdf_exporter import PDFExporter
+from bridge.integration.svg_exporter import SVGExporter
 
-# Execute investigation
-result = execute_investigation(
-    request=investigate_request,
-    runtime=runtime,
-    session_context=session_context,
-    nav_context=nav_context
-)
-
-# Create export request
 export_request = ExportRequest(
     type=ExportType.SESSION,
     format=ExportFormat.JSON,
-    session_id=session_context.snapshot_id,
-    output_path=Path("/path/to/export.json")
+    session_id=str(session_context.snapshot_id),
+    parameters={"output_path": str(Path("/path/to/export.json"))},
 )
 
-# Execute export
 export_result = execute_export(
     request=export_request,
     runtime=runtime,
     session_context=session_context,
-    nav_context=nav_context
+    nav_context=nav_context,
 )
+
+# Optional format-specific exporters
+jupyter_payload = JupyterExporter().export(session_data, observations)
+svg_payload = SVGExporter().export(session_data, observations)
+
+# PDF exporter requires: pip install -e .[export_pdf]
+pdf_bytes = PDFExporter().export(session_data, observations)
 ```
+
+Supported export formats: `json`, `markdown`, `html`, `plain`, `csv`, `jupyter`, `pdf`, `svg`.
+
 
 ---
 
@@ -648,6 +696,18 @@ python -m integrity.validation.complete_constitutional
 
 ---
 
-**API Documentation Version: 2.0.0**  
-**Last Updated: January 16, 2026**  
+## Related Documentation
+
+- **[ROADMAP.md](../ROADMAP.md)** - Execution status and remaining work
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history and API changes
+- **[docs/USER_GUIDE.md](USER_GUIDE.md)** - CLI command reference
+- **[docs/FEATURES.md](FEATURES.md)** - Feature matrix and capabilities
+- **[docs/INTEGRATION_EXAMPLES.md](INTEGRATION_EXAMPLES.md)** - Integration patterns
+- **[docs/architecture.md](architecture.md)** - System architecture
+- **[docs/index.md](index.md)** - Documentation navigation
+
+---
+
+**API Documentation Version: 2.1.0**  
+**Last Updated: February 12, 2026**  
 **Next Update: As needed based on user feedback**

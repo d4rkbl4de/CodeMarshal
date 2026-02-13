@@ -65,6 +65,68 @@ class TestStructureAnalyzer:
             or "not available" in result.lower()
         )
 
+    def test_structure_metrics(self):
+        """Test structure metrics analysis."""
+        analyzer = StructureAnalyzer()
+        observations = [
+            {
+                "type": "file_sight",
+                "result": {
+                    "path": "/test/project",
+                    "file_count": 2,
+                    "directory_count": 1,
+                    "modules": [
+                        {"path": "/test/project/a.py", "size_bytes": 120},
+                        {"path": "/test/project/b.py", "size_bytes": 240},
+                    ],
+                },
+            }
+        ]
+
+        result = analyzer.analyze(observations, "Show structure metrics")
+
+        assert "Structure Metrics" in result
+        assert "Total Files Observed" in result
+        assert "Total Size" in result
+
+    def test_structure_graph(self):
+        """Test structure graph generation."""
+        analyzer = StructureAnalyzer()
+        observations = [
+            {
+                "type": "file_sight",
+                "result": {
+                    "path": "/test/project",
+                    "modules": [
+                        {"path": "/test/project/src/a.py"},
+                        {"path": "/test/project/src/utils/b.py"},
+                    ],
+                },
+            }
+        ]
+
+        result = analyzer.analyze(observations, "Show structure graph")
+
+        assert "Structure Graph" in result
+        assert "a.py" in result
+
+    def test_complexity_distribution(self):
+        """Test complexity distribution analysis."""
+        analyzer = StructureAnalyzer()
+        observations = [
+            {
+                "type": "file_sight",
+                "result": {
+                    "metrics": {"complexity": {"file_a": 3, "file_b": 12, "file_c": 25}}
+                },
+            }
+        ]
+
+        result = analyzer.analyze(observations, "Show complexity distribution")
+
+        assert "Complexity Distribution" in result
+        assert "Buckets" in result
+
 
 class TestConnectionMapper:
     """Test connection/dependency mapping functionality."""
@@ -133,6 +195,58 @@ class TestConnectionMapper:
         # Should detect the circular dependency
         assert isinstance(result, str)
 
+    def test_impact_surface(self):
+        """Test impact surface analysis."""
+        mapper = ConnectionMapper()
+        observations = [
+            {
+                "type": "import_sight",
+                "file": "/test/a.py",
+                "statements": [{"module": "b", "names": []}],
+            },
+            {
+                "type": "import_sight",
+                "file": "/test/b.py",
+                "statements": [{"module": "c", "names": []}],
+            },
+            {
+                "type": "import_sight",
+                "file": "/test/c.py",
+                "statements": [],
+            },
+        ]
+
+        result = mapper.analyze(observations, "Impact surface for b")
+
+        assert "Impact Surface" in result
+        assert "a.py" in result
+
+    def test_centrality(self):
+        """Test centrality analysis."""
+        mapper = ConnectionMapper()
+        observations = [
+            {
+                "type": "import_sight",
+                "file": "/test/a.py",
+                "statements": [{"module": "b", "names": []}],
+            },
+            {
+                "type": "import_sight",
+                "file": "/test/b.py",
+                "statements": [{"module": "c", "names": []}],
+            },
+            {
+                "type": "import_sight",
+                "file": "/test/c.py",
+                "statements": [],
+            },
+        ]
+
+        result = mapper.analyze(observations, "Show module centrality")
+
+        assert "Module Centrality" in result
+        assert "b.py" in result
+
 
 class TestAnomalyDetector:
     """Test anomaly detection functionality."""
@@ -189,6 +303,54 @@ class TestAnomalyDetector:
 
         # Should indicate no anomalies found
         assert isinstance(result, str)
+
+    def test_statistical_outliers(self):
+        """Test statistical outlier detection."""
+        detector = AnomalyDetector()
+        observations = [
+            {
+                "type": "import_sight",
+                "file": f"/test/file_{i}.py",
+                "statements": [{"module": "os", "names": []}],
+            }
+            for i in range(10)
+        ]
+        observations.append(
+            {
+                "type": "import_sight",
+                "file": "/test/big.py",
+                "statements": [
+                    {"module": f"mod{j}", "names": []} for j in range(30)
+                ],
+            }
+        )
+
+        result = detector.analyze(observations, "Find statistical outliers")
+
+        assert "Statistical Outliers" in result
+        assert "big.py" in result
+
+    def test_architecture_anomalies(self):
+        """Test architecture anomaly detection."""
+        detector = AnomalyDetector()
+        observations = [
+            {
+                "type": "boundary_sight",
+                "crossings": [
+                    {
+                        "source_boundary": "core",
+                        "target_boundary": "web",
+                        "source_module": "core.engine",
+                        "target_module": "web.api",
+                    }
+                ],
+            }
+        ]
+
+        result = detector.analyze(observations, "Show architecture anomalies")
+
+        assert "Architecture Anomalies" in result
+        assert "core" in result
 
 
 class TestPurposeExtractor:

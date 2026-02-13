@@ -1,0 +1,11 @@
+{
+  "id": "test-session",
+  "path": "C:\\Users\\LENOVO\\AppData\\Local\\Temp\\tmpz6xds82n\\test_project",
+  "observation_ids": [
+    "obs_1e786eacee0a122f"
+  ],
+  "saved_at": "2026-02-12T21:43:40.962080",
+  "schema_version": "v2.1.0",
+  "storage_version": "2.1.0",
+  "checksum": "48783680b0f54388d0209379c15f07d6af2df1f69e0bab1dfc19bdfce007269b"
+}

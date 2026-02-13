@@ -1,0 +1,30 @@
+<idea-plugin>
+    <id>codemarshal</id>
+    <name>CodeMarshal</name>
+    <vendor email="support@codemarshal.local" url="https://codemarshal.local">CodeMarshal</vendor>
+    <description>CodeMarshal IDE integration</description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+            id="CodeMarshal"
+            factoryClass="codemarshal.CodeMarshalToolWindowFactory"
+            anchor="right"/>
+    </extensions>
+
+    <actions>
+        <action id="CodeMarshalInvestigate"
+                class="codemarshal.CodeMarshalInvestigateAction"
+                text="CodeMarshal: Investigate"
+                description="Run CodeMarshal investigate">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action id="CodeMarshalPatternScan"
+                class="codemarshal.CodeMarshalPatternScanAction"
+                text="CodeMarshal: Scan Patterns"
+                description="Run CodeMarshal pattern scan">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -1,7 +1,7 @@
 # CodeMarshal Architecture Documentation
 
-**Version:** 2.0.0  
-**Last Updated:** February 7, 2026  
+**Version:** 2.1.0  
+**Last Updated:** February 12, 2026  
 **Document Type:** Architectural Reference
 
 ---
@@ -363,6 +363,28 @@ Responsibilities:
 ├── Track module-level declarations
 ├── Identify public vs private symbols
 └── Collect documentation comments (not meaning)
+```
+
+**Language Detection (`observations/eyes/language_detector.py`)**
+
+Lightweight heuristics to identify language by extension and markers:
+
+```
+Responsibilities:
+├── Map extensions to primary language
+├── Use simple textual markers as backup signals
+└── Report confidence and alternatives
+```
+
+**JavaScript Sight / Java Sight / Go Sight**
+
+Multi-language observations that mirror import/export discovery for non-Python files:
+
+```
+Responsibilities:
+├── Parse language-specific import statements
+├── Record exported symbols (or class declarations)
+└── Preserve line numbers and source paths
 ```
 
 **Boundary Sight (`observations/eyes/boundary_sight.py`)**
@@ -1260,20 +1282,29 @@ class PatternDefinition:
     pattern: str
     severity: str
     description: str
+    suggestion: str
+    message: str
     tags: list[str]
     languages: list[str]
+    enabled: bool
 
 class PatternScanner:
     """Scan files for pattern matches."""
+    def __init__(self, max_workers: int = 4, context_lines: int = 0):
+        ...
     
     def scan(
         self,
         path: Path,
         patterns: list[PatternDefinition],
-        glob: str = "*"
+        glob: str = "*",
+        max_files: int = 10000
     ) -> PatternScanResult:
         """Scan path for pattern matches."""
 ```
+
+Pattern Engine (`patterns/engine.py`) provides optional helpers for context-aware detection,
+statistical outlier identification (z-score), and limited fix suggestions for known patterns.
 
 #### 4.2 Coordination Subsystem
 
@@ -2480,6 +2511,10 @@ codemarshal status
 | `observations/eyes/file_sight.py`     | File structure observation   |
 | `observations/eyes/import_sight.py`   | Import statement observation |
 | `observations/eyes/export_sight.py`   | Definition observation       |
+| `observations/eyes/javascript_sight.py` | JS/TS import/export observation |
+| `observations/eyes/java_sight.py`     | Java import/class observation |
+| `observations/eyes/go_sight.py`       | Go import/export observation |
+| `observations/eyes/language_detector.py` | Language identification      |
 | `observations/eyes/boundary_sight.py` | Boundary observation         |
 | `observations/eyes/encoding_sight.py` | Encoding detection           |
 | `observations/record/snapshot.py`     | Immutable snapshot           |
@@ -2553,11 +2588,24 @@ codemarshal status
 
 | Property     | Value            |
 | ------------ | ---------------- |
-| Version      | 1.0.0            |
+| Version      | 2.1.0            |
 | Created      | February 5, 2026 |
-| Last Updated | February 5, 2026 |
+| Last Updated | February 12, 2026 |
 | Authors      | CodeMarshal Team |
 | License      | MIT              |
+
+---
+
+## Related Documentation
+
+- **[ROADMAP.md](../ROADMAP.md)** - Execution status and Phase 5 timeline
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history
+- **[docs/USER_GUIDE.md](USER_GUIDE.md)** - Command usage
+- **[docs/API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - API reference
+- **[docs/Structure.md](Structure.md)** - Directory structure
+- **[docs/INTEGRATION_EXAMPLES.md](INTEGRATION_EXAMPLES.md)** - Integration patterns
+- **[docs/FEATURES.md](FEATURES.md)** - Feature matrix
+- **[docs/index.md](index.md)** - Documentation navigation
 
 ---
 

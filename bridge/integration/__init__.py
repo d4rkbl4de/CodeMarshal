@@ -1,4 +1,4 @@
-"""
+﻿"""
 Integration layer for truth preservation.
 
 This module declares the finite set of supported integrations.
@@ -21,6 +21,10 @@ it is violating the constitution.
 
 from enum import Enum
 from typing import Any, cast
+
+from .jupyter_exporter import JupyterExporter
+from .pdf_exporter import PDFExporter
+from .svg_exporter import SVGExporter
 
 
 class IntegrationType(Enum):
@@ -303,6 +307,9 @@ __all__ = [
     "list_supported_integrations",
     "validate_integration_name",
     "check_integration_compliance",
+    "JupyterExporter",
+    "SVGExporter",
+    "PDFExporter",
 ]
 
 
@@ -324,26 +331,28 @@ if __name__ == "__main__":
         print("-" * 40)
 
         if report["constitutional"]:
-            print("✓ Constitutional: PASS")
-            print(f"✓ Article 12 (Local Operation): {report['article_12']}")
-            print(f"✓ Article 19 (Backward Truth): {report['article_19']}")
-            print(f"✓ No new actions: {report['no_new_actions']}")
-            print(f"✓ Respects commands: {report['respects_commands']}")
-            print(f"✓ Doesn't enhance truth: {report['does_not_enhance_truth']}")
+            print("âœ“ Constitutional: PASS")
+            print(f"âœ“ Article 12 (Local Operation): {report['article_12']}")
+            print(f"âœ“ Article 19 (Backward Truth): {report['article_19']}")
+            print(f"âœ“ No new actions: {report['no_new_actions']}")
+            print(f"âœ“ Respects commands: {report['respects_commands']}")
+            print(f"âœ“ Doesn't enhance truth: {report['does_not_enhance_truth']}")
             print(f"\nOverall: {report['compliance_summary']}")
 
             if report["compliance_summary"] == "FAIL":
                 all_passed = False
         else:
-            print("✗ Constitutional: FAIL")
+            print("âœ— Constitutional: FAIL")
             print(f"Error: {report['error']}")
             all_passed = False
 
     print("\n" + "=" * 70)
     if all_passed:
-        print("✓ All integrations comply with the constitution.")
+        print("âœ“ All integrations comply with the constitution.")
     else:
-        print("✗ Some integrations violate the constitution.")
+        print("âœ— Some integrations violate the constitution.")
         print("  Integration cannot add power - it only translates.")
         print("  Integration must work locally and preserve backward compatibility.")
         raise SystemExit(1)
+
+

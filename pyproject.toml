@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codemarshal"
-version = "2.0.0"
+version = "2.1.0"
 description = "Truth-preserving cognitive investigation environment for code"
 readme = "README.truth.md"
 license = "MIT"
@@ -52,6 +52,9 @@ cli = [
 gui = [
     "PySide6>=6.6.0",
 ]
+export_pdf = [
+    "weasyprint>=62.0",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/your-org/codemarshal"
@@ -75,9 +78,11 @@ include = [
     "observations*",
     "inquiry*",
     "lens*",
+    "patterns*",
     "bridge*",
     "integrity*",
     "desktop*",
+    "knowledge*",
 ]
 exclude = [
     "tests*",
@@ -87,6 +92,9 @@ exclude = [
     "*.test",
     "*.test.*",
 ]
+
+[tool.setuptools.package-data]
+"patterns" = ["builtin/*.yaml", "custom/*.yaml"]
 
 [tool.black]
 line-length = 88
@@ -153,3 +161,16 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
 ]
+
+[tool.coverage.report]
+include = [
+    "tests/*",
+    "observations/eyes/go_sight.py",
+    "observations/eyes/java_sight.py",
+    "observations/eyes/javascript_sight.py",
+]
+fail_under = 90
+show_missing = true
+precision = 2
+
+

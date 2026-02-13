@@ -59,6 +59,30 @@ class MigrationDirection(Enum):
     BACKWARD = auto()  # Downgrade to older version (rare, but possible)
 
 
+def _parse_version(version: str) -> tuple[int, int, int]:
+    """Parse a version string like v2.1.0 into a tuple for comparison."""
+    normalized = version.strip().lower()
+    if normalized.startswith("v"):
+        normalized = normalized[1:]
+    normalized = normalized.replace("_", ".")
+    parts = normalized.split(".")
+    try:
+        major = int(parts[0]) if len(parts) > 0 else 0
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        patch = int(parts[2]) if len(parts) > 2 else 0
+    except ValueError as exc:
+        raise ValueError(f"Invalid version format: {version}") from exc
+    return major, minor, patch
+
+
+def _is_version_string(version: str) -> bool:
+    try:
+        _parse_version(version)
+        return True
+    except ValueError:
+        return False
+
+
 @dataclass(frozen=True)
 class MigrationStep:
     """
@@ -83,16 +107,9 @@ class MigrationStep:
                 f"Versions must start with 'v': {self.from_version} -> {self.to_version}"
             )
 
-        # Extract numeric parts for comparison
-        from_num = self.from_version[1:]
-        to_num = self.to_version[1:]
-
-        if not from_num.isdigit() or not to_num.isdigit():
-            raise ValueError(
-                f"Version numbers must be numeric: {self.from_version} -> {self.to_version}"
-            )
-
-        if int(from_num) >= int(to_num):
+        from_tuple = _parse_version(self.from_version)
+        to_tuple = _parse_version(self.to_version)
+        if from_tuple >= to_tuple:
             raise ValueError(
                 f"Migration must move forward: {self.from_version} -> {self.to_version}"
             )
@@ -155,7 +172,7 @@ class VersionDetector:
         if version_file.exists():
             try:
                 content = version_file.read_text(encoding="utf-8").strip()
-                if content.startswith("v") and content[1:].isdigit():
+                if content.startswith("v") and _is_version_string(content):
                     return content
             except (OSError, UnicodeDecodeError):
                 pass
@@ -580,6 +597,103 @@ class MigrationExecutor:
             backup_path=backup_path,
         )
 
+    def execute_migration(
+        self,
+        investigation_root: Path,
+        from_version: str,
+        to_version: str,
+        create_backup: bool = True,
+        dry_run: bool = False,
+        confirm_callback: Callable[[MigrationStep], bool] | None = None,
+    ) -> MigrationResult:
+        """Execute a migration path using explicit versions (no auto-detect)."""
+        self.dry_run = dry_run
+        try:
+            if from_version == to_version:
+                return MigrationResult(
+                    success=True,
+                    from_version=from_version,
+                    to_version=to_version,
+                    steps_performed=0,
+                    steps_attempted=0,
+                    errors=[],
+                    warnings=[("already_current", f"Already at version {to_version}")],
+                )
+
+            try:
+                migration_path = self.registry.get_migration_path(
+                    from_version, to_version
+                )
+            except UnsupportedVersionError as exc:
+                return MigrationResult(
+                    success=False,
+                    from_version=from_version,
+                    to_version=to_version,
+                    steps_performed=0,
+                    steps_attempted=0,
+                    errors=[("path_finding", str(exc))],
+                    warnings=[],
+                )
+
+            backup_path = None
+            if create_backup and not self.dry_run:
+                try:
+                    backup_path = MigrationBackup.create_backup(investigation_root)
+                except MigrationError as exc:
+                    return MigrationResult(
+                        success=False,
+                        from_version=from_version,
+                        to_version=to_version,
+                        steps_performed=0,
+                        steps_attempted=0,
+                        errors=[("backup", f"Backup failed: {exc}")],
+                        warnings=[],
+                        backup_path=None,
+                    )
+
+            errors: list[tuple[str, str]] = []
+            warnings: list[tuple[str, str]] = []
+            steps_performed = 0
+
+            for step in migration_path:
+                step_name = f"{step.from_version}->{step.to_version}"
+
+                if (
+                    step.requires_explicit_confirmation
+                    and confirm_callback is not None
+                    and not confirm_callback(step)
+                ):
+                    errors.append((step_name, "User declined confirmation"))
+                    break
+
+                try:
+                    success, message = self._execute_step(step, investigation_root)
+                    if success:
+                        steps_performed += 1
+                        if message:
+                            warnings.append((step_name, message))
+                    else:
+                        errors.append((step_name, message))
+                        break
+                except Exception as exc:
+                    errors.append((step_name, f"Unexpected error: {exc}"))
+                    break
+
+            success = len(errors) == 0
+
+            return MigrationResult(
+                success=success,
+                from_version=from_version,
+                to_version=to_version,
+                steps_performed=steps_performed,
+                steps_attempted=len(migration_path),
+                errors=errors,
+                warnings=warnings,
+                backup_path=backup_path,
+            )
+        finally:
+            self.dry_run = False
+
     def _execute_step(self, step: MigrationStep, target_path: Path) -> tuple[bool, str]:
         """
         Execute a single migration step.
@@ -750,6 +864,163 @@ def schema_migration_function(
     return migrate
 
 
+# === STORAGE MIGRATIONS ===
+
+
+def _iter_storage_json_files(storage_root: Path) -> list[Path]:
+    targets = []
+    for subdir in ["sessions", "observations", "questions", "patterns", "snapshots"]:
+        directory = storage_root / subdir
+        if not directory.exists():
+            continue
+        targets.extend(directory.glob("*.json"))
+    return targets
+
+
+def _update_storage_files(
+    storage_root: Path, transform: Callable[[dict[str, Any], Path], dict[str, Any]], dry_run: bool
+) -> tuple[bool, str]:
+    files = _iter_storage_json_files(storage_root)
+    updated = 0
+    for file_path in files:
+        try:
+            data = json.loads(file_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        new_data = transform(data, file_path)
+        if not dry_run:
+            file_path.write_text(json.dumps(new_data, indent=2, ensure_ascii=False))
+        updated += 1
+    return True, f"Updated {updated} storage files"
+
+
+def create_storage_v1_to_v2_migration() -> MigrationStep:
+    """Upgrade storage data from v1 to v2.0.0."""
+
+    def migration_function(path: Path, dry_run: bool) -> tuple[bool, str]:
+        def transform(data: dict[str, Any], _: Path) -> dict[str, Any]:
+            data = data.copy()
+            data["schema_version"] = "v2.0.0"
+            data["storage_version"] = "2.0.0"
+            return data
+
+        success, message = _update_storage_files(path, transform, dry_run)
+        if not dry_run:
+            (path / "version.txt").write_text("v2.0.0\n")
+        return success, message
+
+    def precondition(path: Path) -> tuple[bool, str]:
+        version = VersionDetector.detect_investigation_version(path)
+        if version and version != "v1":
+            return False, f"Expected v1, found {version}"
+        return True, "v1 storage detected"
+
+    def postcondition(path: Path) -> tuple[bool, str]:
+        version_file = path / "version.txt"
+        if not version_file.exists():
+            return False, "version.txt not created"
+        return True, "v2.0.0 storage confirmed"
+
+    return MigrationStep(
+        from_version="v1",
+        to_version="v2.0.0",
+        description="Stamp schema_version and storage_version for v2.0.0",
+        migration_function=migration_function,
+        preconditions=[precondition],
+        postconditions=[postcondition],
+        requires_explicit_confirmation=True,
+        idempotent=True,
+    )
+
+
+def create_storage_v2_to_v2_1_migration() -> MigrationStep:
+    """Upgrade storage data from v2.0.0 to v2.1.0."""
+
+    def migration_function(path: Path, dry_run: bool) -> tuple[bool, str]:
+        def transform(data: dict[str, Any], file_path: Path) -> dict[str, Any]:
+            data = data.copy()
+            data["schema_version"] = "v2.1.0"
+            data["storage_version"] = "2.1.0"
+            if file_path.name.endswith(".session.json"):
+                data.setdefault("pattern_matches", [])
+                data.setdefault("file_languages", {})
+            return data
+
+        success, message = _update_storage_files(path, transform, dry_run)
+        if not dry_run:
+            (path / "version.txt").write_text("v2.1.0\n")
+            (path / "knowledge").mkdir(parents=True, exist_ok=True)
+        return success, message
+
+    def precondition(path: Path) -> tuple[bool, str]:
+        version = VersionDetector.detect_investigation_version(path)
+        if version and version != "v2.0.0":
+            return False, f"Expected v2.0.0, found {version}"
+        return True, "v2.0.0 storage detected"
+
+    def postcondition(path: Path) -> tuple[bool, str]:
+        version_file = path / "version.txt"
+        if not version_file.exists():
+            return False, "version.txt not created"
+        return True, "v2.1.0 storage confirmed"
+
+    return MigrationStep(
+        from_version="v2.0.0",
+        to_version="v2.1.0",
+        description="Add v2.1.0 fields and knowledge base directory",
+        migration_function=migration_function,
+        preconditions=[precondition],
+        postconditions=[postcondition],
+        requires_explicit_confirmation=True,
+        idempotent=True,
+    )
+
+
+def create_storage_migration_registry() -> "MigrationRegistry":
+    registry = MigrationRegistry()
+    registry.register(create_storage_v1_to_v2_migration())
+    registry.register(create_storage_v2_to_v2_1_migration())
+    return registry
+
+
+def migrate_storage(
+    storage_root: Path,
+    to_version: str = "v2.1.0",
+    dry_run: bool = False,
+    create_backup: bool = True,
+) -> MigrationResult:
+    registry = create_storage_migration_registry()
+    executor = MigrationExecutor(registry)
+    current_version = VersionDetector.detect_investigation_version(storage_root) or "v1"
+    return executor.execute_migration(
+        investigation_root=storage_root,
+        from_version=current_version,
+        to_version=to_version,
+        create_backup=create_backup,
+        dry_run=dry_run,
+    )
+
+
+def migrate_schema_bytes(
+    old_data: bytes, from_version: str, to_version: str
+) -> bytes:
+    """Migrate JSON bytes between schema versions."""
+    data = json.loads(old_data.decode("utf-8"))
+    if from_version == to_version:
+        return old_data
+
+    if from_version == "v1" and to_version == "v2.0.0":
+        data["schema_version"] = "v2.0.0"
+        data["storage_version"] = "2.0.0"
+    elif from_version == "v2.0.0" and to_version == "v2.1.0":
+        data["schema_version"] = "v2.1.0"
+        data["storage_version"] = "2.1.0"
+    else:
+        raise MigrationError(f"Unsupported migration: {from_version} -> {to_version}")
+
+    return json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
+
+
 # Example migration steps (these would be registered by the system)
 
 
@@ -770,7 +1041,7 @@ def create_v1_to_v2_migration() -> MigrationStep:
         # Create version file
         version_file = path / "version.txt"
         if not dry_run:
-            version_file.write_text("v2\n")
+            version_file.write_text("v2.0.0\n")
 
         return True, "Created v2 structure"
 
@@ -801,7 +1072,7 @@ def create_v1_to_v2_migration() -> MigrationStep:
 
     return MigrationStep(
         from_version="v1",
-        to_version="v2",
+        to_version="v2.0.0",
         description="Add metadata directory and version tracking",
         migration_function=migration_function,
         preconditions=[v1_precondition],
@@ -829,4 +1100,9 @@ __all__ = [
     "update_version_file_postcondition",
     "schema_migration_function",
     "create_v1_to_v2_migration",
+    "create_storage_v1_to_v2_migration",
+    "create_storage_v2_to_v2_1_migration",
+    "create_storage_migration_registry",
+    "migrate_storage",
+    "migrate_schema_bytes",
 ]

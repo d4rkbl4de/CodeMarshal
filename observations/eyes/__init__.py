@@ -54,6 +54,25 @@ from .export_sight import (
     Visibility,
     observe_exports,
 )
+from .go_sight import (
+    GoExportDefinition,
+    GoImportStatement,
+    GoObservation,
+    GoSight,
+)
+from .java_sight import (
+    JavaClassDefinition,
+    JavaImportStatement,
+    JavaObservation,
+    JavaSight,
+)
+from .javascript_sight import (
+    JSImportExportObservation,
+    JSImportStatement,
+    JSExportStatement,
+    JavaScriptSight,
+)
+from .language_detector import LanguageDetection, LanguageDetector
 
 # Import all concrete eyes
 from .file_sight import (
@@ -183,6 +202,9 @@ class EyeRegistry:
             (ExportSight, "export_sight"),
             (BoundarySight, "boundary_sight"),
             (EncodingSight, "encoding_sight"),
+            (JavaScriptSight, "javascript_sight"),
+            (JavaSight, "java_sight"),
+            (GoSight, "go_sight"),
         ]
 
         for eye_class, name in builtin_eyes:
@@ -441,6 +463,12 @@ def get_eye_for_file_type(file_path: Path) -> list[str]:
 
     if ext == ".py":
         suggestions.extend(["import_sight", "export_sight", "encoding_sight"])
+    elif ext in {".js", ".jsx", ".ts", ".tsx"}:
+        suggestions.extend(["javascript_sight", "encoding_sight"])
+    elif ext == ".java":
+        suggestions.extend(["java_sight", "encoding_sight"])
+    elif ext == ".go":
+        suggestions.extend(["go_sight", "encoding_sight"])
 
     # Always include file_sight for basic metadata
     suggestions.append("file_sight")
@@ -525,6 +553,9 @@ __all__ = [
     "ExportSight",
     "BoundarySight",
     "EncodingSight",
+    "JavaScriptSight",
+    "JavaSight",
+    "GoSight",
     # Base classes and types
     "Eye",
     "ObservationResult",
@@ -551,6 +582,21 @@ __all__ = [
     "ExportDefinition",
     "ModuleExports",
     "Visibility",
+    # JS sight types
+    "JSImportStatement",
+    "JSExportStatement",
+    "JSImportExportObservation",
+    # Java sight types
+    "JavaImportStatement",
+    "JavaClassDefinition",
+    "JavaObservation",
+    # Go sight types
+    "GoImportStatement",
+    "GoExportDefinition",
+    "GoObservation",
+    # Language detection
+    "LanguageDetector",
+    "LanguageDetection",
     # File sight types
     "DirectoryTree",
     "FileMetadata",

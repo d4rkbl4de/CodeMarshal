@@ -1,0 +1,168 @@
+# Style Patterns
+# Built-in patterns for detecting style inconsistencies
+
+patterns:
+  - id: missing_docstring
+    name: "Missing Docstring"
+    pattern: >-
+      def\s+\w+\s*\([^)]*\):\s*\n\s*(?!["'])
+    severity: info
+    description: "Function without a docstring."
+    suggestion: "Add a short docstring describing behavior."
+    tags:
+      - style
+      - documentation
+
+  - id: bare_except
+    name: "Bare Except Clause"
+    pattern: >-
+      except\s*:
+    severity: warning
+    description: "Bare except can hide unexpected errors."
+    suggestion: "Catch specific exception types."
+    tags:
+      - style
+      - exceptions
+
+  - id: mutable_default
+    name: "Mutable Default Argument"
+    pattern: >-
+      def\s+\w+\s*\([^)]*=\s*(\[\s*\]|\{\s*\})
+    severity: critical
+    description: "Mutable defaults can lead to shared state bugs."
+    suggestion: "Use None and set defaults inside the function."
+    tags:
+      - style
+      - python
+
+  - id: wildcard_import
+    name: "Wildcard Import"
+    pattern: >-
+      from\s+[\w\.]+\s+import\s+\*
+    severity: warning
+    description: "Wildcard imports make names ambiguous."
+    suggestion: "Import explicit names."
+    tags:
+      - style
+      - imports
+
+  - id: long_line
+    name: "Long Line (>120 chars)"
+    pattern: >-
+      ^.{121,}$
+    severity: info
+    description: "Long lines reduce readability."
+    suggestion: "Wrap long lines or break expressions."
+    tags:
+      - style
+      - formatting
+
+  - id: todo_comment
+    name: "TODO Comment"
+    pattern: >-
+      #\s*TODO\b
+    severity: info
+    description: "Unresolved TODO comment."
+    suggestion: "Create a task or resolve the TODO."
+    tags:
+      - style
+      - comments
+
+  - id: print_statement
+    name: "Print Statement"
+    pattern: >-
+      \bprint\(
+    severity: info
+    description: "Print statements may be leftover debug output."
+    suggestion: "Use structured logging or remove debug output."
+    tags:
+      - style
+      - logging
+
+  - id: debugger_leftover
+    name: "Debugger Leftover"
+    pattern: >-
+      \b(pdb\.set_trace|breakpoint)\s*\(
+    severity: warning
+    description: "Debugger calls should not ship in production."
+    suggestion: "Remove debugging calls."
+    tags:
+      - style
+      - debugging
+
+  - id: trailing_whitespace
+    name: "Trailing Whitespace"
+    pattern: >-
+      \s+$
+    severity: info
+    description: "Trailing whitespace is unnecessary."
+    suggestion: "Trim whitespace at line end."
+    tags:
+      - style
+      - formatting
+
+  - id: pass_statement
+    name: "Pass Statement"
+    pattern: >-
+      ^\s*pass\s*$
+    severity: info
+    description: "Pass statements may indicate incomplete implementation."
+    suggestion: "Replace with actual logic when ready."
+    tags:
+      - style
+      - completeness
+
+  - id: global_statement
+    name: "Global Statement"
+    pattern: >-
+      ^\s*global\s+\w+
+    severity: warning
+    description: "Global statements introduce shared mutable state."
+    suggestion: "Refactor to avoid globals."
+    tags:
+      - style
+      - python
+
+  - id: camelcase_function
+    name: "CamelCase Function"
+    pattern: >-
+      def\s+[A-Z]\w*\(
+    severity: info
+    description: "Function names are typically snake_case."
+    suggestion: "Consider snake_case for functions."
+    tags:
+      - style
+      - naming
+
+  - id: raise_not_implemented
+    name: "Raise NotImplementedError"
+    pattern: >-
+      raise\s+NotImplementedError
+    severity: info
+    description: "Unimplemented code path."
+    suggestion: "Implement or remove placeholder."
+    tags:
+      - style
+      - completeness
+
+  - id: commented_out_code
+    name: "Commented-Out Code"
+    pattern: >-
+      ^\s*#\s*(if|for|while|def|class)\s+
+    severity: info
+    description: "Commented-out code can reduce clarity."
+    suggestion: "Remove or document why it is commented."
+    tags:
+      - style
+      - comments
+
+  - id: trailing_semicolon
+    name: "Trailing Semicolon"
+    pattern: >-
+      ;\s*$
+    severity: info
+    description: "Trailing semicolons are unnecessary in many languages."
+    suggestion: "Remove trailing semicolons."
+    tags:
+      - style
+      - formatting

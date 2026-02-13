@@ -1,0 +1,14 @@
+{
+  "transaction_id": "tx_1770825452118",
+  "paths": [
+    "storage\\sessions\\345d5516-0eac-5b8a-825a-a51bf1d438c6.session.json",
+    "storage\\observations\\obs_9da54812566259c9.observation.json",
+    "storage\\questions\\q_8901fe8fb260cd76.question.json",
+    "storage\\patterns\\p_379e7158a30896c8.pattern.json"
+  ],
+  "status": "committed",
+  "created_at": "2026-02-11T15:57:32.118532+00:00",
+  "metadata": {
+    "session_id": "345d5516-0eac-5b8a-825a-a51bf1d438c6"
+  }
+}

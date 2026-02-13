@@ -63,6 +63,8 @@ OUTPUT FORMAT:
 - Statistical summaries
 """
 
+from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 
@@ -140,6 +142,15 @@ class ConnectionMapper:
 
     _HIGH_COUPLING_THRESHOLD: int = 20
     """Number of imports considered "high coupling" for warnings."""
+
+    _MAX_CENTRALITY_DISPLAY: int = 10
+    """Maximum number of nodes to show in centrality output."""
+
+    _MAX_IMPACT_DISPLAY: int = 20
+    """Maximum number of affected modules to list per depth."""
+
+    _IMPACT_MAX_DEPTH: int = 3
+    """Maximum depth for impact surface traversal."""
 
     def __init__(self) -> None:
         """
@@ -238,6 +249,14 @@ class ConnectionMapper:
             else:
                 # No specific target, show summary of all imports
                 return self._get_all_imports_summary(observations)
+
+        elif "impact" in question_lower or "surface" in question_lower:
+            # Question asks about impact surface of changes
+            return self._analyze_impact_surface(observations, question)
+
+        elif "centrality" in question_lower or "central" in question_lower:
+            # Question asks for centrality metrics
+            return self._calculate_centrality(observations)
 
         elif "circular" in question_lower:
             # Question asks about circular dependencies
@@ -559,6 +578,170 @@ class ConnectionMapper:
 
         return "\n".join(lines)
 
+    def _analyze_impact_surface(
+        self, observations: list[dict[str, Any]], question: str
+    ) -> str:
+        """
+        Analyze the impact surface of a target module or file.
+
+        The impact surface shows which modules depend on a target and how
+        dependency effects propagate through the graph (limited depth).
+        """
+        target = self._extract_impact_target(question)
+        if not target:
+            return "Could not determine target module for impact analysis."
+
+        reverse_map, alias_to_files, _, all_files = self._build_reverse_dependency_map(
+            observations
+        )
+        if not reverse_map and not all_files:
+            return "Impact surface not available: no import observations found."
+
+        target_files: set[str] = set()
+        target_files.update(self._resolve_import_targets(target, alias_to_files))
+
+        if target in alias_to_files:
+            target_files.update(alias_to_files[target])
+
+        if not target_files:
+            target_lower = target.lower()
+            for file_path in all_files:
+                name = Path(file_path).name
+                name_lower = name.lower()
+                if (
+                    target_lower in file_path.lower()
+                    or target_lower == name_lower
+                    or target_lower == name_lower.replace(".py", "")
+                ):
+                    target_files.add(file_path)
+
+        if not target_files:
+            return f"Impact surface not available: target '{target}' not found."
+
+        visited: set[str] = set(target_files)
+        frontier: set[str] = set(target_files)
+        impact_by_depth: dict[int, list[str]] = {}
+
+        for depth in range(1, self._IMPACT_MAX_DEPTH + 1):
+            next_frontier: set[str] = set()
+            for node in frontier:
+                for dependent in reverse_map.get(node, set()):
+                    if dependent not in visited:
+                        next_frontier.add(dependent)
+                        visited.add(dependent)
+            impact_by_depth[depth] = sorted(next_frontier)
+            frontier = next_frontier
+
+            if not frontier:
+                break
+
+        if all(len(values) == 0 for values in impact_by_depth.values()):
+            return f"No dependents found for target: {target}"
+
+        lines: list[str] = [
+            f"Impact Surface: {target}",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+            f"Target matches: {len(target_files)} file(s)",
+        ]
+
+        for file_path in sorted(target_files):
+            lines.append(f"  - {file_path}")
+
+        for depth, files in impact_by_depth.items():
+            label = "direct dependents" if depth == 1 else "dependents of dependents"
+            lines.append("")
+            lines.append(f"Depth {depth} ({label}): {len(files)}")
+
+            for file_path in files[: self._MAX_IMPACT_DISPLAY]:
+                lines.append(f"  - {file_path}")
+
+            if len(files) > self._MAX_IMPACT_DISPLAY:
+                remaining = len(files) - self._MAX_IMPACT_DISPLAY
+                lines.append(f"  ... and {remaining} more")
+
+        lines.append("")
+        lines.append(
+            "Note: Impact surface is based on static import observations only."
+        )
+
+        return "\n".join(lines)
+
+    def _calculate_centrality(self, observations: list[dict[str, Any]]) -> str:
+        """
+        Calculate simple module centrality using internal import edges.
+        """
+        reverse_map, alias_to_files, graph, all_files = self._build_reverse_dependency_map(
+            observations
+        )
+        if not graph and not all_files:
+            return "Centrality metrics not available: no import observations found."
+
+        internal_edges: dict[str, set[str]] = defaultdict(set)
+        for source, imports in graph.items():
+            for module in imports:
+                if not module or module.startswith("."):
+                    continue
+                targets = self._resolve_import_targets(module, alias_to_files)
+                for target in targets:
+                    if target != source:
+                        internal_edges[source].add(target)
+
+        in_degree: dict[str, int] = defaultdict(int)
+        out_degree: dict[str, int] = defaultdict(int)
+        edge_count = 0
+
+        for source, targets in internal_edges.items():
+            out_degree[source] += len(targets)
+            edge_count += len(targets)
+            for target in targets:
+                in_degree[target] += 1
+
+        all_nodes = set(all_files)
+        if not all_nodes:
+            all_nodes = set(graph.keys())
+
+        centrality: list[tuple[str, int, int, int]] = []
+        for node in all_nodes:
+            inbound = in_degree.get(node, 0)
+            outbound = out_degree.get(node, 0)
+            total = inbound + outbound
+            centrality.append((node, total, inbound, outbound))
+
+        centrality.sort(key=lambda item: (item[1], item[2], item[3]), reverse=True)
+
+        lines: list[str] = [
+            "Module Centrality:",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+            f"Files analyzed: {len(all_nodes)}",
+            f"Internal dependency edges: {edge_count}",
+            "",
+            "Top Central Modules (by total degree):",
+        ]
+
+        if edge_count == 0:
+            lines.append("  No internal dependencies resolved.")
+            lines.append("")
+            lines.append(
+                "Note: Centrality only considers imports that map to observed files."
+            )
+            return "\n".join(lines)
+
+        for node, total, inbound, outbound in centrality[: self._MAX_CENTRALITY_DISPLAY]:
+            lines.append(
+                f"  - {node} (in={inbound}, out={outbound}, total={total})"
+            )
+
+        if len(centrality) > self._MAX_CENTRALITY_DISPLAY:
+            remaining = len(centrality) - self._MAX_CENTRALITY_DISPLAY
+            lines.append(f"  ... and {remaining} more")
+
+        lines.append("")
+        lines.append(
+            "Note: Centrality is based on static import observations only."
+        )
+
+        return "\n".join(lines)
+
     def _find_circular_dependencies(self, observations: list[dict[str, Any]]) -> str:
         """
         Detect circular import dependencies using DFS.
@@ -592,6 +775,7 @@ class ConnectionMapper:
                 indicating no cycles found.
         """
         # Build dependency graph as adjacency list
+        _, alias_to_files, _, _ = self._build_reverse_dependency_map(observations)
         graph: dict[str, set[str]] = {}
 
         for obs in observations:
@@ -606,9 +790,15 @@ class ConnectionMapper:
                     if isinstance(stmt, dict):
                         module = stmt.get("module", "")
                         if module:
-                            # Convert module to potential file path
-                            potential_path = module.replace(".", "/") + ".py"
-                            graph[file_path].add(potential_path)
+                            targets = self._resolve_import_targets(
+                                module, alias_to_files
+                            )
+                            if targets:
+                                for target in targets:
+                                    graph[file_path].add(target)
+                            else:
+                                # Fallback to path-like entry without extension
+                                graph[file_path].add(module.replace(".", "/"))
 
         # Find cycles using DFS
         cycles: list[list[str]] = []
@@ -747,8 +937,7 @@ class ConnectionMapper:
         Returns:
             Dict mapping source files to sets of target modules.
 
-        Note: Currently unused but available for future extensions
-        that need graph operations.
+        Note: Used internally for impact and centrality analysis.
         """
         graph: dict[str, set[str]] = {}
 
@@ -768,8 +957,157 @@ class ConnectionMapper:
 
         return graph
 
+    def _build_reverse_dependency_map(
+        self, observations: list[dict[str, Any]]
+    ) -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, set[str]], set[str]]:
+        """
+        Build a reverse dependency map keyed by target file.
+
+        Returns:
+            reverse_map: target file -> set of dependent files
+            alias_to_files: alias string -> set of file paths
+            graph: forward dependency graph (file -> imported modules)
+            all_files: set of observed file paths
+        """
+        graph = self._build_dependency_graph(observations)
+        all_files: set[str] = set(graph.keys())
+
+        for obs in observations:
+            if obs.get("type") == "file_sight":
+                result = obs.get("result", {})
+                modules = result.get("modules", []) or result.get("files", [])
+                for module in modules:
+                    path = ""
+                    if isinstance(module, dict):
+                        path = module.get("path") or module.get("file_path") or ""
+                    elif isinstance(module, str):
+                        path = module
+                    if path:
+                        all_files.add(path)
+
+        alias_to_files: dict[str, set[str]] = defaultdict(set)
+        for file_path in all_files:
+            for alias in self._module_aliases_for_file(file_path):
+                alias_to_files[alias].add(file_path)
+
+        reverse_map: dict[str, set[str]] = defaultdict(set)
+        for source, imports in graph.items():
+            for module in imports:
+                if not module or module.startswith("."):
+                    continue
+                targets = self._resolve_import_targets(module, alias_to_files)
+                for target in targets:
+                    if target != source:
+                        reverse_map[target].add(source)
+
+        return reverse_map, alias_to_files, graph, all_files
+
+    def _module_aliases_for_file(self, file_path: str) -> set[str]:
+        """
+        Generate alias strings for a file path to aid module resolution.
+        """
+        aliases: set[str] = set()
+        if not file_path:
+            return aliases
+
+        normalized = file_path.replace("\\", "/").strip()
+        if normalized:
+            aliases.add(normalized)
+
+        name = Path(normalized).name
+        if name:
+            aliases.add(name)
+            for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go"):
+                if name.endswith(ext):
+                    aliases.add(name[: -len(ext)])
+                    break
+
+        for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go"):
+            if normalized.endswith(ext):
+                no_ext = normalized[: -len(ext)]
+                aliases.add(no_ext)
+                aliases.add(no_ext.replace("/", "."))
+                break
+
+        parts = [p for p in Path(normalized).parts if p not in ("/", "\\") and ":" not in p]
+        if parts:
+            normalized_parts = [p[:-3] if p.endswith(".py") else p for p in parts]
+            aliases.add(".".join(normalized_parts))
+            if len(normalized_parts) >= 2:
+                aliases.add(".".join(normalized_parts[-2:]))
+
+        normalized_aliases: set[str] = set()
+        for alias in aliases:
+            if alias:
+                normalized_aliases.add(alias)
+                normalized_aliases.add(alias.lower())
+
+        return normalized_aliases
+
+    def _resolve_import_targets(
+        self, module: str, alias_to_files: dict[str, set[str]]
+    ) -> set[str]:
+        """
+        Resolve an imported module string to observed file paths.
+        """
+        targets: set[str] = set()
+        module = (module or "").strip()
+        if not module:
+            return targets
+
+        module_lower = module.lower()
+
+        if module in alias_to_files:
+            targets.update(alias_to_files[module])
+        if module_lower in alias_to_files:
+            targets.update(alias_to_files[module_lower])
+
+        base = module.split(".")[-1].split("/")[-1]
+        if base in alias_to_files:
+            targets.update(alias_to_files[base])
+        if base.lower() in alias_to_files:
+            targets.update(alias_to_files[base.lower()])
+
+        path_like = module.replace(".", "/")
+        if path_like in alias_to_files:
+            targets.update(alias_to_files[path_like])
+        if path_like.lower() in alias_to_files:
+            targets.update(alias_to_files[path_like.lower()])
+
+        if not path_like.endswith(".py"):
+            path_like_py = f"{path_like}.py"
+            if path_like_py in alias_to_files:
+                targets.update(alias_to_files[path_like_py])
+            if path_like_py.lower() in alias_to_files:
+                targets.update(alias_to_files[path_like_py.lower()])
+
+        return targets
+
+    def _extract_impact_target(self, question: str) -> str | None:
+        """
+        Extract a target from impact-oriented questions.
+        """
+        question_lower = question.lower()
+        patterns = [
+            "impact surface for ",
+            "impact surface of ",
+            "impact for ",
+            "impact of ",
+            "surface for ",
+            "surface of ",
+        ]
+
+        for pattern in patterns:
+            index = question_lower.find(pattern)
+            if index != -1:
+                target = question[index + len(pattern) :].strip()
+                target = target.rstrip("?.!;:,").strip()
+                return target if target else None
+
+        return self._extract_target_module(question)
+
 
 # Module exports
 __all__ = ["ConnectionMapper"]
 __version__ = "1.0.0"
-__modified__ = "2026-02-05"
+__modified__ = "2026-02-09"

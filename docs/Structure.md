@@ -1,7 +1,7 @@
 # CodeMarshal Directory Structure
 
-**Version:** 2.0.0  
-**Last Updated:** February 7, 2026  
+**Version:** 2.1.0  
+**Last Updated:** February 12, 2026
 
 ---
 
@@ -37,6 +37,7 @@ CodeMarshal/
 │
 ├── config/ # CONFIGURATION DISCIPLINE
 │ ├── **init**.py
+│ ├── agent_nexus.yaml # Default boundary rules
 │ ├── defaults.py # System defaults (immutable)
 │ ├── user.py # User overrides
 │ ├── schema.py # Validation rules
@@ -59,6 +60,10 @@ CodeMarshal/
 │ │ ├── file_sight.py # Files, directories, paths
 │ │ ├── import_sight.py # Static import statements
 │ │ ├── export_sight.py # Definitions, signatures
+│ │ ├── javascript_sight.py # JS/TS imports + exports
+│ │ ├── java_sight.py # Java imports + classes
+│ │ ├── go_sight.py # Go imports + exports
+│ │ ├── language_detector.py # Language identification
 │ │ ├── boundary_sight.py # Module boundaries
 │ │ └── encoding_sight.py # File encoding & type detection
 │ │
@@ -120,6 +125,17 @@ CodeMarshal/
 │ ├── history.py # Linear investigation path
 │ └── recovery.py # Resume safely
 │
+├── patterns/ # REGEX PATTERN DETECTION
+│ ├── **init**.py
+│ ├── loader.py # Pattern loading and scanning
+│ ├── engine.py # Context + outlier detection helpers
+│ ├── builtin/
+│ │ ├── security.yaml
+│ │ ├── performance.yaml
+│ │ ├── style.yaml
+│ │ └── architecture.yaml
+│ └── custom/
+│
 ├── lens/ # INTERFACE (LAYER 3)
 │ ├── **init**.py
 │ │
@@ -136,6 +152,7 @@ CodeMarshal/
 │ │ ├── examination.py
 │ │ ├── connections.py
 │ │ ├── patterns.py
+│ │ ├── pattern_dashboard.py
 │ │ ├── thinking.py
 │ │ └── help.py
 │ │
@@ -224,14 +241,16 @@ CodeMarshal/
 ├── patterns/ # PATTERN DETECTION SYSTEM (v2.0)
 │ ├── __init__.py
 │ ├── loader.py                 # Pattern loading and management
+│ ├── engine.py                 # Context + outlier detection helpers
 │ │
 │ ├── builtin/                  # Built-in pattern libraries
 │ │ ├── security.yaml          # Security patterns (8 patterns)
-│ │ ├── performance.yaml       # Performance patterns (future)
-│ │ └── style.yaml            # Style patterns (future)
+│ │ ├── performance.yaml       # Performance patterns (20 patterns)
+│ │ ├── style.yaml            # Style patterns (15 patterns)
+│ │ └── architecture.yaml      # Architecture patterns (12 patterns)
 │ │
 │ └── custom/                   # User-defined patterns
-│ └── user_patterns.yaml      # Custom user patterns
+│   └── user_patterns.yaml      # Custom user patterns
 │
 ├── hooks/ # PRE-COMMIT HOOKS (v2.0)
 │ └── codemarshal-constitutional.py  # Constitutional violation detector
@@ -788,3 +807,16 @@ We're not just building another code analysis tool. We're building **the first e
 ---
 
 **CodeMarshal:** Making the impossible comprehensible, one truth-preserving investigation at a time.
+
+---
+
+## Related Documentation
+
+- **[ROADMAP.md](../ROADMAP.md)** - Execution status and milestones
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history
+- **[docs/index.md](index.md)** - Documentation navigation
+- **[docs/USER_GUIDE.md](USER_GUIDE.md)** - Command reference
+- **[docs/architecture.md](architecture.md)** - Architecture details
+- **[docs/FEATURES.md](FEATURES.md)** - Feature matrix
+- **[docs/API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - API reference
+- **[docs/INTEGRATION_EXAMPLES.md](INTEGRATION_EXAMPLES.md)** - Integration examples

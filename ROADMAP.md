@@ -1,734 +1,446 @@
-# CodeMarshal v2.1 - Development Roadmap
+# CodeMarshal Roadmap (Execution Status)
 
 **Version:** 2.1.0  
-**Codename:** Renaissance  
-**Timeline:** 20 weeks (5 months)  
-**Last Updated:** February 8, 2026
+**Last Updated:** February 13, 2026  
+**Current Focus:** Phase 5 - Desktop GUI (CRITICAL ISSUES IDENTIFIED)
 
 ---
 
-## Executive Summary
+## Summary
 
-CodeMarshal v2.1 transforms the investigation tool into a production-ready, multi-language, IDE-integrated platform with 47 built-in patterns, 5 programming languages, 3 IDE integrations, and a desktop GUI.
+Core platform work is complete across foundation, pattern system, inquiry, multi-language support, IDE integration foundations, storage/data layer, test completion, advanced export/visualization, and plugin architecture.
 
----
+**Only one roadmap phase remains: Desktop GUI (Phase 5).**
 
-## Phase 0: Foundation Repair (Week 0)
-
-### Critical Bug Fixes
-
-- **Fix Type Annotation Error** (`observations/record/integrity.py:308`)
-  - Change `callable` to `Callable` from typing
-  - Impact: Unblocks entire import chain
-
-- **Verify Import Chain**
-  - Test all module imports
-  - Fix circular dependencies
+**⚠️ CRITICAL:** Codebase audit reveals Phase 5 is currently **a shell without functionality**. All GUI views are placeholder implementations. See "Critical Issues" section below.
 
 ---
 
-## Phase 1: Pattern System Renaissance (Weeks 1-3)
+## Phase Status
 
-### 1.1 Pattern Libraries
-
-**Performance Patterns (20 patterns)**
-
-```yaml
-# patterns/builtin/performance.yaml
-patterns:
-  - id: nested_loop_n2
-    name: "O(n²) Nested Loop"
-    pattern: "for\s+.*:\s*\n\s+for\s+.*:\s*\n\s+for\s+"
-    severity: warning
-    description: "Triple nested loop detected"
-
-  - id: large_function
-    name: "Large Function (>50 lines)"
-    pattern: "def\s+\w+\s*\([^)]*\):\s*(?:[^}]*\n){50,}"
-    severity: info
-
-  - id: sync_io_loop
-    name: "Synchronous I/O in Loop"
-    pattern: "for\s+.*:\s*\n\s+(open|read|write|request|fetch)\("
-    severity: warning
-    suggestion: "Consider async/await or batching"
-
-  - id: n_plus_one
-    name: "N+1 Query Pattern"
-    pattern: "for\s+.*:\s*\n\s+.*\.(get|filter|query|find)\("
-    severity: warning
-    suggestion: "Use select_related/prefetch"
-```
-
-**Style Patterns (15 patterns)**
-
-```yaml
-# patterns/builtin/style.yaml
-patterns:
-  - id: missing_docstring
-    name: "Missing Docstring"
-    pattern: "^def\s+(?!__).*:\s*(?!\s*[\"'])"
-    severity: info
-
-  - id: bare_except
-    name: "Bare Except Clause"
-    pattern: "except\s*:"
-    severity: warning
-
-  - id: mutable_default
-    name: "Mutable Default Argument"
-    pattern: "def\s+\w+\s*\([^)]*=\s*(\[\s*\}|\{\s*\})"
-    severity: critical
-```
-
-**Architecture Patterns (12 patterns)**
-
-```yaml
-# patterns/builtin/architecture.yaml
-patterns:
-  - id: cross_layer_import
-    name: "Cross-Layer Import Violation"
-    pattern: "from\s+(inquiry|lens)\s+import.*core"
-    severity: critical
-
-  - id: god_class
-    name: "God Class (>30 methods)"
-    pattern: "class\s+\w+.*:\s*(?:.*def\s+\w+.*\n){30,}"
-    severity: warning
-```
-
-### 1.2 Pattern Engine Enhancements
-
-```python
-# patterns/engine.py
-class PatternEngine:
-    """Advanced pattern detection with context awareness."""
-
-    def detect_with_context(self, file_path: Path, pattern: PatternDefinition) -> list[PatternMatch]:
-        """Detect patterns with surrounding code context."""
-        # Implementation
-
-    def detect_statistical_outliers(self, codebase: Path) -> list[StatisticalAnomaly]:
-        """Find statistically unusual patterns using z-score analysis."""
-        # Implementation
-
-    def suggest_fix(self, match: PatternMatch) -> FixSuggestion | None:
-        """Suggest automated fixes."""
-        # Implementation
-```
-
-### 1.3 Pattern Dashboard
-
-```python
-# lens/views/pattern_dashboard.py
-class PatternDashboardView:
-    """Interactive pattern results with Rich terminal UI."""
-
-    def render(self, matches: list[PatternMatch]):
-        # Summary statistics
-        # Severity distribution chart
-        # File heatmap
-        # Match details with context
-```
-
-### Deliverables
-
-- [ ] 47 built-in patterns (20 performance + 15 style + 12 architecture)
-- [ ] Pattern engine with context awareness
-- [ ] Statistical outlier detection
-- [ ] Automated fix suggestions
-- [ ] Interactive dashboard
+| Phase | Name | Status | Evidence |
+| --- | --- | --- | --- |
+| 0 | Foundation Repair | Complete | Import-chain fixes landed; test discovery stabilized |
+| 1 | Pattern System Renaissance | Complete | Built-in pattern libraries + engine/dashboard support present |
+| 2 | Inquiry Engine Expansion | Complete | Extended analyzer behavior for structure/connections/anomalies |
+| 3 | Multi-Language Support | Complete | JS/TS, Java, Go sights + language detector |
+| 4 | IDE Integration Suite | Complete | VS Code / Neovim / JetBrains foundations in repo |
+| 5 | Desktop GUI | **CRITICAL** | GUI shell exists but all views are placeholder implementations |
+| 6 | Storage & Data Layer | Complete | Migration, transactional storage, knowledge base scaffolding |
+| 7 | Test Suite Completion | Complete | Full suite passing; coverage gate exceeded |
+| 8 | Advanced Export & Visualization | Complete | Jupyter, PDF, SVG exporters + tests |
+| 9 | Plugin System | Complete | Plugin API and loader foundations |
 
 ---
 
-## Phase 2: Inquiry System Deepening (Weeks 4-5)
+## Latest Validation Snapshot
 
-### 2.1 Enhanced Analyzers
-
-**Structure Analyzer**
-
-```python
-def analyze(self, observations: list[dict], question: str) -> str:
-    question_lower = question.lower()
-
-    if "metrics" in question_lower:
-        return self._analyze_metrics(observations)
-    elif "graph" in question_lower:
-        return self._generate_structure_graph(observations)
-    elif "complexity" in question_lower:
-        return self._analyze_complexity_distribution(observations)
-```
-
-**Connection Mapper**
-
-```python
-def analyze(self, observations: list[dict], question: str) -> str:
-    if "circular" in question_lower:
-        return self._detect_circular_dependencies(observations)
-    elif "impact" in question_lower:
-        return self._analyze_impact_surface(observations, question)
-    elif "centrality" in question_lower:
-        return self._calculate_centrality(observations)
-```
-
-**Anomaly Detector**
-
-```python
-def analyze(self, observations: list[dict], question: str) -> str:
-    if "statistical" in question_lower:
-        return self._detect_statistical_outliers(observations)
-    elif "architecture" in question_lower:
-        return self._detect_architecture_anomalies(observations)
-```
-
-### Deliverables
-
-- [ ] 4+ analysis modes per analyzer
-- [ ] Circular dependency detection (DFS algorithm)
-- [ ] Impact surface analysis
-- [ ] Module centrality calculation
-- [ ] Statistical outlier detection
+- Full test suite: `168 passed, 2 skipped`
+- Coverage run: `96.56%` total (gate: `90%`)
+- Skip reason: optional GUI dependency (`PySide6`) missing in current environment
+- **pyproject.toml version:** 2.0.0 (⚠️ should be 2.1.0)
 
 ---
 
-## Phase 3: Multi-Language Support (Weeks 6-8)
+## Critical Issues Identified (February 13, 2026)
 
-### 3.1 Language Detection
+### 🔴 CRITICAL: GUI is Non-Functional Shell
 
-```python
-# observations/eyes/language_detector.py
-class LanguageDetector:
-    LANGUAGE_SIGNATURES = {
-        "python": {
-            "extensions": [".py", ".pyw"],
-            "markers": ["def ", "import ", "class ", "__init__"],
-            "weight": 0.6
-        },
-        "javascript": {
-            "extensions": [".js", ".jsx"],
-            "markers": ["function", "const ", "=>", "require("],
-            "weight": 0.6
-        },
-        "typescript": {
-            "extensions": [".ts", ".tsx"],
-            "markers": ["interface ", "type ", ": string"],
-            "weight": 0.6
-        },
-        "java": {
-            "extensions": [".java"],
-            "markers": ["public class", "import java."],
-            "weight": 0.6
-        },
-        "go": {
-            "extensions": [".go"],
-            "markers": ["package ", "func ", ":="],
-            "weight": 0.6
-        }
-    }
-```
+**Current State:** All GUI views are placeholder implementations with zero functionality.
 
-### 3.2 Language-Specific Observers
+| View | Current State | Required State |
+|------|---------------|----------------|
+| `HomeView` | Navigation buttons only | Project browser, recent sessions, quick actions |
+| `ObserveView` | Single label | File browser, observation controls, results viewer |
+| `InvestigateView` | Single label | Investigation config, query builder, results display |
+| `PatternsView` | Single label | Pattern library, scan controls, match visualization |
+| `ExportView` | Single label | Format selection, preview, export execution |
 
-**JavaScript/TypeScript**
+**Root Cause:** No integration between GUI views and:
 
-```python
-# observations/eyes/javascript_sight.py
-class JavaScriptSight(AbstractEye):
-    def observe_imports(self, path: Path) -> JSImportObservation:
-        # ES6 imports, CommonJS requires, dynamic imports
+- Bridge commands (`investigate`, `observe`, `query`, `pattern`, `export`)
+- Core runtime/engine
+- Storage system
+- Observation interfaces
 
-    def observe_exports(self, path: Path) -> JSExportObservation:
-        # ES6 exports, CommonJS exports
-```
+### 🟠 HIGH: Version Mismatch
 
-**Java**
+**Issue:** `pyproject.toml` still shows version `2.0.0` instead of `2.1.0`
 
-```python
-# observations/eyes/java_sight.py
-class JavaSight(AbstractEye):
-    def observe_imports(self, path: Path) -> JavaImportObservation:
-        # Package imports, static imports
+- Creates confusion for users
+- May cause packaging/distribution issues
+- Inconsistent with documentation
 
-    def observe_classes(self, path: Path) -> JavaClassObservation:
-        # Class, interface, enum definitions
-```
+### 🟡 MEDIUM: Incomplete Core Implementations
 
-**Go**
+**TODOs Found in Critical Path:**
 
-```python
-# observations/eyes/go_sight.py
-class GoSight(AbstractEye):
-    def observe_imports(self, path: Path) -> GoImportObservation:
-        # Import blocks, aliased imports
+1. **observations/record/anchors.py:846**
+   - Content fingerprinting using IMPORT_SIGNATURE not implemented
+   - Affects observation integrity tracking
 
-    def observe_packages(self, path: Path) -> GoPackageObservation:
-        # Package declaration, module detection
-```
+2. **integrity/recovery/restore.py:174**
+   - Hardcoded `"system_version": "1.0.0"`
+   - Should pull from package metadata
 
-### Deliverables
+3. **integrity/recovery/backup.py:237, 329**
+   - Incremental backup logic not implemented
+   - System version hardcoded
 
-- [ ] Language detector (95%+ accuracy)
-- [ ] JavaScript/TypeScript sight
-- [ ] Java sight
-- [ ] Go sight
-- [ ] Unified multi-language API
+4. **core/shutdown.py:276, 297**
+   - Missing integration with storage.atomic
+   - Missing integration with integrity.recovery
+
+### 🟡 MEDIUM: Placeholder Test Suite
+
+**tests/invariants_test.py:** Contains 14+ TODOs with no actual implementations:
+
+- Constitutional compliance checks (Articles 1-24)
+- Truth preservation validation
+- Interface invariants
+- Metaphor consistency
+- Export integrity
+
+These tests pass but verify nothing meaningful.
 
 ---
 
-## Phase 4: IDE Integration Suite (Weeks 9-10)
+## Revised Phase 5: Desktop GUI Implementation
 
-### 4.1 VS Code Extension
+### Objective
 
-```typescript
-// vscode-extension/src/extension.ts
-export function activate(context: vscode.ExtensionContext) {
-  // Commands
-  vscode.commands.registerCommand("codemarshal.investigate", investigateFile);
-  vscode.commands.registerCommand("codemarshal.showPatterns", showPatterns);
+Transform the current GUI shell into a production-ready desktop interface that provides full CLI parity through PySide6.
 
-  // CodeLens for functions/classes
-  vscode.languages.registerCodeLensProvider(
-    languages,
-    new CodeMarshalCodeLensProvider(),
-  );
+### Revised Timeline & Milestones
 
-  // Hover information
-  vscode.languages.registerHoverProvider(
-    languages,
-    new CodeMarshalHoverProvider(),
-  );
+**Original Estimate:** 4 weeks (Feb 13 - Mar 8)  
+**Revised Estimate:** 6 weeks (Feb 13 - Mar 22)  
+**Reason:** GUI currently has zero functionality; requires complete implementation, not just "productization"
 
-  // Diagnostics on save
-  vscode.workspace.onDidSaveTextDocument(checkPatterns);
-}
+| Milestone | Target Date | Deliverable | Priority | Status |
+|-----------|-------------|-------------|----------|--------|
+| **Phase 5A: Foundation** | | | | |
+| Fix Version Number | Feb 13, 2026 | Update pyproject.toml to 2.1.0 | 🔴 Critical | Not Started |
+| GUI-Engine Bridge | Feb 14, 2026 | Integration layer between Qt signals and bridge commands | 🔴 Critical | Not Started |
+| Session State Management | Feb 15, 2026 | Recent investigations, session restore, auto-save | 🟠 High | Not Started |
+| **Phase 5B: Core Screens** | | | | |
+| Home Screen v2 | Feb 17, 2026 | Project browser, recent list, new investigation flow | 🟠 High | Not Started |
+| Observe Screen | Feb 20, 2026 | File browser, eye selection, real-time progress, results | 🔴 Critical | Not Started |
+| Investigate Screen | Feb 24, 2026 | Investigation config, query interface, pattern results | 🔴 Critical | Not Started |
+| Patterns Screen | Feb 27, 2026 | Pattern library, scan execution, match visualization | 🟠 High | Not Started |
+| Export Screen | Mar 2, 2026 | Format selection, preview, progress, file dialogs | 🟠 High | Not Started |
+| **Phase 5C: Polish** | | | | |
+| Error Handling | Mar 4, 2026 | Try-catch all bridge calls, user-friendly dialogs | 🔴 Critical | Not Started |
+| Progress Indicators | Mar 5, 2026 | Progress bars for long operations, cancellation support | 🟠 High | Not Started |
+| Keyboard Navigation | Mar 6, 2026 | Tab order, shortcuts, accessibility | 🟡 Medium | Not Started |
+| **Phase 5D: Validation** | | | | |
+| Integration Testing | Mar 8, 2026 | End-to-end workflows, error scenarios | 🟠 High | Not Started |
+| Cross-Platform Testing | Mar 10, 2026 | Windows, Linux, macOS validation | 🟠 High | Not Started |
+| Documentation | Mar 12, 2026 | GUI user guide, troubleshooting, packaging | 🟡 Medium | Not Started |
+| **Phase 5E: Release** | | | | |
+| v2.1.0 Release | Mar 15, 2026 | All acceptance criteria met | 🟠 High | Not Started |
+
+### Resource Requirements (Revised)
+
+| Resource | Requirement | Notes |
+|----------|-------------|-------|
+| Development | 2 developers minimum | PySide6/Qt experience **required** |
+| Architecture | Senior review | Bridge-Engine-GUI integration design |
+| Testing | QA validation | Cross-platform testing (Win/Linux/macOS) |
+| Documentation | Technical writer | GUI-specific user guides |
+| Infrastructure | CI updates | GUI testing in headless environments |
+
+### Required Deliverables (Revised)
+
+#### 1. **GUI-Engine Integration Layer** (CRITICAL)
+
+Create a bridge between Qt signals/slots and the existing bridge commands:
+
+```python
+# Example: GUICommandBridge
+gui_bridge = GUICommandBridge()
+gui_bridge.observe_requested.connect(run_observe_command)
+gui_bridge.investigation_complete.connect(update_results_view)
 ```
 
-### 4.2 Neovim Plugin
+**Requirements:**
 
-```lua
--- nvim-plugin/lua/codemarshal/init.lua
-local M = {}
+- Async execution of bridge commands (don't block GUI thread)
+- Progress signal emission for long operations
+- Error signal emission with recovery options
+- Session state synchronization
 
-function M.setup(opts)
-    -- Commands
-    vim.api.nvim_create_user_command('CodeMarshalInvestigate', investigate)
-    vim.api.nvim_create_user_command('CodeMarshalPatterns', show_patterns)
+#### 2. **Functional Screen Implementations** (CRITICAL)
 
-    -- Keymaps
-    vim.keymap.set('n', '<leader>ci', ':CodeMarshalInvestigate<CR>')
-    vim.keymap.set('n', '<leader>cp', ':CodeMarshalPatterns<CR>')
+**Home Screen:**
 
-    -- Diagnostics
-    if opts.lint_on_save then
-        vim.api.nvim_create_autocmd('BufWritePost', {
-            pattern = {'*.py', '*.js', '*.ts'},
-            callback = check_patterns
-        })
-    end
-end
+- [ ] Recent investigations list (load from storage)
+- [ ] New investigation button → file browser dialog
+- [ ] Open investigation → load session
+- [ ] Settings access
 
-return M
-```
+**Observe Screen:**
 
-### 4.3 JetBrains Plugin
+- [ ] Directory/file tree browser
+- [ ] Eye selection checkboxes (file_sight, import_sight, etc.)
+- [ ] Start observation button
+- [ ] Real-time progress bar
+- [ ] Results viewer (structured observation display)
+- [ ] Export observation button
 
-```kotlin
-// jetbrains-plugin/src/main/kotlin/CodeMarshalService.kt
-@Service
-class CodeMarshalService(private val project: Project) {
-    fun investigateFile(virtualFile: VirtualFile) {
-        // Run codemarshal CLI
-    }
+**Investigate Screen:**
 
-    fun showPatternHighlights(editor: Editor) {
-        // Add range highlighters for patterns
-    }
-}
-```
+- [ ] Investigation configuration panel
+- [ ] Query type selector (structure, connections, anomalies, etc.)
+- [ ] Focus path input
+- [ ] Execute investigation button
+- [ ] Results display with filtering
+- [ ] Pattern visualization
 
-### Deliverables
+**Patterns Screen:**
 
-- [ ] VS Code extension (6 commands, CodeLens, hover, diagnostics)
-- [ ] Neovim Lua plugin (commands, keymaps, floating windows)
-- [ ] JetBrains plugin foundation (highlights, tool window)
+- [ ] Pattern library browser (builtin + custom)
+- [ ] Category filters (security, performance, style, architecture)
+- [ ] Scan configuration (path, scope, categories)
+- [ ] Execute scan button
+- [ ] Match results with context
+- [ ] Export results
+
+**Export Screen:**
+
+- [ ] Format selector (JSON, Markdown, HTML, CSV, PDF, SVG, Jupyter)
+- [ ] Session/investigation selector
+- [ ] Output path with file dialog
+- [ ] Include options (evidence, patterns, notes)
+- [ ] Export preview
+- [ ] Execute export with progress
+
+#### 3. **Session Management** (HIGH)
+
+- [ ] Auto-save current session every 30 seconds
+- [ ] Recent investigations list (last 10)
+- [ ] Session recovery on crash
+- [ ] Session metadata display (created, modified, file count)
+
+#### 4. **Error Handling & User Feedback** (CRITICAL)
+
+- [ ] Try-catch around ALL bridge command calls
+- [ ] QMessageBox for errors with:
+  - Clear error message
+  - Context (what was being attempted)
+  - Suggested recovery action
+  - Option to view details/logs
+- [ ] Success notifications (QSystemTrayIcon or status bar)
+- [ ] Progress dialogs with cancel buttons for long operations
+
+#### 5. **Packaging and Runtime Docs**
+
+- [ ] PySide6 installation guidance for Windows/Linux/macOS
+- [ ] Troubleshooting guide for common GUI issues
+- [ ] Distribution packages (.dmg, .exe, .AppImage) - **v2.1.1**
+
+### Acceptance Criteria (Revised)
+
+#### Must Have (v2.1.0 Release Blockers)
+
+- [ ] `codemarshal gui` launches successfully with PySide6 installed
+- [ ] **Home Screen:** Can browse and open recent investigations
+- [ ] **Observe Screen:** Can select path, choose eyes, run observation, view results
+- [ ] **Investigate Screen:** Can configure and run investigation, view results
+- [ ] **Patterns Screen:** Can browse patterns, run scan, view matches
+- [ ] **Export Screen:** Can select format and export results
+- [ ] All screens handle errors gracefully with user-friendly messages
+- [ ] Progress shown for all operations > 2 seconds
+- [ ] Application doesn't crash on any user action
+- [ ] Documentation complete
+
+#### Should Have (v2.1.0)
+
+- [ ] Keyboard shortcuts for common actions
+- [ ] Session auto-save
+- [ ] Results filtering and search
+- [ ] Export preview
+
+#### Nice to Have (v2.2.0)
+
+- [ ] Native distribution packages
+- [ ] Plugin UI
+- [ ] Real-time file watching
+- [ ] Split views
+
+### Risk Assessment (Revised)
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| GUI-Engine integration complexity | **High** | **Critical** | Design integration layer before coding; pair programming |
+| PySide6 threading issues | **High** | **High** | Use QThreadPool for all bridge calls; extensive testing |
+| Current placeholder architecture unsuitable | **Medium** | **High** | Review architecture before implementation; refactor if needed |
+| Cross-platform UI inconsistencies | **High** | **Medium** | Test early on all platforms; use Qt stylesheets |
+| Performance with large codebases | **Medium** | **Medium** | Implement lazy loading; pagination; background threads |
+| Scope creep | **High** | **High** | Strict scope enforcement; defer non-critical features |
+| Developer availability | **Medium** | **High** | Require 2 developers minimum; knowledge sharing |
+
+**Overall Risk Level:** **HIGH**  
+**Mitigation Strategy:**
+
+- Complete integration design before implementation
+- Daily standups to catch blockers early
+- Weekly demos to validate progress
+- Aggressive scope cutting for v2.1.0
 
 ---
 
-## Phase 5: Desktop GUI (Weeks 11-12)
+## Technical Debt Items (Address in v2.1.0 or v2.1.1)
 
-### 5.1 PySide6 Application Shell
+### Must Fix (v2.1.0)
 
-```python
-# desktop/app.py
-from PySide6 import QtWidgets
+- [ ] **pyproject.toml version:** Update from 2.0.0 to 2.1.0
+- [ ] **GUI-Engine integration:** Complete bridge implementation
+- [ ] **Error handling:** All bridge calls wrapped in try-catch
 
-def main():
-    # Initialize application
-    # Load theme and icon resources
-    # Launch primary window
-    pass
-```
+### Should Fix (v2.1.1)
 
-### 5.2 Core Screens (Single-Focus)
+- [ ] **anchors.py TODO:** Implement IMPORT_SIGNATURE content fingerprinting
+- [ ] **recovery/restore.py TODO:** Replace hardcoded version with package metadata
+- [ ] **recovery/backup.py TODOs:** Implement incremental backup; fix version
+- [ ] **shutdown.py TODOs:** Integrate with storage.atomic and integrity.recovery
 
-```python
-# desktop/views/home.py
-class HomeView(QtWidgets.QWidget):
-    # Title: "CodeMarshal"
-    # Subtitle: "made by d4rkblblade"
-    # Primary action: Select codebase
-    pass
-```
+### Nice to Fix (v2.2.0)
 
-```python
-# desktop/views/observe.py
-class ObserveView(QtWidgets.QWidget):
-    # Run observe command
-    # Show summary + violations
-    pass
-```
-
-```python
-# desktop/views/investigate.py
-class InvestigateView(QtWidgets.QWidget):
-    # Guided question/answer flow
-    pass
-```
-
-```python
-# desktop/views/patterns.py
-class PatternsView(QtWidgets.QWidget):
-    # Filterable list + severity badges
-    pass
-```
-
-```python
-# desktop/views/export.py
-class ExportView(QtWidgets.QWidget):
-    # Export formats + file path
-    pass
-```
-
-### 5.3 Theme, Typography, Icons
-
-```python
-# desktop/theme.py
-PALETTE = {
-    "background": "#0B0B0C",
-    "surface_primary": "#151518",
-    "surface_secondary": "#1D1E22",
-    "accent": "#E0C469",
-    "text_primary": "#F0F0F0",
-    "text_secondary": "#A0A0A0",
-}
-```
-
-### Deliverables
-
-- [ ] PySide6 desktop GUI (Windows/Linux/macOS)
-- [ ] Mandatory GUI entrypoint (`codemarshal gui`)
-- [ ] Single-focus screens (Home, Observe, Investigate, Patterns, Export)
-- [ ] Dark, high-contrast theme with detective typography
-- [ ] Local-only operation (no network dependencies)
+- [ ] **invariants_test.py TODOs:** Implement actual constitutional compliance tests
+- [ ] **Core TODOs:** Address remaining TODOs in critical path
 
 ---
 
-## Phase 6: Storage & Data Layer (Weeks 13-14)
+## Execution Order (Revised)
 
-### 6.1 Migration System
+### Week 1 (Feb 13-19): Foundation & Design
 
-```python
-# storage/migration.py
-class MigrationManager:
-    CURRENT_SCHEMA_VERSION = "2.1.0"
+- **Day 1:** Fix pyproject.toml version; audit current GUI architecture
+- **Day 2:** Design GUI-Engine integration layer
+- **Day 3:** Implement GUICommandBridge with async support
+- **Day 4:** Implement session state management
+- **Day 5:** Home Screen v2 with recent investigations
+- **Weekend:** Code review and architecture validation
 
-    def migrate(self, target_version: str = None):
-        # Run migrations sequentially
-        # Support rollback
+### Week 2 (Feb 20-26): Observe & Investigate Screens
 
-    def _migrate_2_0_to_2_1(self):
-        # Add pattern_matches table
-        # Add file_languages table
-        # Migrate existing data
-```
+- **Day 1-2:** Observe Screen - file browser, eye selection
+- **Day 3:** Observe Screen - progress, results viewer
+- **Day 4-5:** Investigate Screen - configuration, query interface
+- **Weekend:** Integration testing
 
-### 6.2 Transactional Storage
+### Week 3 (Feb 27-Mar 5): Patterns & Export Screens
 
-```python
-# storage/transactional.py
-class TransactionalStorage:
-    @contextmanager
-    def transaction(self):
-        # BEGIN TRANSACTION
-        # Yield
-        # COMMIT or ROLLBACK
+- **Day 1-2:** Patterns Screen - library browser, scan execution
+- **Day 3-4:** Export Screen - format selection, preview, execution
+- **Day 5:** Error handling implementation across all screens
+- **Weekend:** Initial end-to-end testing
 
-    def save_investigation(self, investigation: Investigation) -> str:
-        # Atomic save with all related data
-```
+### Week 4 (Mar 6-12): Polish & Testing
 
-### 6.3 Knowledge Base
+- **Day 1-2:** Progress indicators and cancellation support
+- **Day 3:** Keyboard navigation and accessibility
+- **Day 4-5:** Integration testing and bug fixes
+- **Weekend:** Cross-platform testing
 
-```python
-# knowledge/base.py
-class KnowledgeBase:
-    def add_insight(self, investigation_id: str, insight: Insight):
-        # Store insight
+### Week 5 (Mar 13-19): Documentation & Validation
 
-    def search_insights(self, query: str) -> list[Insight]:
-        # Full-text search
+- **Day 1-2:** GUI user guide
+- **Day 3:** Troubleshooting documentation
+- **Day 4:** Packaging and distribution docs
+- **Day 5:** Final validation and acceptance testing
 
-    def get_pattern_trends(self, pattern_id: str) -> Trend:
-        # Historical pattern data
+### Week 6 (Mar 20-22): Release
 
-    def find_similar_codebases(self, investigation_id: str) -> list[Similarity]:
-        # Pattern-based similarity
-```
-
-### Deliverables
-
-- [ ] Migration system with versioning
-- [ ] ACID transaction support
-- [ ] Knowledge base with insights
-- [ ] Pattern trends over time
-- [ ] Similar codebase detection
+- **Day 1-2:** Release preparation
+- **Day 3:** v2.1.0 release
 
 ---
 
-## Phase 7: Test Suite Completion (Weeks 15-16)
+## Done Definition for v2.1.0 (Revised)
 
-### 7.1 End-to-End Tests
+v2.1.0 is considered complete when:
 
-```python
-# tests/end_to_end/test_full_workflow.py
-class TestFullWorkflow:
-    def test_investigate_query_export_workflow(self, tmp_path):
-        # Create test codebase
-        # Run investigation
-        # Query results
-        # Export and verify
-
-    def test_multi_language_investigation(self, tmp_path):
-        # Create mixed codebase
-        # Verify all languages detected
-```
-
-### 7.2 Performance Tests
-
-```python
-# tests/performance/test_large_codebase.py
-class TestLargeCodebasePerformance:
-    @pytest.mark.slow
-    def test_1000_files_investigation(self, tmp_path):
-        # Should complete in <60 seconds
-
-    @pytest.mark.slow
-    def test_10000_files_investigation(self, tmp_path):
-        # Should complete in <5 minutes
-```
-
-### 7.3 Constitutional Compliance Tests
-
-```python
-# tests/invariants/test_constitutional_compliance.py
-class TestConstitutionalCompliance:
-    def test_article_1_observation_purity(self):
-        # No inference keywords in observations
-
-    def test_article_9_layer_independence(self):
-        # Check import boundaries
-
-    def test_article_12_local_operation(self):
-        # No network libraries used
-```
-
-### Deliverables
-
-- [ ] 20+ end-to-end tests
-- [ ] Performance benchmarks (1k, 10k, 100k files)
-- [ ] Constitutional compliance tests
-- [ ] 90%+ code coverage
+1. **All CRITICAL acceptance criteria met** (see above checklist)
+2. **GUI-Engine integration fully functional:**
+   - All bridge commands callable from GUI
+   - Async execution (no GUI freezing)
+   - Proper error handling
+3. **Full test/coverage gates remain green:**
+   - All 168+ tests passing
+   - Coverage ≥ 90% (currently 96.56%)
+   - GUI tests passing on CI with PySide6
+4. **Documentation complete:**
+   - GUI installation instructions
+   - User guide for all five screens
+   - Troubleshooting section
+   - API documentation updated
+5. **No critical or high-priority bugs**
+6. **CHANGELOG.md updated**
+7. **Release notes published**
 
 ---
 
-## Phase 8: Advanced Export & Visualization (Weeks 17-18)
+## Post-v2.1 Roadmap
 
-### 8.1 Jupyter Export
+### v2.1.1 (Maintenance Release - 2 weeks after v2.1.0)
 
-```python
-# bridge/integration/jupyter_exporter.py
-class JupyterExporter(BaseExporter):
-    def export(self, investigation: Investigation) -> str:
-        # Generate .ipynb with:
-        # - Markdown cells for summary
-        # - Code cells with investigation data
-        # - Interactive visualizations
-```
+- [ ] Fix pyproject.toml version mismatch
+- [ ] Implement TODOs in anchors.py, recovery, backup, shutdown
+- [ ] Performance optimizations
+- [ ] Bug fixes from v2.1.0 feedback
 
-### 8.2 PDF Report
+### v2.2.0 (Feature Release - 6-8 weeks after v2.1.0)
 
-```python
-# bridge/integration/pdf_exporter.py
-class PDFExporter(BaseExporter):
-    def export(self, investigation: Investigation) -> bytes:
-        # Professional formatting with:
-        # - Executive summary
-        # - Pattern tables
-        # - Architecture diagrams
-```
+- [ ] Native distribution packages (.dmg, .exe, .AppImage)
+- [ ] Advanced GUI features (split views, tabs, docking)
+- [ ] Real-time file watching with auto-refresh
+- [ ] Investigation comparison tools
+- [ ] Custom pattern editor UI
+- [ ] Plugin marketplace UI
 
-### 8.3 SVG Architecture Diagrams
+### v3.0.0 (Major Release - Long-term)
 
-```python
-# bridge/integration/svg_exporter.py
-class SVGExporter(BaseExporter):
-    def export(self, investigation: Investigation) -> str:
-        # Generate SVG with:
-        # - Color-coded nodes by layer
-        # - Dependency edges
-        # - Interactive tooltips
-```
-
-### Deliverables
-
-- [ ] Jupyter notebook export
-- [ ] PDF report generation
-- [ ] SVG architecture diagrams
-- [ ] Interactive HTML export
+- [ ] Cloud sync for investigations (opt-in, encrypted)
+- [ ] Team collaboration features
+- [ ] Advanced visualization (3D dependency graphs)
+- [ ] AI-assisted pattern detection (local-only)
+- [ ] Mobile companion app (view-only)
 
 ---
 
-## Phase 9: Plugin System (Weeks 19-20)
+## Related Documentation
 
-### 9.1 Plugin Architecture
-
-```python
-# plugins/base.py
-class CodeMarshalPlugin:
-    """Base class for all plugins."""
-
-    name: str
-    version: str
-
-    def activate(self, api: PluginAPI):
-        pass
-
-    def enhance_observations(self, observations: list) -> list:
-        return observations
-
-    def analyze_patterns(self, observations: list) -> list:
-        return []
-```
-
-### 9.2 Sample Plugins
-
-```python
-# plugins/example_django/analyzer.py
-class DjangoPlugin(CodeMarshalPlugin):
-    """Django-specific analysis."""
-
-    def activate(self, api: PluginAPI):
-        api.register_pattern(PatternDefinition(
-            id="django_n_plus_one",
-            pattern=r"for\s+.*:\s*\n\s+.*\.(get|filter)\(",
-            severity="warning"
-        ))
-```
-
-### Deliverables
-
-- [ ] Plugin base class and API
-- [ ] Plugin loader with discovery
-- [ ] 3+ sample plugins
-- [ ] Plugin documentation
+- [CHANGELOG.md](CHANGELOG.md) - Detailed version history
+- [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - Command usage and workflows
+- [docs/FEATURES.md](docs/FEATURES.md) - Implemented features and phase mapping
+- [docs/architecture.md](docs/architecture.md) - System architecture documentation
+- [docs/index.md](docs/index.md) - Documentation navigation
+- [README.md](README.md) - Project overview
 
 ---
 
-## Timeline Summary
+## Contributing to Phase 5
 
-| Phase   | Duration | Weeks | Deliverables                   |
-| ------- | -------- | ----- | ------------------------------ |
-| Phase 0 | 3 days   | 0     | Bug fixes                      |
-| Phase 1 | 3 weeks  | 1-3   | 47 patterns, engine, dashboard |
-| Phase 2 | 2 weeks  | 4-5   | Enhanced analyzers             |
-| Phase 3 | 3 weeks  | 6-8   | 5 languages                    |
-| Phase 4 | 2 weeks  | 9-10  | 3 IDE integrations             |
-| Phase 5 | 2 weeks  | 11-12 | Desktop GUI                    |
-| Phase 6 | 2 weeks  | 13-14 | Storage, knowledge base        |
-| Phase 7 | 2 weeks  | 15-16 | Test suite                     |
-| Phase 8 | 2 weeks  | 17-18 | Advanced exports               |
-| Phase 9 | 2 weeks  | 19-20 | Plugin system                  |
+**⚠️ IMPORTANT:** Before contributing to Phase 5, read this entire document.
 
-**Total:** 20 weeks (5 months)
+To contribute:
 
----
+1. Review the **Critical Issues** section above
+2. Understand the **GUI-Engine Integration** requirements
+3. Check existing GUI code in `desktop/` directory
+4. Follow the architecture in `docs/architecture.md` Interface Layer section
+5. Ensure all GUI features maintain CLI parity
+6. Add tests for new GUI functionality
+7. Update documentation
 
-## Success Metrics
-
-- **Patterns:** 8 → 47 (+39)
-- **Languages:** 1 → 5 (+4)
-- **IDEs:** 0 → 3 (+3)
-- **Test Coverage:** 70% → 90%+ (+20%)
-- **Lines of Code:** 87k → 127k (+40k)
+**Contact:** Open an issue with tag `phase-5` for coordination.
 
 ---
 
-## New Files Created
+**Questions or concerns about the roadmap?**  
+Open an issue with the `roadmap` tag for discussion.
 
-```
-patterns/
-  ├── engine.py
-  ├── builtin/performance.yaml
-  ├── builtin/style.yaml
-  └── builtin/architecture.yaml
-
-observations/eyes/
-  ├── language_detector.py
-  ├── javascript_sight.py
-  ├── java_sight.py
-  └── go_sight.py
-
-desktop/
-  ├── app.py
-  ├── theme.py
-  ├── resources.qrc
-  ├── icons/
-  └── views/
-      ├── home.py
-      ├── observe.py
-      ├── investigate.py
-      ├── patterns.py
-      └── export.py
-
-plugins/
-  ├── base.py
-  ├── loader.py
-  └── example_django/
-
-knowledge/
-  └── base.py
-
-vscode-extension/
-nvim-plugin/
-jetbrains-plugin/
-```
-
----
-
-## Implementation Order
-
-1. Start with Phase 0 (critical bug fix)
-2. Phase 1-3 can overlap (patterns, inquiry, languages)
-3. Phase 4-5 (IDE, desktop GUI) can run in parallel
-4. Phase 6-9 should be sequential
-
----
-
-## Notes
-
-- All code must follow constitutional principles
-- Maintain 24 constitutional articles
-- No external network dependencies
-- Truth preservation is paramount
-- Every feature must include tests
-- Document all public APIs
+**Last Updated:** February 13, 2026  
+**Next Review:** February 20, 2026

@@ -687,7 +687,8 @@ class Engine:
         parameters: dict[str, Any],
         session_id: str,
         limitations: dict[str, list[str]] | None = None,
-    ) -> str:
+        return_result: bool = False,
+    ) -> str | CoordinationResult:
         """Submit observation request for bridge compatibility."""
         # Map observation types to internal format
         alias_map = {
@@ -725,6 +726,8 @@ class Engine:
         )
 
         result = self.coordinate(request)
+        if return_result:
+            return result
         return (
             result.data.get("observation_id", "unknown")
             if hasattr(result, "data") and result.data

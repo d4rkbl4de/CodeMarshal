@@ -32,6 +32,10 @@ from .eyes import (
     ErrorContext,
     ExportDefinition,
     ExportSight,
+    GoExportDefinition,
+    GoImportStatement,
+    GoObservation,
+    GoSight,
     # Base interface
     Eye,
     # Type re-exports
@@ -41,6 +45,16 @@ from .eyes import (
     ImportObservation,
     ImportSight,
     ImportStatement,
+    JSImportExportObservation,
+    JSImportStatement,
+    JSExportStatement,
+    JavaClassDefinition,
+    JavaImportStatement,
+    JavaObservation,
+    JavaSight,
+    JavaScriptSight,
+    LanguageDetection,
+    LanguageDetector,
     LineEndingType,
     ModuleExports,
     ObservationError,
@@ -258,6 +272,12 @@ class ObservationSystem:
         if suffix == ".py":
             # For quick overview, use import sight
             return "import_sight"
+        if suffix in {".js", ".jsx", ".ts", ".tsx"}:
+            return "javascript_sight"
+        if suffix == ".java":
+            return "java_sight"
+        if suffix == ".go":
+            return "go_sight"
 
         # Text files
         text_extensions = {".txt", ".md", ".rst", ".json", ".yml", ".yaml", ".toml"}
@@ -386,6 +406,9 @@ __all__ = [
     "ExportSight",
     "BoundarySight",
     "EncodingSight",
+    "JavaScriptSight",
+    "JavaSight",
+    "GoSight",
     "get_eye",
     "list_eyes",
     "get_capabilities",
@@ -422,6 +445,17 @@ __all__ = [
     "ExportDefinition",
     "Visibility",
     "DefinitionType",
+    "JSImportStatement",
+    "JSExportStatement",
+    "JSImportExportObservation",
+    "JavaImportStatement",
+    "JavaClassDefinition",
+    "JavaObservation",
+    "GoImportStatement",
+    "GoExportDefinition",
+    "GoObservation",
+    "LanguageDetector",
+    "LanguageDetection",
     "BoundaryObservation",
     "BoundaryDefinition",
     "BoundaryType",

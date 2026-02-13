@@ -1,0 +1,11 @@
+{
+  "transaction_id": "tx_1770907534064",
+  "paths": [
+    "storage\\sessions\\test-integration-session.session.json"
+  ],
+  "status": "committed",
+  "created_at": "2026-02-12T14:45:34.064381+00:00",
+  "metadata": {
+    "session_id": "test-integration-session"
+  }
+}

@@ -57,6 +57,9 @@ def helper():
         assert hasattr(cli, "_generate_markdown_export")
         assert hasattr(cli, "_generate_html_export")
         assert hasattr(cli, "_generate_plaintext_export")
+        assert hasattr(cli, "_generate_jupyter_export")
+        assert hasattr(cli, "_generate_svg_export")
+        assert hasattr(cli, "_generate_pdf_export")
 
     def test_session_data_loading(self, temp_project):
         """Test loading session data from storage."""
@@ -159,29 +162,42 @@ def helper():
         ]
 
         # Generate all export formats
-        formats = ["json", "markdown", "html", "plain"]
+        formats = ["json", "markdown", "html", "plain", "jupyter", "svg", "pdf"]
+
+        # Avoid optional WeasyPrint dependency in this integration test.
+        cli._generate_pdf_export = lambda *_args, **_kwargs: b"%PDF-FAKE"  # type: ignore[method-assign]
 
         for fmt in formats:
             content = cli._generate_export_content(
                 fmt, session_data, observations, False, False
             )
 
-            assert isinstance(content, str)
-            assert len(content) > 0
+            if fmt == "pdf":
+                assert isinstance(content, bytes)
+                assert len(content) > 0
+                with tempfile.NamedTemporaryFile(
+                    mode="wb", suffix=f".{fmt}", delete=False
+                ) as f:
+                    f.write(content)
+                    output_path = Path(f.name)
+            else:
+                assert isinstance(content, str)
+                assert len(content) > 0
 
-            # Write to file and verify
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=f".{fmt}", delete=False
-            ) as f:
-                f.write(content)
-                output_path = Path(f.name)
+                # Write to file and verify
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=f".{fmt}", delete=False
+                ) as f:
+                    f.write(content)
+                    output_path = Path(f.name)
+
+
 
             assert output_path.exists()
             assert output_path.stat().st_size > 0
 
             # Cleanup
             output_path.unlink()
-
 
 class TestQuerySystemIntegration:
     """Test query system integration with all analyzers."""

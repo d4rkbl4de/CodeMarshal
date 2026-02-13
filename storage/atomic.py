@@ -233,22 +233,60 @@ def atomic_write_json_compatible(
     """
     Write JSON-compatible data atomically.
     """
-    import json
-    from pathlib import Path as PathType
-
-    # Custom JSON encoder to handle Path objects
-    class PathEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, PathType):
-                return str(obj)
-            return super().default(obj)
-
     try:
-        json_text = json.dumps(data, indent=indent, ensure_ascii=False, cls=PathEncoder)
+        json_text = _dumps_json(data, indent=indent)
     except (TypeError, ValueError) as e:
         raise AtomicWriteError(f"Data cannot be serialized to JSON: {e}") from e
 
     atomic_write_text(target_path, json_text, suffix=suffix)
+
+
+def normalize_json_data(
+    data: dict[str, Any] | list[Any] | str | int | float | bool | None,
+) -> dict[str, Any] | list[Any] | str | int | float | bool | None:
+    """
+    Normalize data into JSON-compatible primitives using CodeMarshal encoding.
+    """
+    import json
+
+    return json.loads(_dumps_json(data, indent=None))
+
+
+def _dumps_json(
+    data: dict[str, Any] | list[Any] | str | int | float | bool | None,
+    *,
+    indent: int | None = 2,
+    sort_keys: bool = False,
+) -> str:
+    """
+    Dump JSON with CodeMarshal-compatible normalization.
+    """
+    import json
+    from datetime import date, datetime, time
+    from pathlib import Path as PathType
+
+    class CodeMarshalJSONEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, PathType):
+                return str(obj)
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, date):
+                return obj.isoformat()
+            if isinstance(obj, time):
+                return obj.isoformat()
+            try:
+                return super().default(obj)
+            except TypeError:
+                return str(obj)
+
+    return json.dumps(
+        data,
+        indent=indent,
+        sort_keys=sort_keys,
+        ensure_ascii=False,
+        cls=CodeMarshalJSONEncoder,
+    )
 
 
 class AtomicWriter:

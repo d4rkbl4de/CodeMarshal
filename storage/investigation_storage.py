@@ -45,6 +45,8 @@ class InvestigationStorage:
             base_path=self.base_path, enable_backups=enable_backups
         )
         self._ensure_directories()
+        self.schema_version = "v2.1.0"
+        self.storage_version = "2.1.0"
 
     def _ensure_directories(self):
         """Create storage directory structure."""
@@ -54,6 +56,8 @@ class InvestigationStorage:
             self.base_path / "questions",
             self.base_path / "patterns",
             self.base_path / "snapshots",
+            self.base_path / "knowledge",
+            self.base_path / "transactions",
         ]
         for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
@@ -68,7 +72,8 @@ class InvestigationStorage:
         # Add metadata
         session_data = session_data.copy()
         session_data["saved_at"] = datetime.now().isoformat()
-        session_data["storage_version"] = "1.0"
+        session_data.setdefault("schema_version", self.schema_version)
+        session_data["storage_version"] = self.storage_version
         session_data["checksum"] = self._calculate_hash(session_data)
 
         try:
@@ -80,6 +85,27 @@ class InvestigationStorage:
                 if filename.exists()
                 else None,
             )
+            # Record transaction journal entry for session + referenced artifacts
+            paths = [filename]
+            for obs_id in session_data.get("observation_ids", []):
+                paths.append(
+                    self.base_path
+                    / "observations"
+                    / f"{obs_id}.observation.json"
+                )
+            for q_id in session_data.get("question_ids", []):
+                paths.append(
+                    self.base_path
+                    / "questions"
+                    / f"{q_id}.question.json"
+                )
+            for p_id in session_data.get("pattern_ids", []):
+                paths.append(
+                    self.base_path
+                    / "patterns"
+                    / f"{p_id}.pattern.json"
+                )
+            self.writer.record_transaction(paths, {"session_id": session_id})
             return session_id
         except Exception as e:
             raise TransactionalStorageError(f"Failed to save session: {e}") from e
@@ -92,6 +118,8 @@ class InvestigationStorage:
         """
         # Ensure immutability
         observation_data = observation_data.copy()
+        observation_data.setdefault("schema_version", self.schema_version)
+        observation_data.setdefault("storage_version", self.storage_version)
         observation_data["hash"] = self._calculate_hash(observation_data)
 
         try:
@@ -107,6 +135,8 @@ class InvestigationStorage:
                 "id": observation_data.get("id", "unknown"),
                 "error": str(e),
                 "session_id": session_id,
+                "schema_version": self.schema_version,
+                "storage_version": self.storage_version,
                 "saved_at": datetime.now().isoformat(),
                 "corruption_detected": True,
             }
@@ -154,6 +184,8 @@ class InvestigationStorage:
         question_data = question_data.copy()
         question_data["session_id"] = session_id
         question_data["type"] = "human_question"
+        question_data.setdefault("schema_version", self.schema_version)
+        question_data.setdefault("storage_version", self.storage_version)
         question_data["checksum"] = self._calculate_hash(question_data)
 
         try:
@@ -186,6 +218,8 @@ class InvestigationStorage:
         pattern_data = pattern_data.copy()
         pattern_data["session_id"] = session_id
         pattern_data["type"] = "numeric_pattern"
+        pattern_data.setdefault("schema_version", self.schema_version)
+        pattern_data.setdefault("storage_version", self.storage_version)
         pattern_data["checksum"] = self._calculate_hash(pattern_data)
 
         try:
@@ -355,6 +389,8 @@ class StreamingObservation:
             "end_time": datetime.now().isoformat(),
             "streaming": True,
             "complete": exc_type is None,
+            "schema_version": "v2.1.0",
+            "storage_version": "2.1.0",
         }
 
         atomic_write_json_compatible(self.manifest_path, manifest_data, indent=2)
@@ -403,6 +439,8 @@ class StreamingObservation:
             "file_index": self.files_processed,
             "timestamp": datetime.now().isoformat(),
             "streaming": True,
+            "schema_version": "v2.1.0",
+            "storage_version": "2.1.0",
         }
 
         # Calculate hash for immutability (Article 9)
@@ -461,6 +499,8 @@ class StreamingObservation:
             "last_update": datetime.now().isoformat(),
             "streaming": True,
             "complete": False,  # Mark as incomplete until final
+            "schema_version": "v2.1.0",
+            "storage_version": "2.1.0",
         }
 
         atomic_write_json_compatible(self.manifest_path, manifest_data, indent=2)

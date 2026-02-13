@@ -1,36 +1,26 @@
 # Dockerfile - Production Build
-# CodeMarshal Container Image
-# Multi-stage build for smaller production image
+# CodeMarshal container image with PDF export support.
 
 # Stage 1: Builder
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
+# Build tools required for some Python wheels.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# Install additional dependencies for search functionality
-RUN pip install --no-cache-dir --prefix=/install \
-    ripgrep-binary \
-    pyyaml \
-    psutil
-
-# Copy application code
-COPY . .
+# Copy source and install package + PDF extras into a staging prefix.
+COPY . /build
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir --prefix=/install ".[export_pdf]"
 
 # Stage 2: Runtime
 FROM python:3.12-slim
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -38,45 +28,43 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     CODEMARSHAL_HOME=/data
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+# Runtime dependencies include libraries required by WeasyPrint.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep \
     git \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
+# Copy installed Python packages from builder.
 COPY --from=builder /install /usr/local
 
-# Copy application
+# Copy application source.
 COPY . /app
 
-# Create storage directories
+# Create storage directories.
 RUN mkdir -p /data/.codemarshal \
     /data/storage \
     /data/config \
     /data/projects
 
-# Set working directory
 WORKDIR /app
 
-# Create non-root user for security
+# Create non-root user for security.
 RUN groupadd -r codemarshal && \
     useradd -r -g codemarshal -s /bin/bash codemarshal && \
     chown -R codemarshal:codemarshal /data /app
 
-# Switch to non-root user
 USER codemarshal
 
-# Volume for persistent data
 VOLUME ["/data"]
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "from bridge.commands import execute_search; print('OK')" || exit 1
 
-# Default entrypoint
 ENTRYPOINT ["python", "-m", "bridge.entry.cli"]
-
-# Default command shows help
 CMD ["--help"]

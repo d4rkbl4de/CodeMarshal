@@ -51,6 +51,7 @@ OUTPUT FORMAT:
 - No markdown (keep it simple)
 """
 
+import statistics
 from pathlib import Path
 from typing import Any
 
@@ -131,6 +132,9 @@ class StructureAnalyzer:
     _MAX_FILES_DISPLAY: int = 50
     """Maximum number of files to list per directory."""
 
+    _MAX_GRAPH_ENTRIES: int = 200
+    """Maximum number of paths shown in structure graph output."""
+
     def __init__(self) -> None:
         """
         Initialize the StructureAnalyzer.
@@ -209,7 +213,19 @@ class StructureAnalyzer:
 
         # Route to appropriate analysis method based on question keywords
         # Order matters: more specific patterns should be checked first
-        if "directory" in question_lower or "structure" in question_lower:
+        if "metrics" in question_lower:
+            # Question asks for structure metrics
+            return self._analyze_metrics(observations)
+
+        elif "graph" in question_lower or "tree" in question_lower:
+            # Question asks for a structural graph or tree
+            return self._generate_structure_graph(observations)
+
+        elif "complexity" in question_lower:
+            # Question asks about complexity distribution
+            return self._analyze_complexity_distribution(observations)
+
+        elif "directory" in question_lower or "structure" in question_lower:
             # Question asks about directory structure
             # Example: "What is the directory structure?"
             # Example: "Show me the directory layout"
@@ -715,6 +731,296 @@ class StructureAnalyzer:
         ]
 
         return "\n".join(lines)
+
+    def _analyze_metrics(self, observations: list[dict[str, Any]]) -> str:
+        """
+        Analyze structure metrics from observations.
+
+        Returns aggregated counts such as total files, directories,
+        and top-level folders when available in file_sight data.
+        """
+        summary_present = False
+        summary_files = 0
+        summary_dirs = 0
+        observed_paths: list[str] = []
+        module_paths: set[str] = set()
+        total_size_bytes = 0
+        size_present = False
+
+        for obs in observations:
+            if obs.get("type") != "file_sight":
+                continue
+
+            result = obs.get("result", {})
+            if "file_count" in result:
+                summary_present = True
+                summary_files += int(result.get("file_count", 0) or 0)
+                summary_dirs += int(result.get("directory_count", 0) or 0)
+                path = result.get("path", "")
+                if path and path not in observed_paths:
+                    observed_paths.append(path)
+
+            modules = result.get("modules", []) or result.get("files", [])
+            for module in modules:
+                path = ""
+                size = None
+                if isinstance(module, dict):
+                    path = module.get("path") or module.get("file_path") or ""
+                    size = module.get("size_bytes")
+                elif isinstance(module, str):
+                    path = module
+                if path:
+                    module_paths.add(path)
+                if isinstance(size, (int, float)):
+                    total_size_bytes += int(size)
+                    size_present = True
+
+        if summary_present:
+            total_files = summary_files
+            total_dirs = summary_dirs
+        else:
+            total_files = len(module_paths)
+            dir_set = set()
+            for path in module_paths:
+                try:
+                    dir_set.add(str(Path(path).parent))
+                except Exception:
+                    continue
+            total_dirs = len(dir_set)
+
+        if total_files == 0 and not observed_paths:
+            return "No structure metrics available in observations."
+
+        top_level_dirs: set[str] = set()
+        root_path = Path(observed_paths[0]) if observed_paths else None
+        for path in module_paths:
+            try:
+                path_obj = Path(path)
+                if root_path:
+                    try:
+                        path_obj = path_obj.relative_to(root_path)
+                    except Exception:
+                        pass
+                parts = [p for p in path_obj.parts if p not in ("/", "\\") and ":" not in p]
+                if parts:
+                    top_level_dirs.add(parts[0])
+            except Exception:
+                continue
+
+        lines: list[str] = [
+            "Structure Metrics:",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+            f"Total Files Observed: {total_files}",
+            f"Total Directories Observed: {total_dirs}",
+        ]
+
+        if observed_paths:
+            lines.append("")
+            lines.append("Paths Observed:")
+            for path in observed_paths:
+                lines.append(f"  â€¢ {path}")
+
+        if top_level_dirs:
+            lines.append("")
+            lines.append("Top-Level Directories:")
+            for name in sorted(top_level_dirs):
+                lines.append(f"  â€¢ {name}")
+
+        if size_present:
+            lines.append("")
+            lines.append(f"Total Size (observed): {self._format_size(total_size_bytes)}")
+
+        if not summary_present and module_paths:
+            lines.append("")
+            lines.append(
+                "Note: Directory counts derived from observed file paths."
+            )
+
+        return "\n".join(lines)
+
+    def _generate_structure_graph(self, observations: list[dict[str, Any]]) -> str:
+        """
+        Generate a simple ASCII structure graph from observed module paths.
+        """
+        module_paths, root_path = self._collect_module_paths(observations)
+
+        if not module_paths:
+            return "Structure graph not available: no module paths found."
+
+        total_paths = len(module_paths)
+        truncated = False
+        remaining = 0
+        if total_paths > self._MAX_GRAPH_ENTRIES:
+            module_paths = module_paths[: self._MAX_GRAPH_ENTRIES]
+            truncated = True
+            remaining = total_paths - self._MAX_GRAPH_ENTRIES
+
+        tree: dict[str, Any] = {}
+        for raw_path in module_paths:
+            try:
+                path_obj = Path(raw_path)
+                if root_path:
+                    try:
+                        path_obj = path_obj.relative_to(root_path)
+                    except Exception:
+                        pass
+                parts = [p for p in path_obj.parts if p not in ("/", "\\") and ":" not in p]
+            except Exception:
+                parts = []
+
+            if not parts:
+                continue
+
+            node = tree
+            for part in parts:
+                node = node.setdefault(part, {})
+
+        lines: list[str] = [
+            "Structure Graph:",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+        ]
+        if root_path:
+            lines.append(f"Root: {root_path}")
+        else:
+            lines.append("Root: (not provided)")
+
+        lines.append("")
+        lines.extend(self._render_tree(tree))
+
+        if truncated and remaining:
+            lines.append("")
+            lines.append(f"... and {remaining} more paths (truncated)")
+
+        return "\n".join(lines)
+
+    def _analyze_complexity_distribution(
+        self, observations: list[dict[str, Any]]
+    ) -> str:
+        """
+        Analyze complexity metric distribution from observations.
+        """
+        values: list[float] = []
+
+        for obs in observations:
+            payload = obs.get("result", obs)
+            values.extend(self._collect_complexity_values(payload))
+
+        if not values:
+            return "Complexity Distribution:\n" + "=" * self._SECTION_SEPARATOR_LENGTH + (
+                "\nNo complexity metrics found in observations."
+            )
+
+        min_val = min(values)
+        max_val = max(values)
+        mean_val = statistics.mean(values)
+
+        buckets = {
+            "0-5": 0,
+            "6-10": 0,
+            "11-20": 0,
+            "21+": 0,
+        }
+
+        for value in values:
+            if value <= 5:
+                buckets["0-5"] += 1
+            elif value <= 10:
+                buckets["6-10"] += 1
+            elif value <= 20:
+                buckets["11-20"] += 1
+            else:
+                buckets["21+"] += 1
+
+        lines: list[str] = [
+            "Complexity Distribution:",
+            "=" * self._SECTION_SEPARATOR_LENGTH,
+            f"Samples: {len(values)}",
+            f"Min: {min_val:.2f}",
+            f"Mean: {mean_val:.2f}",
+            f"Max: {max_val:.2f}",
+            "",
+            "Buckets:",
+        ]
+
+        for label in ["0-5", "6-10", "11-20", "21+"]:
+            lines.append(f"  â€¢ {label}: {buckets[label]}")
+
+        return "\n".join(lines)
+
+    def _collect_module_paths(
+        self, observations: list[dict[str, Any]]
+    ) -> tuple[list[str], Path | None]:
+        """
+        Collect module paths and the first observed root path.
+        """
+        module_paths: list[str] = []
+        root_path: Path | None = None
+
+        for obs in observations:
+            if obs.get("type") != "file_sight":
+                continue
+
+            result = obs.get("result", {})
+            if root_path is None:
+                root_value = result.get("path")
+                if isinstance(root_value, str) and root_value:
+                    root_path = Path(root_value)
+
+            modules = result.get("modules", []) or result.get("files", [])
+            for module in modules:
+                if isinstance(module, dict):
+                    path = module.get("path") or module.get("file_path")
+                elif isinstance(module, str):
+                    path = module
+                else:
+                    path = None
+                if path:
+                    module_paths.append(path)
+
+        module_paths = sorted(set(module_paths))
+        return module_paths, root_path
+
+    def _render_tree(self, tree: dict[str, Any], prefix: str = "") -> list[str]:
+        """
+        Render a nested dict tree as ASCII lines.
+        """
+        lines: list[str] = []
+        keys = sorted(tree.keys())
+        for index, key in enumerate(keys):
+            is_last = index == len(keys) - 1
+            connector = "+-- "
+            continuation = "    " if is_last else "|   "
+            child = tree[key]
+            label = f"{key}/" if child else key
+            lines.append(f"{prefix}{connector}{label}")
+            if isinstance(child, dict) and child:
+                lines.extend(self._render_tree(child, prefix + continuation))
+        return lines
+
+    def _collect_complexity_values(self, payload: Any) -> list[float]:
+        """
+        Extract numeric complexity values from a nested payload.
+        """
+        values: list[float] = []
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                if key in ("complexity", "cyclomatic", "cognitive"):
+                    values.extend(self._extract_numeric_values(value))
+                elif key == "metrics" and isinstance(value, dict):
+                    for metric_key in ("complexity", "cyclomatic", "cognitive"):
+                        if metric_key in value:
+                            values.extend(self._extract_numeric_values(value[metric_key]))
+        return values
+
+    def _extract_numeric_values(self, value: Any) -> list[float]:
+        """
+        Normalize numeric values from scalars or dicts.
+        """
+        if isinstance(value, (int, float)):
+            return [float(value)]
+        if isinstance(value, dict):
+            return [float(v) for v in value.values() if isinstance(v, (int, float))]
+        return []
 
     def _format_size(self, size_bytes: int) -> str:
         """

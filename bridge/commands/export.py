@@ -45,6 +45,9 @@ class ExportFormat(Enum):
     HTML = "html"  # Interactive, preserves navigation
     PLAINTEXT = "plaintext"  # Minimal, no formatting
     CSV = "csv"  # Tabular data only (patterns)
+    JUPYTER = "jupyter"  # Notebook export
+    PDF = "pdf"  # Printable report
+    SVG = "svg"  # Architecture graph
 
 
 @dataclass(frozen=True)
@@ -122,6 +125,9 @@ class ExportAuthorization:
         ExportFormat.MARKDOWN: 7,  # Readable, but flattening
         ExportFormat.PLAINTEXT: 5,  # Minimal, loses structure
         ExportFormat.CSV: 3,  # Tabular, severe flattening
+        ExportFormat.JUPYTER: 8,  # Structured notebook
+        ExportFormat.PDF: 6,  # Printable but flattened
+        ExportFormat.SVG: 5,  # Graph-focused view
     }
 
     @classmethod
@@ -271,6 +277,12 @@ class ExportAuthorization:
         if request.format == ExportFormat.CSV and request.type != ExportType.PATTERNS:
             return "CSV format only supports pattern export"
 
+        if request.format == ExportFormat.SVG and request.type not in [
+            ExportType.OBSERVATIONS,
+            ExportType.SESSION,
+        ]:
+            return "SVG export requires observation or session data"
+
         # HTML requires certain data completeness
         if (
             request.format == ExportFormat.HTML
@@ -331,6 +343,21 @@ class ExportAuthorization:
                 "no_hierarchy",
                 "patterns_only",
                 "spreadsheet_compatible",
+            ],
+            ExportFormat.JUPYTER: [
+                "notebook_structure",
+                "code_and_markdown_cells",
+                "flattened_relationships",
+            ],
+            ExportFormat.PDF: [
+                "printable_layout",
+                "non_interactive",
+                "flattened_context",
+            ],
+            ExportFormat.SVG: [
+                "graph_visualization",
+                "imports_and_boundaries_only",
+                "non_executable",
             ],
         }
         return constraints.get(format, ["unknown_format"])
@@ -462,6 +489,9 @@ def _estimate_export_size(
         ExportFormat.MARKDOWN: 1.5,
         ExportFormat.PLAINTEXT: 1.0,
         ExportFormat.CSV: 0.8,
+        ExportFormat.JUPYTER: 1.8,
+        ExportFormat.PDF: 2.2,
+        ExportFormat.SVG: 1.4,
     }
 
     estimated_bytes = int(base_bytes * format_multipliers.get(request.format, 1.0))
@@ -533,3 +563,7 @@ def export_constitutional_report(
 # test_no_direct_data_access_in_export()
 # test_format_constraints_always_acknowledged()
 # test_export_delegates_to_integration_only()
+
+
+
+

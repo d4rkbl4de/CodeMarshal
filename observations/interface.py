@@ -20,6 +20,10 @@ from .boundary_checker import BoundaryViolationChecker, create_agent_nexus_bound
 # Import actual eye implementations
 from .eyes import get_eye
 from .eyes.boundary_sight import BoundaryDefinition, BoundarySight
+from .eyes.go_sight import GoSight
+from .eyes.java_sight import JavaSight
+from .eyes.javascript_sight import JavaScriptSight
+from .eyes.language_detector import LanguageDetector
 
 
 # ...
@@ -49,6 +53,8 @@ class MinimalObservationInterface(ObservationInterface):
         self._boundary_checker = BoundaryViolationChecker(
             create_agent_nexus_boundaries()
         )
+        self._language_detector = LanguageDetector()
+        self._supported_extensions = self._language_detector.supported_extensions()
 
     def get_limitations(self) -> dict[str, Any]:
         """Get declared limitations of observation methods."""
@@ -60,6 +66,26 @@ class MinimalObservationInterface(ObservationInterface):
             },
             "import_sight": {
                 "description": "Import statement detection",
+                "deterministic": True,
+                "side_effect_free": True,
+            },
+            "export_sight": {
+                "description": "Public definition detection",
+                "deterministic": True,
+                "side_effect_free": True,
+            },
+            "javascript_sight": {
+                "description": "JavaScript/TypeScript import/export detection",
+                "deterministic": True,
+                "side_effect_free": True,
+            },
+            "java_sight": {
+                "description": "Java import/class detection",
+                "deterministic": True,
+                "side_effect_free": True,
+            },
+            "go_sight": {
+                "description": "Go import/package detection",
                 "deterministic": True,
                 "side_effect_free": True,
             },
@@ -112,6 +138,26 @@ class MinimalObservationInterface(ObservationInterface):
 
             for obs_type in observation_types:
                 try:
+                    if obs_type in {"import_sight", "export_sight"}:
+                        if target_path.is_dir():
+                            code_files = self._iter_code_files(target_path)
+                            self._observe_import_export_files(
+                                code_files,
+                                obs_type,
+                                observations,
+                                boundary_crossings=boundary_crossings,
+                                check_boundaries=False,
+                            )
+                        else:
+                            self._observe_import_export_file(
+                                target_path,
+                                obs_type,
+                                observations,
+                                boundary_crossings=boundary_crossings,
+                                check_boundaries=False,
+                            )
+                        continue
+
                     # Get appropriate eye
                     eye = get_eye(obs_type)
                     if eye:
@@ -312,6 +358,19 @@ class MinimalObservationInterface(ObservationInterface):
 
         for obs_type in observation_types:
             try:
+                if obs_type in {"import_sight", "export_sight"}:
+                    code_files = self._iter_code_files(directory_path)
+                    self._observe_import_export_files(
+                        code_files,
+                        obs_type,
+                        observations,
+                        boundary_crossings=boundary_crossings,
+                        check_boundaries=(obs_type == "import_sight"),
+                        memory_monitor=memory_monitor,
+                    )
+                    file_count += len(code_files)
+                    continue
+
                 # Get appropriate eye
                 eye = get_eye(obs_type)
                 if eye:
@@ -499,7 +558,7 @@ class MinimalObservationInterface(ObservationInterface):
         # Return observation data with memory info
         return {
             "path": str(directory_path),
-            "file_count": len(list(directory_path.rglob("*.py"))),
+            "file_count": len(self._iter_code_files(directory_path)),
             "directory_count": len(
                 [d for d in directory_path.rglob("*") if d.is_dir()]
             ),
@@ -509,6 +568,210 @@ class MinimalObservationInterface(ObservationInterface):
             "memory_usage": memory_status,
             "status": "observed",
         }
+
+    def _iter_code_files(self, directory_path: Path) -> list[Path]:
+        """Return deterministic list of supported code files."""
+        exts = self._supported_extensions or {".py"}
+        files = [
+            path
+            for path in directory_path.rglob("*")
+            if path.is_file() and path.suffix.lower() in exts
+        ]
+        files.sort(key=lambda p: str(p).lower())
+        return files
+
+    def _language_for_file(self, file_path: Path) -> str:
+        """Determine language by extension with fallback to detector."""
+        ext = file_path.suffix.lower()
+        for language, signature in self._language_detector.LANGUAGE_SIGNATURES.items():
+            if ext in signature.get("extensions", []):
+                return language
+        detection = self._language_detector.detect_language_for_path(file_path)
+        return detection.primary
+
+    def _get_language_specific_eye(self, obs_type: str, language: str):
+        """Select appropriate eye for a language-aware observation."""
+        if obs_type not in {"import_sight", "export_sight"}:
+            return get_eye(obs_type)
+
+        if language == "python":
+            return get_eye(obs_type)
+        if language in {"javascript", "typescript"}:
+            return get_eye("javascript_sight") or JavaScriptSight()
+        if language == "java":
+            return get_eye("java_sight") or JavaSight()
+        if language == "go":
+            return get_eye("go_sight") or GoSight()
+
+        return None
+
+    def _extract_import_statements(self, raw_payload: Any) -> tuple:
+        if not raw_payload:
+            return ()
+        if hasattr(raw_payload, "statements"):
+            return raw_payload.statements
+        if hasattr(raw_payload, "imports"):
+            return raw_payload.imports
+        return ()
+
+    def _serialize_import_statement(self, statement: Any) -> dict[str, Any]:
+        if isinstance(statement, dict):
+            data = dict(statement)
+        elif hasattr(statement, "__dict__"):
+            data = dict(statement.__dict__)
+        else:
+            data = {"value": str(statement)}
+
+        data = _coerce_for_json(data)
+        names = data.get("names")
+        if isinstance(names, (tuple, set)):
+            data["names"] = list(names)
+        elif names is None:
+            data["names"] = []
+        return data
+
+    def _extract_exports(self, raw_payload: Any) -> list[dict[str, Any]]:
+        entries = []
+        if raw_payload:
+            if hasattr(raw_payload, "public_definitions"):
+                entries = list(raw_payload.public_definitions)
+            elif hasattr(raw_payload, "definitions"):
+                entries = list(raw_payload.definitions)
+            elif hasattr(raw_payload, "exports"):
+                entries = list(raw_payload.exports)
+            elif hasattr(raw_payload, "classes"):
+                entries = list(raw_payload.classes)
+
+        exports: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for entry in entries:
+            name = None
+            if isinstance(entry, str):
+                name = entry
+            elif isinstance(entry, dict):
+                name = entry.get("name")
+            elif hasattr(entry, "name"):
+                name = getattr(entry, "name")
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            exports.append({"name": name})
+        return exports
+
+    def _build_boundary_statements(self, statements: tuple) -> list[dict[str, Any]]:
+        boundary_statements: list[dict[str, Any]] = []
+        for stmt in statements:
+            if isinstance(stmt, dict):
+                module = stmt.get("module")
+                names = stmt.get("names", [])
+                import_type = stmt.get("import_type") or stmt.get("type")
+                line_number = stmt.get("line") or stmt.get("line_number")
+            else:
+                module = getattr(stmt, "module", None)
+                names = getattr(stmt, "names", ())
+                import_type = getattr(stmt, "import_type", None)
+                line_number = getattr(stmt, "line_number", None)
+
+            if import_type == "from":
+                stmt_type = "from_import"
+            else:
+                stmt_type = "import"
+
+            boundary_statements.append(
+                {
+                    "type": stmt_type,
+                    "module": module,
+                    "names": list(names) if isinstance(names, (tuple, list, set)) else [],
+                    "line": line_number,
+                }
+            )
+        return boundary_statements
+
+    def _observe_import_export_file(
+        self,
+        file_path: Path,
+        obs_type: str,
+        observations: list[dict[str, Any]],
+        boundary_crossings: list[dict[str, Any]] | None = None,
+        check_boundaries: bool = False,
+    ) -> None:
+        language = self._language_for_file(file_path)
+        eye = self._get_language_specific_eye(obs_type, language)
+        if not eye:
+            return
+
+        result = eye.observe(file_path)
+        raw_payload = getattr(result, "raw_payload", None)
+
+        if obs_type == "import_sight":
+            statements = self._extract_import_statements(raw_payload)
+            statements_list = [self._serialize_import_statement(s) for s in statements]
+            observation = {
+                "type": "import_sight",
+                "file": str(file_path),
+                "language": language,
+                "statements": statements_list,
+            }
+
+            if check_boundaries and language == "python":
+                boundary_statements = self._build_boundary_statements(statements)
+                violations = self._boundary_checker.check_file_imports(
+                    file_path, boundary_statements
+                )
+                if violations:
+                    observation["boundary_violations"] = [
+                        v.__dict__ for v in violations
+                    ]
+                    if boundary_crossings is not None:
+                        for violation in violations:
+                            boundary_crossings.append(
+                                {
+                                    "source": violation.source,
+                                    "target": violation.target,
+                                    "file": violation.source,
+                                    "line": violation.line_number,
+                                    "violation": f"boundary_{violation.type}",
+                                    "rule": violation.rule,
+                                    "source_boundary": violation.source_boundary,
+                                    "target_boundary": violation.target_boundary,
+                                }
+                            )
+
+            observations.append(observation)
+        else:
+            exports = self._extract_exports(raw_payload)
+            observations.append(
+                {
+                    "type": "export_sight",
+                    "file": str(file_path),
+                    "language": language,
+                    "result": {"exports": exports},
+                }
+            )
+
+    def _observe_import_export_files(
+        self,
+        files: list[Path],
+        obs_type: str,
+        observations: list[dict[str, Any]],
+        boundary_crossings: list[dict[str, Any]] | None = None,
+        check_boundaries: bool = False,
+        memory_monitor: Any | None = None,
+    ) -> None:
+        for idx, file_path in enumerate(files, start=1):
+            try:
+                self._observe_import_export_file(
+                    file_path,
+                    obs_type,
+                    observations,
+                    boundary_crossings=boundary_crossings,
+                    check_boundaries=check_boundaries,
+                )
+            except Exception as exc:
+                observations.append({"type": obs_type, "error": str(exc)})
+
+            if memory_monitor and idx % 100 == 0:
+                memory_monitor.track_files(100)
 
     def _observe_chunked(
         self,
@@ -523,8 +786,8 @@ class MinimalObservationInterface(ObservationInterface):
         chunk_size = 1000  # Process 1000 files at a time
         files_processed = 0
 
-        # Get all Python files
-        all_files = list(directory_path.rglob("*.py"))
+        # Get all supported code files
+        all_files = self._iter_code_files(directory_path)
 
         for i in range(0, len(all_files), chunk_size):
             chunk_files = all_files[i : i + chunk_size]
@@ -641,8 +904,8 @@ class MinimalObservationInterface(ObservationInterface):
             else:
                 print("[STREAM] Starting fresh observation session", flush=True)
 
-            # Get all Python files in deterministic order (Article 13)
-            all_files = sorted(directory_path.rglob("*.py"))
+            # Get all supported code files in deterministic order (Article 13)
+            all_files = self._iter_code_files(directory_path)
 
             # Skip already processed files if resuming
             start_index = 0
@@ -670,6 +933,16 @@ class MinimalObservationInterface(ObservationInterface):
 
                 for obs_type in observation_types:
                     try:
+                        if obs_type in {"import_sight", "export_sight"}:
+                            self._observe_import_export_file(
+                                file_path,
+                                obs_type,
+                                file_observations,
+                                boundary_crossings=None,
+                                check_boundaries=False,
+                            )
+                            continue
+
                         # Get appropriate eye
                         eye = self._get_configured_eye(obs_type, directory_path)
 

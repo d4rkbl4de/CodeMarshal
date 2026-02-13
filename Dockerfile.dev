@@ -1,10 +1,8 @@
 # Dockerfile.dev - Development Build
-# CodeMarshal Development Container
-# Includes all development tools and dependencies
+# Includes development tools and native libraries for PDF export.
 
 FROM python:3.12-slim
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
@@ -14,8 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Development tools + WeasyPrint native runtime dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     vim \
     nano \
@@ -28,28 +26,20 @@ RUN apt-get update && apt-get install -y \
     make \
     gcc \
     g++ \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies first (for better caching)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . /app
 
-# Install development tools
-RUN pip install --no-cache-dir \
-    pytest==7.4.0 \
-    pytest-cov==4.1.0 \
-    pytest-xdist==3.3.1 \
-    pytest-mock==3.11.1 \
-    black==23.9.0 \
-    ruff==0.1.0 \
-    mypy==1.5.0 \
-    ipython==8.15.0 \
-    debugpy==1.7.0 \
-    pre-commit==3.4.0 \
-    python-dotenv==1.0.0
+# Install project in editable mode with development + PDF extras.
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -e ".[dev,export_pdf]"
 
-# Create volume mount points
 RUN mkdir -p /data/.codemarshal \
     /data/storage \
     /data/config \
@@ -57,26 +47,16 @@ RUN mkdir -p /data/.codemarshal \
     /data/backups \
     /home/developer
 
-# Create non-root user for development
 RUN useradd -m -s /bin/bash developer && \
-    chown -R developer:developer /data /home/developer
+    chown -R developer:developer /data /home/developer /app
 
-# Copy entrypoint script
-COPY scripts/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Switch to non-root user
 USER developer
 
-# Set up git configuration placeholder
 RUN git config --global user.email "developer@codemarshal.local" && \
     git config --global user.name "CodeMarshal Developer"
 
-# Expose port for potential local integrations (optional)
 EXPOSE 8080
 
-# Volume for persistent data
 VOLUME ["/data", "/app"]
 
-# Default shell
 CMD ["/bin/bash"]

@@ -1,0 +1,223 @@
+# Performance Patterns
+# Built-in patterns for detecting performance issues
+
+patterns:
+  - id: nested_loop_n2
+    name: "Nested Loop O(n^2)"
+    pattern: >-
+      for\s+.*:\s*\n\s+for\s+.*:
+    severity: warning
+    description: "Nested loops can lead to quadratic behavior."
+    suggestion: "Consider restructuring loops or precomputing lookups."
+    tags:
+      - performance
+      - loops
+
+  - id: nested_loop_n3
+    name: "Triple Nested Loop O(n^3)"
+    pattern: >-
+      for\s+.*:\s*\n\s+for\s+.*:\s*\n\s+for\s+.*:
+    severity: warning
+    description: "Triple nested loops can lead to cubic behavior."
+    suggestion: "Consider reducing nesting or batching work."
+    tags:
+      - performance
+      - loops
+
+  - id: large_function
+    name: "Large Function (>50 lines)"
+    pattern: >-
+      def\s+\w+\s*\([^)]*\):\s*(?:\n[ \t].*){50,}
+    severity: info
+    description: "Large functions are harder to optimize and reason about."
+    suggestion: "Split into smaller functions where possible."
+    tags:
+      - performance
+      - complexity
+
+  - id: sync_io_loop
+    name: "Synchronous I/O in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*\b(open|read|write|request|fetch)\(
+    severity: warning
+    description: "Blocking I/O inside loops can degrade throughput."
+    suggestion: "Consider async I/O or batching."
+    tags:
+      - performance
+      - io
+
+  - id: n_plus_one
+    name: "N+1 Query Pattern"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*\.(get|filter|query|find)\(
+    severity: warning
+    description: "Database queries inside loops can create N+1 issues."
+    suggestion: "Use eager loading or bulk queries."
+    tags:
+      - performance
+      - database
+
+  - id: regex_compile_in_loop
+    name: "Regex Compilation in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*re\.compile\(
+    severity: warning
+    description: "Compiling regex patterns inside loops is wasteful."
+    suggestion: "Move regex compilation outside the loop."
+    tags:
+      - performance
+      - regex
+
+  - id: regex_search_in_loop
+    name: "Regex Search in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*re\.(search|match)\(
+    severity: info
+    description: "Repeated regex searches inside loops may be expensive."
+    suggestion: "Consider pre-filtering or simplifying patterns."
+    tags:
+      - performance
+      - regex
+
+  - id: sleep_in_loop
+    name: "Sleep in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*\b(time\.sleep|sleep)\(
+    severity: warning
+    description: "Sleep calls inside loops can throttle throughput."
+    suggestion: "Use backoff logic outside hot loops."
+    tags:
+      - performance
+      - timing
+
+  - id: import_in_loop
+    name: "Import in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+import\s+
+    severity: warning
+    description: "Imports inside loops add repeated overhead."
+    suggestion: "Move imports to module scope."
+    tags:
+      - performance
+      - imports
+
+  - id: sorted_in_loop
+    name: "Sorted in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*\bsorted\(
+    severity: info
+    description: "Sorting inside loops can be expensive."
+    suggestion: "Sort once outside the loop if possible."
+    tags:
+      - performance
+      - sorting
+
+  - id: string_concat_in_loop
+    name: "String Concatenation in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+\w+\s*\+=\s*["']
+    severity: warning
+    description: "Repeated string concatenation in loops can be slow."
+    suggestion: "Use list buffering and join."
+    tags:
+      - performance
+      - strings
+
+  - id: list_concat_in_loop
+    name: "List Concatenation in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+\w+\s*=\s*\w+\s*\+\s*\[
+    severity: info
+    description: "Repeated list concatenation in loops allocates new lists."
+    suggestion: "Use list.append or list.extend."
+    tags:
+      - performance
+      - collections
+
+  - id: range_len_loop
+    name: "range(len()) Loop"
+    pattern: >-
+      for\s+\w+\s+in\s+range\(\s*len\(
+    severity: info
+    description: "range(len()) loops can be replaced with enumerate()."
+    suggestion: "Use enumerate for index/value access."
+    tags:
+      - performance
+      - python
+
+  - id: list_pop_zero
+    name: "list.pop(0) Usage"
+    pattern: >-
+      \.\s*pop\(\s*0\s*\)
+    severity: warning
+    description: "Popping from the front of lists is O(n)."
+    suggestion: "Use collections.deque for queue behavior."
+    tags:
+      - performance
+      - collections
+
+  - id: list_insert_zero
+    name: "list.insert(0, ...) Usage"
+    pattern: >-
+      \.\s*insert\(\s*0\s*,
+    severity: warning
+    description: "Inserting at the front of lists is O(n)."
+    suggestion: "Use collections.deque for queue behavior."
+    tags:
+      - performance
+      - collections
+
+  - id: print_in_loop
+    name: "Print in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*\bprint\(
+    severity: info
+    description: "Printing inside loops can slow processing."
+    suggestion: "Buffer output or reduce verbosity."
+    tags:
+      - performance
+      - io
+
+  - id: deepcopy_in_loop
+    name: "deepcopy in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*\bdeepcopy\(
+    severity: warning
+    description: "Deep copies inside loops can be expensive."
+    suggestion: "Avoid deep copy in hot paths."
+    tags:
+      - performance
+      - memory
+
+  - id: membership_check_in_loop
+    name: "Membership Check in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+if\s+.*\s+in\s+\w+
+    severity: info
+    description: "Repeated membership checks can be costly on lists."
+    suggestion: "Use sets for faster membership checks."
+    tags:
+      - performance
+      - collections
+
+  - id: json_loads_in_loop
+    name: "json.loads in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*json\.loads\(
+    severity: warning
+    description: "JSON parsing inside loops can be expensive."
+    suggestion: "Parse once or batch inputs."
+    tags:
+      - performance
+      - json
+
+  - id: subprocess_in_loop
+    name: "Subprocess Call in Loop"
+    pattern: >-
+      for\s+.*:\s*\n\s+.*subprocess\.(run|call|check_call|check_output)\(
+    severity: warning
+    description: "Launching subprocesses in loops is expensive."
+    suggestion: "Batch subprocess calls or use persistent processes."
+    tags:
+      - performance
+      - subprocess

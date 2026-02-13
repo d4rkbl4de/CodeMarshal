@@ -122,6 +122,56 @@ class TestExportFormats:
         assert "INVESTIGATION DETAILS" in content
         assert "OBSERVATIONS SUMMARY" in content
 
+    def test_jupyter_export_content(self, sample_session_data, sample_observations):
+        """Test Jupyter export format generation."""
+        cli = CodeMarshalCLI()
+
+        content = cli._generate_export_content(
+            "jupyter", sample_session_data, sample_observations, True, True
+        )
+
+        data = json.loads(content)
+        assert data["nbformat"] == 4
+        assert "cells" in data
+        assert data["metadata"]["codemarshal"]["include_notes"] is True
+        assert data["metadata"]["codemarshal"]["include_patterns"] is True
+
+        combined_sources = "\n".join(
+            str(cell.get("source", "")) for cell in data["cells"]
+        )
+        assert "## Notes" in combined_sources
+        assert "## Patterns" in combined_sources
+
+    def test_svg_export_content(self, sample_session_data, sample_observations):
+        """Test SVG export format generation."""
+        cli = CodeMarshalCLI()
+
+        content = cli._generate_export_content(
+            "svg", sample_session_data, sample_observations, False, False
+        )
+
+        assert isinstance(content, str)
+        assert content.lstrip().startswith("<svg")
+        assert "<circle" in content
+        assert "<line" in content
+
+    def test_pdf_export_content(self, sample_session_data, sample_observations, monkeypatch):
+        """Test PDF export format generation returns bytes."""
+        cli = CodeMarshalCLI()
+
+        monkeypatch.setattr(
+            cli,
+            "_generate_pdf_export",
+            lambda *_args, **_kwargs: b"%PDF-FAKE",
+        )
+
+        content = cli._generate_export_content(
+            "pdf", sample_session_data, sample_observations, False, False
+        )
+
+        assert isinstance(content, bytes)
+        assert content.startswith(b"%PDF")
+
     def test_export_file_creation(self, sample_session_data, sample_observations):
         """Test that export actually creates files."""
         cli = CodeMarshalCLI()
@@ -183,14 +233,20 @@ class TestExportEdgeCases:
         session_data = {"id": "test", "path": "/test", "state": "complete"}
         observations = []
 
-        formats = ["json", "markdown", "html", "plain"]
+        formats = ["json", "markdown", "html", "plain", "jupyter", "svg", "pdf"]
+
+        # Avoid optional WeasyPrint dependency in unit tests.
+        cli._generate_pdf_export = lambda *_args, **_kwargs: b"%PDF-FAKE"  # type: ignore[method-assign]
 
         for fmt in formats:
             content = cli._generate_export_content(
                 fmt, session_data, observations, False, False
             )
             assert len(content) > 0
-            assert isinstance(content, str)
+            if fmt == "pdf":
+                assert isinstance(content, bytes)
+            else:
+                assert isinstance(content, str)
 
 
 class TestExportCLIIntegration:
@@ -205,6 +261,9 @@ class TestExportCLIIntegration:
         assert hasattr(cli, "_generate_markdown_export")
         assert hasattr(cli, "_generate_html_export")
         assert hasattr(cli, "_generate_plaintext_export")
+        assert hasattr(cli, "_generate_jupyter_export")
+        assert hasattr(cli, "_generate_svg_export")
+        assert hasattr(cli, "_generate_pdf_export")
 
     def test_export_format_variations(self):
         """Test that format variations are handled correctly."""
@@ -220,7 +279,13 @@ class TestExportCLIIntegration:
             ("html", "html"),
             ("plain", "plain"),
             ("plaintext", "plain"),
+            ("jupyter", "jupyter"),
+            ("svg", "svg"),
+            ("pdf", "pdf"),
         ]
+
+        # Avoid optional WeasyPrint dependency in this variations test.
+        cli._generate_pdf_export = lambda *_args, **_kwargs: b"%PDF-FAKE"  # type: ignore[method-assign]
 
         for input_fmt, _ in variations:
             try:

@@ -1,0 +1,20 @@
+{
+  "id": "345d5516-0eac-5b8a-825a-a51bf1d438c6",
+  "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\_mixed_lang_repo",
+  "created_at": "2026-02-11T16:23:40.471638+00:00",
+  "state": "presentation_complete",
+  "observation_ids": [
+    "obs_4d5a82dee0ded942"
+  ],
+  "question_ids": [
+    "q_9415a42e0d3d44ac"
+  ],
+  "pattern_ids": [
+    "p_379e7158a30896c8"
+  ],
+  "completed_at": "2026-02-11T22:23:40.712070",
+  "saved_at": "2026-02-11T22:23:40.712070",
+  "schema_version": "v2.1.0",
+  "storage_version": "2.1.0",
+  "checksum": "d0367e11cf034b3d9dfdc3e76a923281c20db2384e83e33b9cd58984a571271c"
+}

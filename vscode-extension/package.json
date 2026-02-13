@@ -1,0 +1,81 @@
+{
+  "name": "codemarshal",
+  "displayName": "CodeMarshal",
+  "description": "Truth-preserving code investigation in VS Code",
+  "version": "0.1.0",
+  "publisher": "codemarshal",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:codemarshal.investigate",
+    "onCommand:codemarshal.observe",
+    "onCommand:codemarshal.scanPatterns",
+    "onCommand:codemarshal.listPatterns",
+    "onCommand:codemarshal.query",
+    "onCommand:codemarshal.export",
+    "onCommand:codemarshal.showPatternsForFile",
+    "workspaceContains:**/*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codemarshal.investigate",
+        "title": "CodeMarshal: Investigate"
+      },
+      {
+        "command": "codemarshal.observe",
+        "title": "CodeMarshal: Observe"
+      },
+      {
+        "command": "codemarshal.scanPatterns",
+        "title": "CodeMarshal: Scan Patterns"
+      },
+      {
+        "command": "codemarshal.listPatterns",
+        "title": "CodeMarshal: List Patterns"
+      },
+      {
+        "command": "codemarshal.query",
+        "title": "CodeMarshal: Query"
+      },
+      {
+        "command": "codemarshal.export",
+        "title": "CodeMarshal: Export"
+      },
+      {
+        "command": "codemarshal.showPatternsForFile",
+        "title": "CodeMarshal: Show Patterns For File"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "CodeMarshal",
+      "properties": {
+        "codemarshal.cliPath": {
+          "type": "string",
+          "default": "codemarshal",
+          "description": "Path to the codemarshal CLI"
+        },
+        "codemarshal.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run pattern scans on save"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -watch -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

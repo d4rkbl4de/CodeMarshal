@@ -1,7 +1,7 @@
 # **CODEMARSHAL INTEGRATION EXAMPLES**
 
-**Version:** 2.0.0  
-**Last Updated:** February 7, 2026  
+**Version:** 2.1.0  
+**Last Updated:** February 12, 2026  
 
 ---
 
@@ -1183,6 +1183,20 @@ ensure_codemarshal_env()
 
 ---
 
-**Integration Examples Version: 2.0.0**  
-**Last Updated: January 16, 2026**  
+---
+
+## Related Documentation
+
+- **[ROADMAP.md](../ROADMAP.md)** - Execution status and remaining work
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history and changes
+- **[docs/USER_GUIDE.md](USER_GUIDE.md)** - Command reference and tutorials
+- **[docs/API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Programmatic API
+- **[docs/architecture.md](architecture.md)** - System architecture
+- **[docs/FEATURES.md](FEATURES.md)** - Feature matrix
+- **[docs/index.md](index.md)** - Documentation navigation
+
+---
+
+**Integration Examples Version: 2.1.0**  
+**Last Updated: February 12, 2026**  
 **Next Update: Based on community feedback and use cases**

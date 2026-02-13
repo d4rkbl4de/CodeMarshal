@@ -125,7 +125,7 @@ class CorruptionMarker:
             "actual_value": evidence.actual_value,
             "context": evidence.context or {},
             "generator": "CodeMarshal Corruption Detection",
-            "schema_version": "1.0",
+            "schema_version": "v2.1.0",
         }
 
         try:

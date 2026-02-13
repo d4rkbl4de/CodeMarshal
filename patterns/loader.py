@@ -42,6 +42,7 @@ class PatternDefinition:
     pattern: str
     severity: str = "warning"
     description: str = ""
+    suggestion: str = ""
     message: str = ""
     tags: list[str] = field(default_factory=list)
     languages: list[str] = field(default_factory=list)
@@ -407,6 +408,7 @@ class PatternManager:
                     "pattern": pattern.pattern,
                     "severity": pattern.severity,
                     "description": pattern.description,
+                    "suggestion": pattern.suggestion,
                     "message": pattern.message,
                     "tags": pattern.tags,
                     "languages": pattern.languages,

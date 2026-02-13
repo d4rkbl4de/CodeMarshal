@@ -1,5 +1,5 @@
-"""
-cli.py — Command Line Interface for CodeMarshal.
+﻿"""
+cli.py â€” Command Line Interface for CodeMarshal.
 
 ROLE: Translate command-line invocations into explicit command calls.
 PRINCIPLE: Explicitness over comfort. The CLI is a contract, not a conversation.
@@ -9,6 +9,7 @@ import argparse
 import logging
 import sys
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -145,6 +146,9 @@ EXAMPLES:
         # test command
         self._add_test_parser(subparsers)
 
+        # migrate command
+        self._add_migrate_parser(subparsers)
+
         # search command
         self._add_search_parser(subparsers)
 
@@ -249,6 +253,16 @@ Pure data collection with no inference.
             action="store_true",
             help="Enable constitutional analysis (includes boundary, import, and export sight)",
         )
+        parser.add_argument(
+            "--dump",
+            action="store_true",
+            help="Dump observation data as JSON to stdout",
+        )
+        parser.add_argument(
+            "--persist",
+            action="store_true",
+            help="Persist observations to storage for later querying",
+        )
 
     def _add_query_parser(self, subparsers: Any) -> None:
         """Add query command parser with explicit arguments."""
@@ -314,7 +328,7 @@ Export preserves truth without alteration.
         parser.add_argument(
             "--format",
             required=True,
-            choices=["json", "markdown", "html", "plain", "csv"],
+            choices=["json", "markdown", "html", "plain", "csv", "jupyter", "pdf", "svg"],
             help="Export format (MUST be specified)",
         )
 
@@ -669,6 +683,37 @@ Supports coverage reporting, parallel execution, and various output formats.
             "--no-header", action="store_true", help="Suppress header output"
         )
 
+    def _add_migrate_parser(self, subparsers: Any) -> None:
+        """Add migrate command parser."""
+        parser = subparsers.add_parser(
+            "migrate",
+            help="Migrate storage schemas",
+            description="""Migrate storage data to a target schema version.""",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        parser.add_argument(
+            "--storage-root",
+            type=Path,
+            default=Path("storage"),
+            help="Storage root path (default: ./storage)",
+        )
+        parser.add_argument(
+            "--to",
+            type=str,
+            default="v2.1.0",
+            help="Target schema version (default: v2.1.0)",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Show migration plan without modifying data",
+        )
+        parser.add_argument(
+            "--no-backup",
+            action="store_true",
+            help="Disable migration backup creation",
+        )
+
     def _add_search_parser(self, subparsers: Any) -> None:
         """Add search command parser."""
         parser = subparsers.add_parser(
@@ -931,6 +976,8 @@ Commands: list, scan, add
                 return self._handle_repair(parsed_args)
             elif parsed_args.command == "test":
                 return self._handle_test(parsed_args)
+            elif parsed_args.command == "migrate":
+                return self._handle_migrate(parsed_args)
             elif parsed_args.command == "search":
                 return self._handle_search(parsed_args)
             elif parsed_args.command == "pattern":
@@ -1122,10 +1169,11 @@ Commands: list, scan, add
             print("2. Initializing runtime...", file=sys.stderr)
             runtime = Runtime(config=config)
             print("3. Creating engine...", file=sys.stderr)
+            storage = InvestigationStorage()
             engine = Engine(
                 runtime._context,
                 runtime._state,
-                storage=InvestigationStorage(),
+                storage=storage,
                 memory_monitor=create_memory_monitor_adapter(runtime._context),
             )
 
@@ -1188,6 +1236,8 @@ Commands: list, scan, add
                 types = {ObservationType.FILE_SIGHT}
                 boundary_config_path = None
 
+            include_results = bool(getattr(args, "dump", False) or getattr(args, "persist", False))
+
             req = ObservationRequest(
                 types=types,
                 target_path=args.path,
@@ -1200,6 +1250,7 @@ Commands: list, scan, add
                     "include_binary": args.include_binary,
                     "follow_symlinks": args.follow_symlinks,
                     "constitutional": getattr(args, "constitutional", False),
+                    "include_results": include_results,
                     "boundary_config_path": str(boundary_config_path)
                     if boundary_config_path
                     else None,
@@ -1235,6 +1286,106 @@ Commands: list, scan, add
 
             if result.success:
                 self._show_observation_result(result)
+
+                observation_payload = raw_result.get("data")
+
+                if getattr(args, "persist", False):
+                    session_id = (
+                        result.intent_record.get("session_id")
+                        if result.intent_record
+                        else str(session_context.snapshot_id)
+                    )
+                    observation_ids: list[str] = []
+
+                    if observation_payload and isinstance(observation_payload, dict):
+                        if observation_payload.get("streaming"):
+                            manifest_id = observation_payload.get("manifest_id")
+                            if manifest_id:
+                                manifest_path = (
+                                    Path("storage")
+                                    / "observations"
+                                    / f"{manifest_id}.manifest.json"
+                                )
+                                if manifest_path.exists():
+                                    import json
+
+                                    try:
+                                        manifest = json.loads(
+                                            manifest_path.read_text(encoding="utf-8")
+                                        )
+                                        observation_ids = manifest.get(
+                                            "observation_ids", []
+                                        )
+                                    except Exception as e:
+                                        self._warn(
+                                            f"Failed to read streaming manifest: {e}"
+                                        )
+                                else:
+                                    self._warn(
+                                        f"Streaming manifest not found: {manifest_path}"
+                                    )
+                            else:
+                                self._warn(
+                                    "Streaming observation missing manifest_id; cannot persist."
+                                )
+                        else:
+                            obs_data = {
+                                "data": observation_payload,
+                                "phase": "observation_complete",
+                                "timestamp": datetime.now(UTC).isoformat(),
+                            }
+                            obs_id = storage.save_observation(obs_data, session_id)
+                            observation_ids.append(obs_id)
+                    else:
+                        self._warn("Observation data not available to persist.")
+
+                    if observation_ids:
+                        session_data = {
+                            "id": session_id,
+                            "path": str(args.path),
+                            "created_at": datetime.now(UTC).isoformat(),
+                            "state": "observation_complete",
+                            "observation_ids": observation_ids,
+                            "question_ids": [],
+                            "pattern_ids": [],
+                            "completed_at": datetime.now(UTC).isoformat(),
+                        }
+                        if observation_payload and observation_payload.get("streaming"):
+                            session_data["manifest_id"] = observation_payload.get(
+                                "manifest_id"
+                            )
+                        storage.save_session(session_data)
+                        if len(observation_ids) <= 5:
+                            display_ids = observation_ids
+                        else:
+                            display_ids = observation_ids[:5] + ["..."]
+                        self._safe_print(
+                            f"Stored observations: {', '.join(display_ids)}"
+                        )
+                        if len(observation_ids) > 5:
+                            self._safe_print(
+                                f"Stored observation count: {len(observation_ids)}"
+                            )
+                        self._safe_print(f"Session ID: {session_id}")
+
+                if getattr(args, "dump", False):
+                    if observation_payload is None:
+                        self._warn("No observation payload available to dump.")
+                    else:
+                        import json
+
+                        self._safe_print("\nOBSERVATION DATA (JSON)")
+                        self._safe_print("=" * 80)
+                        self._safe_print(
+                            json.dumps(
+                                observation_payload,
+                                indent=2,
+                                ensure_ascii=False,
+                                default=str,
+                            )
+                        )
+                        self._safe_print("=" * 80)
+
                 return 0
             else:
                 self._refuse(f"Observation failed: {result.error_message}")
@@ -1392,6 +1543,13 @@ Commands: list, scan, add
                                         "path": obs_data.get("path", ""),
                                     }
                                 )
+                        elif (
+                            isinstance(data, dict)
+                            and "observations" in data
+                            and isinstance(data["observations"], list)
+                        ):
+                            for nested_obs in data["observations"]:
+                                observations.append(nested_obs)
                         else:
                             observations.append(data)
                 except Exception as e:
@@ -1500,9 +1658,13 @@ Commands: list, scan, add
             format_map = {
                 "json": ExportFormat.JSON,
                 "markdown": ExportFormat.MARKDOWN,
-                                        "html": ExportFormat.HTML,
-                                        "plain": ExportFormat.PLAINTEXT,
-                                        "csv": ExportFormat.CSV,            }
+                "html": ExportFormat.HTML,
+                "plain": ExportFormat.PLAINTEXT,
+                "csv": ExportFormat.CSV,
+                "jupyter": ExportFormat.JUPYTER,
+                "pdf": ExportFormat.PDF,
+                "svg": ExportFormat.SVG,
+            }
             export_format = format_map.get(str(args.format).lower())
             if not export_format:
                 self._refuse(f"Unsupported export format: {args.format}")
@@ -1542,7 +1704,10 @@ Commands: list, scan, add
             # Write to file
             output_path = Path(args.output)
             try:
-                output_path.write_text(export_content, encoding="utf-8")
+                if isinstance(export_content, bytes):
+                    output_path.write_bytes(export_content)
+                else:
+                    output_path.write_text(export_content, encoding="utf-8")
             except Exception as e:
                 self._refuse(f"Failed to write export file: {str(e)}")
                 return 1
@@ -1909,6 +2074,50 @@ Commands: list, scan, add
             self._refuse(f"Test error: {str(e)}")
             return 1
 
+    def _handle_migrate(self, args: argparse.Namespace) -> int:
+        """Handle migrate command."""
+        from storage.migration import migrate_storage
+
+        try:
+            if not args.storage_root.exists():
+                self._refuse(f"Storage root not found: {args.storage_root}")
+                return 1
+
+            result = migrate_storage(
+                storage_root=args.storage_root,
+                to_version=args.to,
+                dry_run=args.dry_run,
+                create_backup=not args.no_backup,
+            )
+
+            self._safe_print("\nMIGRATION RESULT")
+            self._safe_print("=" * 80)
+            self._safe_print(f"From:     {result.from_version}")
+            self._safe_print(f"To:       {result.to_version}")
+            self._safe_print(f"Success:  {result.success}")
+            self._safe_print(f"Steps:    {result.steps_performed}/{result.steps_attempted}")
+
+            if result.backup_path:
+                self._safe_print(f"Backup:   {result.backup_path}")
+
+            if result.errors:
+                self._safe_print("\nErrors:")
+                for step, message in result.errors:
+                    self._safe_print(f"  - {step}: {message}")
+
+            if result.warnings:
+                self._safe_print("\nWarnings:")
+                for step, message in result.warnings:
+                    self._safe_print(f"  - {step}: {message}")
+
+            self._safe_print("=" * 80)
+            return 0 if result.success else 1
+
+        except Exception as e:
+            logger.exception("Migration command failed")
+            self._refuse(f"Migration error: {str(e)}")
+            return 1
+
     def _handle_search(self, args: argparse.Namespace) -> int:
         """Handle search command."""
         from bridge.commands import execute_search
@@ -1955,6 +2164,33 @@ Commands: list, scan, add
                     show_disabled=args.show_disabled,
                     output_format=args.output,
                 )
+                if args.output == "json":
+                    import json
+
+                    payload = {
+                        "success": result.success,
+                        "total_count": result.total_count,
+                        "patterns": [
+                            {
+                                "id": pattern.id,
+                                "name": pattern.name,
+                                "severity": pattern.severity,
+                                "description": pattern.description,
+                                "suggestion": pattern.suggestion,
+                                "message": pattern.message,
+                                "tags": pattern.tags,
+                                "languages": pattern.languages,
+                                "enabled": pattern.enabled,
+                            }
+                            for pattern in result.patterns
+                        ],
+                        "error": result.error,
+                    }
+                    self._safe_print(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.success else 1
+
                 if result.success:
                     print(f"\nAvailable Patterns ({result.total_count} total):")
                     print("=" * 80)
@@ -1978,6 +2214,26 @@ Commands: list, scan, add
                     output_format=args.output,
                     max_files=args.max_files,
                 )
+                if args.output == "json":
+                    import json
+
+                    payload = {
+                        "success": result.success,
+                        "patterns_scanned": result.patterns_scanned,
+                        "files_scanned": result.files_scanned,
+                        "matches_found": result.matches_found,
+                        "scan_time_ms": result.scan_time_ms,
+                        "matches": result.matches,
+                        "errors": result.errors,
+                        "error": result.error,
+                    }
+                    self._safe_print(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+                    )
+                    if not result.success:
+                        return 1
+                    return 0 if result.matches_found == 0 else 1
+
                 if result.success:
                     print(f"\nPattern Scan Results")
                     print("=" * 80)
@@ -1985,6 +2241,14 @@ Commands: list, scan, add
                     print(f"Files scanned: {result.files_scanned}")
                     print(f"Matches found: {result.matches_found}")
                     print(f"Scan time: {result.scan_time_ms:.2f}ms")
+
+                    try:
+                        from lens.views.pattern_dashboard import PatternDashboardView
+
+                        dashboard = PatternDashboardView()
+                        self._safe_print("\n" + dashboard.render(result.matches))
+                    except Exception as e:
+                        self._warn(f"Pattern dashboard unavailable: {e}")
 
                     if result.matches:
                         print("\nMatches:")
@@ -2020,7 +2284,7 @@ Commands: list, scan, add
                     languages=args.languages,
                 )
                 if result.success:
-                    print(f"✓ Pattern '{result.pattern_id}' added successfully")
+                    print(f"âœ“ Pattern '{result.pattern_id}' added successfully")
                     return 0
                 else:
                     self._refuse(f"Failed to add pattern: {result.error}")
@@ -2112,27 +2376,95 @@ Commands: list, scan, add
         observations: list,
         include_notes: bool = False,
         include_patterns: bool = False,
-    ) -> str:
+    ) -> str | bytes:
         """Generate export content in the specified format."""
 
-        if format_type.lower() == "json":
+        normalized_format = format_type.lower()
+
+        if normalized_format == "json":
             return self._generate_json_export(
                 session_data, observations, include_notes, include_patterns
             )
-        elif format_type.lower() == "markdown":
+        if normalized_format == "markdown":
             return self._generate_markdown_export(
                 session_data, observations, include_notes, include_patterns
             )
-        elif format_type.lower() == "html":
+        if normalized_format == "html":
             return self._generate_html_export(
                 session_data, observations, include_notes, include_patterns
             )
-        elif format_type.lower() in ["plain", "plaintext"]:
+        if normalized_format in ["plain", "plaintext"]:
             return self._generate_plaintext_export(
                 session_data, observations, include_notes, include_patterns
             )
-        else:
-            raise ValueError(f"Unsupported export format: {format_type}")
+        if normalized_format == "jupyter":
+            return self._generate_jupyter_export(
+                session_data, observations, include_notes, include_patterns
+            )
+        if normalized_format == "svg":
+            return self._generate_svg_export(
+                session_data, observations, include_notes, include_patterns
+            )
+        if normalized_format == "pdf":
+            return self._generate_pdf_export(
+                session_data, observations, include_notes, include_patterns
+            )
+
+        raise ValueError(f"Unsupported export format: {format_type}")
+
+    def _generate_jupyter_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> str:
+        """Generate Jupyter notebook export."""
+        from bridge.integration.jupyter_exporter import JupyterExporter
+
+        exporter = JupyterExporter()
+        return exporter.export(
+            session_data,
+            observations,
+            include_notes=include_notes,
+            include_patterns=include_patterns,
+        )
+
+    def _generate_svg_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> str:
+        """Generate SVG architecture export."""
+        from bridge.integration.svg_exporter import SVGExporter
+
+        exporter = SVGExporter()
+        return exporter.export(
+            session_data,
+            observations,
+            include_notes=include_notes,
+            include_patterns=include_patterns,
+        )
+
+    def _generate_pdf_export(
+        self,
+        session_data: dict,
+        observations: list,
+        include_notes: bool,
+        include_patterns: bool,
+    ) -> bytes:
+        """Generate PDF export bytes."""
+        from bridge.integration.pdf_exporter import PDFExporter
+
+        exporter = PDFExporter()
+        return exporter.export(
+            session_data,
+            observations,
+            include_notes=include_notes,
+            include_patterns=include_patterns,
+        )
 
     def _generate_json_export(
         self,
@@ -2517,7 +2849,7 @@ Commands: list, scan, add
         if warnings:
             self._safe_print("\nWARNINGS:")
             for warning in warnings:
-                self._safe_print(f"  ⚠️  {warning}")
+                self._safe_print(f"  âš ï¸  {warning}")
 
         self._safe_print("\nNext steps:")
         self._safe_print(
@@ -2552,15 +2884,15 @@ Commands: list, scan, add
             for obs_type, limits in result.limitations.items():
                 self._safe_print(f"  {obs_type}:")
                 for limit in limits:
-                    self._safe_print(f"    ⚠️  {limit}")
+                    self._safe_print(f"    âš ï¸  {limit}")
 
         self._safe_print("\nObservation includes:")
-        self._safe_print("  ✅ Pure facts only (no inferences)")
-        self._safe_print("  ✅ Immutable once recorded")
-        self._safe_print("  ✅ Truth-preserving guarantee")
+        self._safe_print("  âœ… Pure facts only (no inferences)")
+        self._safe_print("  âœ… Immutable once recorded")
+        self._safe_print("  âœ… Truth-preserving guarantee")
 
         if result.truth_preservation_guarantee:
-            self._safe_print("\n✓ Truth preservation guaranteed")
+            self._safe_print("\nâœ“ Truth preservation guaranteed")
         self._safe_print("=" * 80)
 
     def _show_query_result(self, result: Any) -> None:
@@ -2582,12 +2914,12 @@ Commands: list, scan, add
         if result.uncertainties:
             self._safe_print("\nUNCERTAINTIES:")
             for uncertainty in result.uncertainties:
-                self._safe_print(f"  ⚠️  {uncertainty}")
+                self._safe_print(f"  âš ï¸  {uncertainty}")
 
         if result.anchors:
             self._safe_print("\nANCHORS (linked to observations):")
             for anchor in result.anchors[:5]:  # Limit display
-                self._safe_print(f"  • {anchor}")
+                self._safe_print(f"  â€¢ {anchor}")
             if len(result.anchors) > 5:
                 self._safe_print(f"  ... and {len(result.anchors) - 5} more")
 
@@ -2595,7 +2927,7 @@ Commands: list, scan, add
         if patterns:
             self._safe_print("\nPatterns detected:")
             for pattern in patterns:
-                self._safe_print(f"  • {pattern}")
+                self._safe_print(f"  â€¢ {pattern}")
 
         self._safe_print("=" * 80)
 
@@ -2623,11 +2955,11 @@ Commands: list, scan, add
     def _refuse(self, message: str) -> None:
         """Show refusal message clearly."""
         try:
-            print(f"❌ REFUSED: {message}", file=sys.stderr)
+            print(f"âŒ REFUSED: {message}", file=sys.stderr)
         except UnicodeEncodeError:
             encoding = sys.stderr.encoding or "utf-8"
             print(
-                f"❌ REFUSED: {message}".encode(encoding, errors="replace").decode(
+                f"âŒ REFUSED: {message}".encode(encoding, errors="replace").decode(
                     encoding
                 ),
                 file=sys.stderr,
@@ -2636,11 +2968,11 @@ Commands: list, scan, add
     def _warn(self, message: str) -> None:
         """Show warning message clearly."""
         try:
-            print(f"⚠️  WARNING: {message}", file=sys.stderr)
+            print(f"âš ï¸  WARNING: {message}", file=sys.stderr)
         except UnicodeEncodeError:
             encoding = sys.stderr.encoding or "utf-8"
             print(
-                f"⚠️  WARNING: {message}".encode(encoding, errors="replace").decode(
+                f"âš ï¸  WARNING: {message}".encode(encoding, errors="replace").decode(
                     encoding
                 ),
                 file=sys.stderr,
@@ -2673,3 +3005,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+

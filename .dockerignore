@@ -57,6 +57,7 @@ htmlcov
 docs/_build
 *.md
 !README.md
+!README.truth.md
 
 # Docker files (don't need in context)
 Dockerfile

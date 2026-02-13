@@ -30,6 +30,9 @@ def create_snapshot(
         "export_sight": ObservationCategory.CONTENT,
         "boundary_sight": ObservationCategory.BOUNDARY,
         "encoding_sight": ObservationCategory.ENCODING,
+        "javascript_sight": ObservationCategory.CONTENT,
+        "java_sight": ObservationCategory.CONTENT,
+        "go_sight": ObservationCategory.CONTENT,
     }
 
     groups: list[ObservationGroup] = []

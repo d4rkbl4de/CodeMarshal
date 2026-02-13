@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .atomic import AtomicWriteError
+from .atomic import AtomicWriteError, normalize_json_data
 from .atomic import atomic_write_json_compatible as atomic_write
 from .corruption import (
     CorruptionEvidence,
@@ -69,6 +69,40 @@ class TransactionLog:
                 for t in self.transactions
                 if not t.target_path.exists() or (t.temp_path and t.temp_path.exists())
             ]
+
+
+@dataclass(frozen=True)
+class TransactionJournalEntry:
+    """Immutable record of a multi-file transaction."""
+
+    transaction_id: str
+    paths: list[str]
+    status: str
+    created_at: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+class TransactionJournal:
+    """Append-only transaction journal for multi-file operations."""
+
+    def __init__(self, base_path: Path):
+        self.journal_dir = base_path / "transactions"
+        self.journal_dir.mkdir(parents=True, exist_ok=True)
+
+    def record(
+        self, paths: list[Path], metadata: dict[str, Any] | None = None
+    ) -> str:
+        transaction_id = f"tx_{int(time.time() * 1000)}"
+        entry = TransactionJournalEntry(
+            transaction_id=transaction_id,
+            paths=[str(path) for path in paths],
+            status="committed",
+            created_at=datetime.now(UTC).isoformat(),
+            metadata=metadata or {},
+        )
+        target_path = self.journal_dir / f"{transaction_id}.json"
+        atomic_write(target_path, entry.__dict__)
+        return transaction_id
 
 
 class TransactionalStorageError(Exception):
@@ -223,6 +257,7 @@ class TransactionalWriter:
         self.enable_backups = enable_backups
         self.lock_manager = LockManager(self.base_path / ".locks")
         self.transaction_log = TransactionLog()
+        self.transaction_journal = TransactionJournal(self.base_path)
 
         # Ensure directories exist
         self.base_path.mkdir(parents=True, exist_ok=True)
@@ -261,15 +296,23 @@ class TransactionalWriter:
         observation_data["written_at"] = datetime.now(UTC).isoformat()
         observation_data["transaction_id"] = f"tx_{int(time.time() * 1000)}"
 
+        # Normalize before checksumming to ensure stable serialization
+        normalized_data = normalize_json_data(observation_data)
+
         # Calculate checksum
-        checksum = self._calculate_checksum(observation_data)
-        observation_data["checksum"] = checksum
+        checksum = self._calculate_checksum(normalized_data)
+        if isinstance(normalized_data, dict):
+            normalized_data["checksum"] = checksum
+        else:
+            raise TransactionalStorageError(
+                "Observation data must serialize to a JSON object."
+            )
 
         # Create transaction
         transaction = WriteTransaction(
-            transaction_id=observation_data["transaction_id"],
+            transaction_id=normalized_data["transaction_id"],
             target_path=target_path,
-            data=observation_data,
+            data=normalized_data,
             timestamp=datetime.now(UTC),
             checksum=checksum,
         )
@@ -280,7 +323,7 @@ class TransactionalWriter:
                 raise ConcurrentWriteError(f"Cannot acquire lock for {target_path}")
 
             # Check disk space
-            data_size = len(json.dumps(observation_data).encode())
+            data_size = len(json.dumps(normalized_data, ensure_ascii=False).encode())
             if not DiskSpaceChecker.check_space(target_path, data_size):
                 raise InsufficientSpaceError(
                     f"Insufficient disk space for {target_path} "
@@ -300,7 +343,7 @@ class TransactionalWriter:
                 )
 
             # Write atomically
-            self._write_atomically(target_path, observation_data)
+            self._write_atomically(target_path, normalized_data)
 
             # Verify write
             self._verify_write(target_path, checksum)
@@ -317,6 +360,12 @@ class TransactionalWriter:
         finally:
             # Always release lock
             self.lock_manager.release_lock(target_path)
+
+    def record_transaction(
+        self, paths: list[Path], metadata: dict[str, Any] | None = None
+    ) -> str:
+        """Record a multi-file transaction entry."""
+        return self.transaction_journal.record(paths, metadata)
 
     def _write_atomically(
         self, target_path: Path, data: dict[str, Any], backup_path: Path | None = None
@@ -388,7 +437,8 @@ class TransactionalWriter:
         # Exclude the checksum field itself to avoid self-referential mismatch.
         normalized = dict(data)
         normalized.pop("checksum", None)
-        json_str = json.dumps(normalized, sort_keys=True, default=str)
+        normalized = normalize_json_data(normalized)
+        json_str = json.dumps(normalized, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(json_str.encode("utf-8")).hexdigest()
 
     def verify_all_observations(self) -> list[CorruptionEvidence]:
@@ -537,6 +587,11 @@ class TransactionalWriter:
             "pending_transactions": len(
                 self.transaction_log.get_pending_transactions()
             ),
+            "transaction_journal_entries": len(
+                list(self.transaction_journal.journal_dir.glob("tx_*.json"))
+            )
+            if self.transaction_journal.journal_dir.exists()
+            else 0,
         }
 
     def _generate_observation_id(
@@ -572,4 +627,6 @@ __all__ = [
     "RecoveryError",
     "DiskSpaceChecker",
     "LockManager",
+    "TransactionJournalEntry",
+    "TransactionJournal",
 ]

@@ -198,7 +198,9 @@ def migrate_schema(
 
     This is a placeholder that will be implemented in migration.py.
     """
-    raise NotImplementedError("migrate_schema will be implemented in storage.migration")
+    from .migration import migrate_schema_bytes
+
+    return migrate_schema_bytes(old_data, from_version, to_version)
 
 
 # Add error classes to exports

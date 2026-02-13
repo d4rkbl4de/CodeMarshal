@@ -1,0 +1,135 @@
+# Architecture Patterns
+# Built-in patterns for detecting architectural risks
+
+patterns:
+  - id: cross_layer_import
+    name: "Cross-Layer Import Violation"
+    pattern: >-
+      from\s+(inquiry|lens)\s+import.*core
+    severity: critical
+    description: "Layered boundaries are crossed via imports."
+    suggestion: "Introduce an interface or adapter layer."
+    tags:
+      - architecture
+      - boundaries
+
+  - id: god_class
+    name: "God Class (>30 methods)"
+    pattern: >-
+      class\s+\w+.*:\s*(?:.*def\s+\w+.*\n){30,}
+    severity: warning
+    description: "Classes with many methods can become hard to maintain."
+    suggestion: "Split responsibilities into smaller classes."
+    tags:
+      - architecture
+      - complexity
+
+  - id: deep_module_import
+    name: "Deep Module Import"
+    pattern: >-
+      from\s+\w+(?:\.\w+){3,}\s+import
+    severity: info
+    description: "Deep imports can indicate tight coupling."
+    suggestion: "Expose a higher-level interface if possible."
+    tags:
+      - architecture
+      - coupling
+
+  - id: excessive_imports
+    name: "Excessive Imports (>20)"
+    pattern: >-
+      (?:^(?:import|from)\s+.*\n){20,}
+    severity: warning
+    description: "Many imports can signal high coupling."
+    suggestion: "Reduce dependencies or split modules."
+    tags:
+      - architecture
+      - coupling
+
+  - id: monolithic_module
+    name: "Monolithic Module (>50 functions)"
+    pattern: >-
+      (?:^def\s+\w+.*\n){50,}
+    severity: warning
+    description: "Modules with many functions can be hard to navigate."
+    suggestion: "Split into smaller modules."
+    tags:
+      - architecture
+      - complexity
+
+  - id: many_classes
+    name: "Many Classes (>10)"
+    pattern: >-
+      (?:^class\s+\w+.*\n){10,}
+    severity: warning
+    description: "Many classes in a single file can indicate low cohesion."
+    suggestion: "Split classes into separate modules."
+    tags:
+      - architecture
+      - cohesion
+
+  - id: relative_import_up
+    name: "Relative Import Upward"
+    pattern: >-
+      from\s+\.\.+\s+import
+    severity: info
+    description: "Relative imports that traverse upward can blur boundaries."
+    suggestion: "Prefer absolute imports when possible."
+    tags:
+      - architecture
+      - imports
+
+  - id: package_private_import
+    name: "Package Private Import"
+    pattern: >-
+      from\s+\w+\._\w+\s+import
+    severity: warning
+    description: "Importing private modules can increase coupling."
+    suggestion: "Use public interfaces instead."
+    tags:
+      - architecture
+      - boundaries
+
+  - id: direct_sql_usage
+    name: "Direct SQL Usage"
+    pattern: >-
+      (?i)\bSELECT\b.+\bFROM\b
+    severity: warning
+    description: "Inline SQL can couple layers tightly."
+    suggestion: "Use a data access layer where appropriate."
+    tags:
+      - architecture
+      - data
+
+  - id: service_locator
+    name: "Service Locator Usage"
+    pattern: >-
+      \b(get_service|resolve_service|container\.resolve)\s*\(
+    severity: info
+    description: "Service locators can hide dependencies."
+    suggestion: "Prefer explicit dependency injection."
+    tags:
+      - architecture
+      - dependencies
+
+  - id: global_mutable_state
+    name: "Global Mutable State"
+    pattern: >-
+      ^[A-Z][A-Z0-9_]*\s*=\s*(\[\s*\]|\{\s*\})
+    severity: warning
+    description: "Global mutable state can complicate reasoning about behavior."
+    suggestion: "Encapsulate state or use immutable structures."
+    tags:
+      - architecture
+      - state
+
+  - id: script_entrypoint
+    name: "Script Entry Point"
+    pattern: >-
+      if\s+__name__\s*==\s*["']__main__["']
+    severity: info
+    description: "Script entrypoints in modules can blur library boundaries."
+    suggestion: "Separate CLI entrypoints from library code."
+    tags:
+      - architecture
+      - boundaries

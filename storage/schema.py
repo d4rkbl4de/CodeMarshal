@@ -19,7 +19,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum, IntEnum, StrEnum
+from enum import Enum, StrEnum
 from typing import (
     Any,
     Literal,
@@ -27,15 +27,45 @@ from typing import (
 )
 
 
-class SchemaVersion(IntEnum):
+class SchemaVersion(StrEnum):
     """Version identifiers for stored schemas.
 
     Increment only when making backward-incompatible changes.
     Each version must have explicit migration in storage/migration.py.
     """
 
-    V1 = 1
-    # V2 = 2  # Reserved for future expansion
+    V1 = "v1.0.0"
+    V2 = "v2.0.0"
+    V2_1 = "v2.1.0"
+
+
+def normalize_schema_version(raw_value: Any) -> SchemaVersion:
+    """Normalize schema version to SchemaVersion enum."""
+    if isinstance(raw_value, SchemaVersion):
+        return raw_value
+
+    if isinstance(raw_value, int):
+        if raw_value == 1:
+            return SchemaVersion.V1
+        if raw_value == 2:
+            return SchemaVersion.V2
+        if raw_value == 210:
+            return SchemaVersion.V2_1
+
+    if isinstance(raw_value, str):
+        normalized = raw_value.strip().lower()
+        if normalized.startswith("v"):
+            normalized = normalized[1:]
+        normalized = normalized.replace("_", ".")
+
+        if normalized in {"1", "1.0", "1.0.0"}:
+            return SchemaVersion.V1
+        if normalized in {"2", "2.0", "2.0.0"}:
+            return SchemaVersion.V2
+        if normalized in {"2.1", "2.1.0"}:
+            return SchemaVersion.V2_1
+
+    raise ValueError(f"Invalid schema_version: {raw_value}")
 
 
 class EvidenceType(StrEnum):
@@ -172,7 +202,7 @@ class FileObservation:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -207,7 +237,7 @@ class DirectoryObservation:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -267,7 +297,7 @@ class ImportObservation:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -331,7 +361,7 @@ class ExportObservation:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -384,7 +414,7 @@ class BoundaryObservation:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -439,7 +469,7 @@ class EncodingObservation:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -474,7 +504,7 @@ class Anchor:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -510,7 +540,7 @@ class Snapshot:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -551,7 +581,7 @@ class NotebookEntry:
 
     @classmethod
     def schema_version(cls) -> SchemaVersion:
-        return SchemaVersion.V1
+        return SchemaVersion.V2_1
 
     def to_serializable(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -618,7 +648,7 @@ def validate_evidence_structure(raw_data: dict[str, Any]) -> tuple[bool, str | N
 
     # Validate schema_version
     try:
-        SchemaVersion(raw_data["schema_version"])
+        normalize_schema_version(raw_data["schema_version"])
     except ValueError:
         return False, f"Invalid schema_version: {raw_data['schema_version']}"
 
@@ -756,6 +786,7 @@ def deserialize_evidence(raw_bytes: bytes) -> tuple[StoredEvidence | None, str |
 __all__ = [
     # Enums
     "SchemaVersion",
+    "normalize_schema_version",
     "EvidenceType",
     "IntegrityStatus",
     "HashAlgorithm",
