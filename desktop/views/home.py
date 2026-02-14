@@ -16,9 +16,12 @@ class HomeView(QtWidgets.QWidget):
     path_selected = QtCore.Signal(str)
     open_investigation_requested = QtCore.Signal(str)
     refresh_requested = QtCore.Signal()
+    resume_last_requested = QtCore.Signal()
+    quick_action_requested = QtCore.Signal(str)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
+        self._action_controls: list[QtWidgets.QWidget] = []
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -40,6 +43,7 @@ class HomeView(QtWidgets.QWidget):
         browse_btn.clicked.connect(self._on_browse)
         use_btn = QtWidgets.QPushButton("Use Path")
         use_btn.clicked.connect(self._emit_path)
+        self._action_controls.extend([browse_btn, use_btn])
         path_layout.addWidget(self.path_input, stretch=1)
         path_layout.addWidget(browse_btn)
         path_layout.addWidget(use_btn)
@@ -54,9 +58,41 @@ class HomeView(QtWidgets.QWidget):
         ]:
             btn = QtWidgets.QPushButton(label)
             btn.clicked.connect(lambda _checked=False, name=target: self.navigate_requested.emit(name))
+            self._action_controls.append(btn)
             actions.addWidget(btn)
         actions.addStretch(1)
         layout.addLayout(actions)
+
+        quick_group = QtWidgets.QGroupBox("Quick Start")
+        quick_layout = QtWidgets.QHBoxLayout(quick_group)
+        quick_defs = [
+            ("Observe Current Path", "quick_observe"),
+            ("Investigate Current Path", "quick_investigate"),
+            ("Pattern Scan Current Path", "quick_patterns"),
+        ]
+        for label, action in quick_defs:
+            button = QtWidgets.QPushButton(label)
+            button.clicked.connect(
+                lambda _checked=False, value=action: self.quick_action_requested.emit(value)
+            )
+            self._action_controls.append(button)
+            quick_layout.addWidget(button)
+        quick_layout.addStretch(1)
+        layout.addWidget(quick_group)
+
+        paths_group = QtWidgets.QGroupBox("Recent Paths")
+        paths_layout = QtWidgets.QVBoxLayout(paths_group)
+        self.recent_paths = QtWidgets.QListWidget()
+        self.recent_paths.itemDoubleClicked.connect(self._open_selected_path)
+        paths_layout.addWidget(self.recent_paths)
+        path_buttons = QtWidgets.QHBoxLayout()
+        open_path_btn = QtWidgets.QPushButton("Use Selected Path")
+        open_path_btn.clicked.connect(self._open_selected_path)
+        self._action_controls.append(open_path_btn)
+        path_buttons.addWidget(open_path_btn)
+        path_buttons.addStretch(1)
+        paths_layout.addLayout(path_buttons)
+        layout.addWidget(paths_group)
 
         recent_group = QtWidgets.QGroupBox("Recent Investigations")
         recent_layout = QtWidgets.QVBoxLayout(recent_group)
@@ -70,9 +106,15 @@ class HomeView(QtWidgets.QWidget):
         controls = QtWidgets.QHBoxLayout()
         open_btn = QtWidgets.QPushButton("Open Selected")
         open_btn.clicked.connect(self._open_selected_session)
+        self._action_controls.append(open_btn)
         refresh_btn = QtWidgets.QPushButton("Refresh")
         refresh_btn.clicked.connect(self.refresh_requested.emit)
+        self._action_controls.append(refresh_btn)
+        resume_btn = QtWidgets.QPushButton("Resume Last Session")
+        resume_btn.clicked.connect(self.resume_last_requested.emit)
+        self._action_controls.append(resume_btn)
         controls.addWidget(open_btn)
+        controls.addWidget(resume_btn)
         controls.addWidget(refresh_btn)
         controls.addStretch(1)
         recent_layout.addLayout(controls)
@@ -98,6 +140,15 @@ class HomeView(QtWidgets.QWidget):
         if path:
             self.path_selected.emit(path)
 
+    def _open_selected_path(self) -> None:
+        item = self.recent_paths.currentItem()
+        if item is None:
+            return
+        path = item.text().strip()
+        if path:
+            self.path_input.setText(path)
+            self.path_selected.emit(path)
+
     def _open_selected_session(self) -> None:
         session_id = self.selected_session_id()
         if session_id:
@@ -112,6 +163,15 @@ class HomeView(QtWidgets.QWidget):
 
     def set_current_path(self, path: str | Path) -> None:
         self.path_input.setText(str(path))
+
+    def set_recent_paths(self, paths: list[str]) -> None:
+        self.recent_paths.clear()
+        for value in paths:
+            text = str(value)
+            item = QtWidgets.QListWidgetItem(text)
+            if not Path(text).exists():
+                item.setForeground(QtCore.Qt.darkYellow)
+            self.recent_paths.addItem(item)
 
     def set_recent_investigations(self, sessions: list[dict[str, Any]]) -> None:
         self.recent_table.clear()
@@ -142,3 +202,9 @@ class HomeView(QtWidgets.QWidget):
         except ValueError:
             return str(value)
 
+    def set_busy(self, is_busy: bool) -> None:
+        for widget in self._action_controls:
+            widget.setEnabled(not is_busy)
+
+    def trigger_primary_action(self) -> None:
+        self.quick_action_requested.emit("quick_investigate")

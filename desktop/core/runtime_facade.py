@@ -204,6 +204,69 @@ class RuntimeFacade:
     def load_session_metadata(self, session_id: str) -> dict[str, Any] | None:
         return self._storage.load_session_metadata(session_id)
 
+    def list_recent_paths(self, limit: int = 10) -> list[str]:
+        """Return unique recent investigation paths in recency order."""
+        sessions = self.list_recent_investigations(limit=max(limit * 2, limit))
+        seen: set[str] = set()
+        paths: list[str] = []
+        for session in sessions:
+            path = str(session.get("path") or "").strip()
+            if not path or path in seen:
+                continue
+            seen.add(path)
+            paths.append(path)
+            if len(paths) >= max(limit, 0):
+                break
+        return paths
+
+    def get_or_create_active_session(
+        self,
+        path: Path | str,
+        intent: str = "initial_scan",
+        scope: str = "project",
+    ) -> str:
+        """Return active session for path or create lightweight session metadata."""
+        target_path = Path(path).resolve()
+        self._ensure_runtime(target_path)
+
+        for session in self.list_recent_investigations(limit=25):
+            session_id = str(session.get("session_id") or session.get("id") or "")
+            session_path = str(session.get("path") or "")
+            if session_id and session_path == str(target_path):
+                self._current_investigation_id = session_id
+                return session_id
+
+        new_session_id = str(uuid.uuid4())
+        saved_id = self._upsert_session_metadata(
+            {
+                "id": new_session_id,
+                "name": target_path.name,
+                "path": str(target_path),
+                "scope": scope,
+                "intent": intent,
+                "state": "active",
+            }
+        )
+        self._current_investigation_id = saved_id
+        return saved_id
+
+    def resolve_default_export_path(self, session_id: str, format_name: str) -> str:
+        """Build default export path for session and format."""
+        extension_map = {
+            "json": "json",
+            "markdown": "md",
+            "html": "html",
+            "plain": "txt",
+            "plaintext": "txt",
+            "csv": "csv",
+            "jupyter": "ipynb",
+            "pdf": "pdf",
+            "svg": "svg",
+        }
+        ext = extension_map.get(format_name.strip().lower(), "txt")
+        safe_session = session_id.strip() or "session"
+        return str((Path("exports") / f"{safe_session}.{ext}").resolve())
+
     def _upsert_session_metadata(self, metadata: dict[str, Any]) -> str:
         metadata = dict(metadata)
         metadata.setdefault("id", metadata.get("session_id"))
@@ -820,6 +883,7 @@ class RuntimeFacade:
         format_name: str,
         include_notes: bool,
         include_patterns: bool,
+        preview_limit: int | None = 4000,
         progress_callback: Any = None,
         cancel_event: threading.Event | None = None,
     ) -> dict[str, Any]:
@@ -851,12 +915,17 @@ class RuntimeFacade:
             include_patterns,
         )
 
+        preview_truncated = False
         if isinstance(content, bytes):
             preview = f"Binary export generated ({len(content)} bytes)."
         else:
-            preview = content[:4000]
-            if len(content) > 4000:
+            if preview_limit is None:
+                preview = content
+            else:
+                preview = content[: max(int(preview_limit), 0)]
+            if preview_limit is not None and len(content) > max(int(preview_limit), 0):
                 preview += "\n\n[Preview truncated]"
+                preview_truncated = True
 
         self._emit_progress(progress_callback, 3, 3, "Preview ready")
         return {
@@ -864,6 +933,7 @@ class RuntimeFacade:
             "format": format_name,
             "preview": preview,
             "observations_count": len(observations),
+            "preview_truncated": preview_truncated,
         }
 
     def run_export(

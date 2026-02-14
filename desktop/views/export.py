@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from desktop.widgets import ErrorDialog, ResultsViewer
 
@@ -24,6 +24,7 @@ class ExportView(QtWidgets.QWidget):
         super().__init__(parent)
         self._bridge = None
         self._current_session_id: str | None = None
+        self._last_preview_request: dict[str, Any] | None = None
         self._build_ui()
         if command_bridge is not None:
             self.set_command_bridge(command_bridge)
@@ -48,6 +49,7 @@ class ExportView(QtWidgets.QWidget):
         self.session_combo = QtWidgets.QComboBox()
         self.session_combo.setEditable(True)
         self.session_combo.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        self.session_combo.currentTextChanged.connect(self._suggest_output_path)
         config_form.addRow("Session:", self.session_combo)
 
         self.format_combo = QtWidgets.QComboBox()
@@ -81,13 +83,25 @@ class ExportView(QtWidgets.QWidget):
         actions = QtWidgets.QHBoxLayout()
         self.preview_btn = QtWidgets.QPushButton("Preview")
         self.preview_btn.clicked.connect(self._on_preview)
+        self.full_preview_btn = QtWidgets.QPushButton("Load Full Preview")
+        self.full_preview_btn.setEnabled(False)
+        self.full_preview_btn.clicked.connect(self._on_load_full_preview)
         self.export_btn = QtWidgets.QPushButton("Export")
         self.export_btn.clicked.connect(self._on_export)
         self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._on_cancel)
+        self.open_folder_btn = QtWidgets.QPushButton("Open Folder")
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_export_folder)
+        self.copy_path_btn = QtWidgets.QPushButton("Copy Path")
+        self.copy_path_btn.setEnabled(False)
+        self.copy_path_btn.clicked.connect(self._copy_output_path)
         actions.addWidget(self.preview_btn)
+        actions.addWidget(self.full_preview_btn)
         actions.addWidget(self.export_btn)
+        actions.addWidget(self.open_folder_btn)
+        actions.addWidget(self.copy_path_btn)
         actions.addWidget(self.cancel_btn)
         actions.addStretch(1)
         layout.addLayout(actions)
@@ -166,11 +180,33 @@ class ExportView(QtWidgets.QWidget):
             return
 
         try:
+            self._last_preview_request = {
+                "session_id": session_id,
+                "format_name": self.format_combo.currentText().strip().lower(),
+                "include_notes": self.include_notes.isChecked(),
+                "include_patterns": self.include_patterns.isChecked(),
+            }
             self._bridge.preview_export(
                 session_id=session_id,
                 format_name=self.format_combo.currentText().strip().lower(),
                 include_notes=self.include_notes.isChecked(),
                 include_patterns=self.include_patterns.isChecked(),
+                preview_limit=4000,
+            )
+        except RuntimeError as exc:
+            ErrorDialog.show_error(
+                self,
+                "Preview Already Running",
+                str(exc),
+            )
+
+    def _on_load_full_preview(self) -> None:
+        if self._bridge is None or not self._last_preview_request:
+            return
+        try:
+            self._bridge.preview_export(
+                **self._last_preview_request,
+                preview_limit=None,
             )
         except RuntimeError as exc:
             ErrorDialog.show_error(
@@ -193,6 +229,17 @@ class ExportView(QtWidgets.QWidget):
         if not output_path:
             ErrorDialog.show_error(self, "Missing Output", "Choose an output path.")
             return
+        output_file = Path(output_path).resolve()
+        if output_file.exists():
+            answer = QtWidgets.QMessageBox.question(
+                self,
+                "Overwrite Existing File",
+                f"Output file already exists:\n{output_file}\n\nOverwrite?",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No,
+            )
+            if answer != QtWidgets.QMessageBox.Yes:
+                return
 
         try:
             self._bridge.export(
@@ -219,6 +266,9 @@ class ExportView(QtWidgets.QWidget):
         if operation not in {"export_preview", "export"}:
             return
         self.cancel_btn.setEnabled(True)
+        self.open_folder_btn.setEnabled(False)
+        self.copy_path_btn.setEnabled(False)
+        self.full_preview_btn.setEnabled(False)
         if operation == "export":
             self.export_btn.setEnabled(False)
         if operation == "export_preview":
@@ -255,16 +305,22 @@ class ExportView(QtWidgets.QWidget):
                 "session_id": data.get("session_id"),
                 "format": data.get("format"),
                 "observations_count": data.get("observations_count"),
+                "preview_truncated": bool(data.get("preview_truncated")),
             }
-            self.preview_viewer.set_text(
-                json.dumps(summary, indent=2, default=str)
-                + "\n\n"
-                + preview_text
+            self.full_preview_btn.setEnabled(bool(data.get("preview_truncated")))
+            self.preview_viewer.set_sections(
+                json.dumps(summary, indent=2, default=str),
+                preview_text,
             )
             return
 
         self.progress_label.setText("Export completed")
-        self.preview_viewer.set_text(json.dumps(data, indent=2, default=str))
+        self.preview_viewer.set_sections(
+            f"Exported to: {data.get('path', 'unknown')}",
+            json.dumps(data, indent=2, default=str),
+        )
+        self.open_folder_btn.setEnabled(True)
+        self.copy_path_btn.setEnabled(True)
 
     def _on_operation_error(
         self,
@@ -278,6 +334,7 @@ class ExportView(QtWidgets.QWidget):
         self.cancel_btn.setEnabled(False)
         self.export_btn.setEnabled(True)
         self.preview_btn.setEnabled(True)
+        self.full_preview_btn.setEnabled(False)
         self.progress_label.setText(f"Failed: {error_type} - {message}")
 
     def _on_operation_cancelled(self, operation: str) -> None:
@@ -286,19 +343,29 @@ class ExportView(QtWidgets.QWidget):
         self.cancel_btn.setEnabled(False)
         self.export_btn.setEnabled(True)
         self.preview_btn.setEnabled(True)
+        self.full_preview_btn.setEnabled(False)
         self.progress_bar.setValue(0)
         self.progress_label.setText(f"{operation} cancelled")
 
-    def _suggest_output_path(self) -> None:
-        current = self.output_input.text().strip()
-        if current:
-            return
+    def _suggest_output_path(self, _value: str | None = None) -> None:
         session_id = self.session_combo.currentText().strip() or self._current_session_id
         if not session_id:
             return
         format_name = self.format_combo.currentText().strip().lower()
-        extension = self._extension_for_format(format_name)
-        suggested = Path("exports") / f"{session_id}.{extension}"
+        if self._bridge is not None and hasattr(self._bridge, "facade"):
+            try:
+                suggested = self._bridge.facade.resolve_default_export_path(
+                    session_id, format_name
+                )
+            except Exception:
+                suggested = str(
+                    Path("exports")
+                    / f"{session_id}.{self._extension_for_format(format_name)}"
+                )
+        else:
+            suggested = str(
+                Path("exports") / f"{session_id}.{self._extension_for_format(format_name)}"
+            )
         self.output_input.setText(str(suggested))
 
     def _extension_for_format(self, format_name: str) -> str:
@@ -314,3 +381,29 @@ class ExportView(QtWidgets.QWidget):
         }
         return mapping.get(format_name, "txt")
 
+    def _open_export_folder(self) -> None:
+        path_value = self.output_input.text().strip()
+        if not path_value:
+            return
+        output = Path(path_value).resolve()
+        target = output.parent if output.suffix else output
+        url = QtCore.QUrl.fromLocalFile(str(target))
+        QtGui.QDesktopServices.openUrl(url)
+
+    def _copy_output_path(self) -> None:
+        path_value = self.output_input.text().strip()
+        if not path_value:
+            return
+        QtWidgets.QApplication.clipboard().setText(str(Path(path_value).resolve()))
+
+    def set_busy(self, is_busy: bool) -> None:
+        if is_busy:
+            self.preview_btn.setEnabled(False)
+            self.export_btn.setEnabled(False)
+        else:
+            self.preview_btn.setEnabled(True)
+            self.export_btn.setEnabled(True)
+
+    def trigger_primary_action(self) -> None:
+        if self.export_btn.isEnabled():
+            self._on_export()

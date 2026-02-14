@@ -200,6 +200,7 @@ class GUICommandBridge(QtCore.QObject):
         format_name: str,
         include_notes: bool,
         include_patterns: bool,
+        preview_limit: int | None = 4000,
     ) -> None:
         self._start_worker(
             "export_preview",
@@ -208,6 +209,7 @@ class GUICommandBridge(QtCore.QObject):
             format_name=format_name,
             include_notes=include_notes,
             include_patterns=include_patterns,
+            preview_limit=preview_limit,
         )
 
     def export(
@@ -229,4 +231,3 @@ class GUICommandBridge(QtCore.QObject):
             include_patterns=include_patterns,
             include_evidence=include_evidence,
         )
-

@@ -94,7 +94,6 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
-        continue-on-error: true
         
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -104,4 +103,62 @@ jobs:
           path: |
             htmlcov/
             coverage.xml
+          retention-days: 30
+
+  gui-smoke:
+    name: GUI Smoke (Headless Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install GUI test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[gui,dev]
+
+      - name: Run headless GUI smoke tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py -v
+
+  windows-package:
+    name: Windows GUI Package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install GUI dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[gui,dev]
+
+      - name: Run GUI smoke tests
+        run: |
+          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py -v
+
+      - name: Build Windows executable
+        shell: powershell
+        run: |
+          .\desktop\packaging\build_windows.ps1 -PythonExe python
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codemarshal-windows-exe
+          path: dist/CodeMarshal.exe
           retention-days: 30

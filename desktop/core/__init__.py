@@ -3,11 +3,13 @@
 from .exceptions import OperationCancelledError
 from .runtime_facade import RuntimeFacade
 from .session_manager import SessionManager
+from .view_state import ViewStateBinder
 
 __all__ = [
     "RuntimeFacade",
     "SessionManager",
     "OperationCancelledError",
+    "ViewStateBinder",
 ]
 
 try:  # Optional while PySide6 is not installed.
@@ -19,4 +21,3 @@ except Exception:  # pragma: no cover - depends on optional GUI dependency
     WorkerSignals = None
 else:
     __all__.extend(["GUICommandBridge", "BridgeWorker", "WorkerSignals"])
-

@@ -24,6 +24,7 @@ class PatternsView(QtWidgets.QWidget):
         super().__init__(parent)
         self._bridge = None
         self._current_session_id: str | None = None
+        self._last_scan_result: dict[str, Any] | None = None
         self._build_ui()
         if command_bridge is not None:
             self.set_command_bridge(command_bridge)
@@ -50,15 +51,33 @@ class PatternsView(QtWidgets.QWidget):
         self.category_combo.addItems(
             ["all", "security", "performance", "style", "architecture"]
         )
+        self.severity_filter = QtWidgets.QComboBox()
+        self.severity_filter.addItems(["all", "critical", "warning", "info"])
+        self.severity_filter.currentTextChanged.connect(self._apply_table_filters)
         self.show_disabled = QtWidgets.QCheckBox("Show disabled")
         load_btn = QtWidgets.QPushButton("Load Library")
         load_btn.clicked.connect(self._on_load_library)
         controls.addWidget(QtWidgets.QLabel("Category:"))
         controls.addWidget(self.category_combo)
+        controls.addWidget(QtWidgets.QLabel("Severity:"))
+        controls.addWidget(self.severity_filter)
         controls.addWidget(self.show_disabled)
         controls.addWidget(load_btn)
         controls.addStretch(1)
         library_layout.addLayout(controls)
+
+        selection_row = QtWidgets.QHBoxLayout()
+        select_all_btn = QtWidgets.QPushButton("Select All")
+        select_all_btn.clicked.connect(self._select_all_patterns)
+        select_none_btn = QtWidgets.QPushButton("Select None")
+        select_none_btn.clicked.connect(self._select_no_patterns)
+        invert_btn = QtWidgets.QPushButton("Invert Selection")
+        invert_btn.clicked.connect(self._invert_pattern_selection)
+        selection_row.addWidget(select_all_btn)
+        selection_row.addWidget(select_none_btn)
+        selection_row.addWidget(invert_btn)
+        selection_row.addStretch(1)
+        library_layout.addLayout(selection_row)
 
         self.pattern_table = QtWidgets.QTableWidget(0, 6)
         self.pattern_table.setHorizontalHeaderLabels(
@@ -95,6 +114,13 @@ class PatternsView(QtWidgets.QWidget):
         self.max_files_spin.setRange(1, 200000)
         self.max_files_spin.setValue(10000)
         scan_form.addRow("Max Files:", self.max_files_spin)
+
+        self.changed_files_only = QtWidgets.QCheckBox("Scan changed files only")
+        self.changed_files_only.setEnabled(False)
+        self.changed_files_only.setToolTip(
+            "Will be enabled when VCS file-diff integration is available."
+        )
+        scan_form.addRow("", self.changed_files_only)
         layout.addWidget(scan_group)
 
         actions = QtWidgets.QHBoxLayout()
@@ -116,6 +142,10 @@ class PatternsView(QtWidgets.QWidget):
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
         layout.addLayout(progress_row)
+
+        self.summary_label = QtWidgets.QLabel("No scan results yet.")
+        self.summary_label.setObjectName("subtitle")
+        layout.addWidget(self.summary_label)
 
         results_group = QtWidgets.QGroupBox("Scan Results")
         results_layout = QtWidgets.QVBoxLayout(results_group)
@@ -259,10 +289,14 @@ class PatternsView(QtWidgets.QWidget):
         if operation == "pattern_list":
             self.progress_label.setText("Pattern library loaded")
             self._populate_pattern_table(data.get("patterns", []))
-            self.results.set_text(json.dumps(data, indent=2, default=str))
+            self.results.set_sections(
+                f"Loaded {len(data.get('patterns', []))} patterns.",
+                json.dumps(data, indent=2, default=str),
+            )
             return
 
         self.progress_label.setText("Pattern scan completed")
+        self._last_scan_result = data
         summary = {
             "patterns_scanned": data.get("patterns_scanned"),
             "files_scanned": data.get("files_scanned"),
@@ -271,7 +305,22 @@ class PatternsView(QtWidgets.QWidget):
             "errors": data.get("errors", []),
             "matches_preview": data.get("matches", [])[:100],
         }
-        self.results.set_text(json.dumps(summary, indent=2, default=str))
+        self.summary_label.setText(
+            f"Matches: {int(data.get('matches_found') or 0)} | "
+            f"Files: {int(data.get('files_scanned') or 0)}"
+        )
+        self.results.set_sections(
+            json.dumps(
+                {
+                    "patterns_scanned": summary["patterns_scanned"],
+                    "files_scanned": summary["files_scanned"],
+                    "matches_found": summary["matches_found"],
+                },
+                indent=2,
+                default=str,
+            ),
+            json.dumps(summary, indent=2, default=str),
+        )
 
     def _populate_pattern_table(self, patterns: list[dict[str, Any]]) -> None:
         self.pattern_table.setRowCount(0)
@@ -300,6 +349,7 @@ class PatternsView(QtWidgets.QWidget):
             self.pattern_table.setItem(row, 5, QtWidgets.QTableWidgetItem(enabled))
 
         self.pattern_table.resizeColumnsToContents()
+        self._apply_table_filters()
 
     def _on_operation_error(
         self,
@@ -322,3 +372,42 @@ class PatternsView(QtWidgets.QWidget):
         self.progress_bar.setValue(0)
         self.progress_label.setText(f"{operation} cancelled")
 
+    def _select_all_patterns(self) -> None:
+        for row in range(self.pattern_table.rowCount()):
+            item = self.pattern_table.item(row, 0)
+            if item:
+                item.setCheckState(QtCore.Qt.Checked)
+
+    def _select_no_patterns(self) -> None:
+        for row in range(self.pattern_table.rowCount()):
+            item = self.pattern_table.item(row, 0)
+            if item:
+                item.setCheckState(QtCore.Qt.Unchecked)
+
+    def _invert_pattern_selection(self) -> None:
+        for row in range(self.pattern_table.rowCount()):
+            item = self.pattern_table.item(row, 0)
+            if item:
+                item.setCheckState(
+                    QtCore.Qt.Unchecked
+                    if item.checkState() == QtCore.Qt.Checked
+                    else QtCore.Qt.Checked
+                )
+
+    def _apply_table_filters(self) -> None:
+        selected_severity = self.severity_filter.currentText().strip().lower()
+        for row in range(self.pattern_table.rowCount()):
+            severity_item = self.pattern_table.item(row, 3)
+            severity = (severity_item.text().strip().lower() if severity_item else "")
+            hidden = selected_severity != "all" and severity != selected_severity
+            self.pattern_table.setRowHidden(row, hidden)
+
+    def set_busy(self, is_busy: bool) -> None:
+        if is_busy:
+            self.scan_btn.setEnabled(False)
+        else:
+            self.scan_btn.setEnabled(True)
+
+    def trigger_primary_action(self) -> None:
+        if self.scan_btn.isEnabled():
+            self._on_run_scan()

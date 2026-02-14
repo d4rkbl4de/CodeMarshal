@@ -13,6 +13,7 @@ class SessionManager:
     """Persists lightweight GUI state and recent investigations."""
 
     _MAX_RECENTS = 10
+    _MAX_RECENT_PATHS = 10
 
     def __init__(self, state_path: Path | None = None) -> None:
         self._state_path = state_path or Path("storage") / "gui_state.json"
@@ -27,11 +28,18 @@ class SessionManager:
     def _default_state(self) -> dict[str, Any]:
         return {
             "recent_investigations": [],
+            "recent_paths": [],
             "last_path": str(Path(".").resolve()),
             "settings": {
                 "theme": "dark",
                 "default_export_format": "json",
                 "storage_path": "storage",
+                "auto_run_last_used_options": False,
+            },
+            "ui": {
+                "last_view": "home",
+                "window_geometry": None,
+                "window_state": None,
             },
             "dirty": False,
             "last_saved_at": None,
@@ -54,8 +62,20 @@ class SessionManager:
             base.update({k: v for k, v in data.items() if k in base})
             if not isinstance(base.get("recent_investigations"), list):
                 base["recent_investigations"] = []
+            if not isinstance(base.get("recent_paths"), list):
+                base["recent_paths"] = []
             if not isinstance(base.get("settings"), dict):
                 base["settings"] = self._default_state()["settings"]
+            else:
+                merged_settings = dict(self._default_state()["settings"])
+                merged_settings.update(base["settings"])
+                base["settings"] = merged_settings
+            if not isinstance(base.get("ui"), dict):
+                base["ui"] = self._default_state()["ui"]
+            else:
+                merged_ui = dict(self._default_state()["ui"])
+                merged_ui.update(base["ui"])
+                base["ui"] = merged_ui
             return base
         except Exception:
             return self._default_state()
@@ -123,8 +143,25 @@ class SessionManager:
 
     def set_last_path(self, path: str | Path) -> None:
         with self._lock:
-            self._state["last_path"] = str(Path(path).resolve())
+            resolved = str(Path(path).resolve())
+            self._state["last_path"] = resolved
+            self._add_recent_path_locked(resolved)
             self._save_state()
+
+    def _add_recent_path_locked(self, path: str) -> None:
+        current = [item for item in self._state.get("recent_paths", []) if item != path]
+        current.insert(0, path)
+        self._state["recent_paths"] = current[: self._MAX_RECENT_PATHS]
+
+    def add_recent_path(self, path: str | Path) -> None:
+        with self._lock:
+            self._add_recent_path_locked(str(Path(path).resolve()))
+            self._save_state()
+
+    def get_recent_paths(self, limit: int = 10) -> list[str]:
+        with self._lock:
+            values = [str(item) for item in self._state.get("recent_paths", [])]
+            return values[: max(limit, 0)]
 
     def get_settings(self) -> dict[str, Any]:
         with self._lock:
@@ -142,6 +179,50 @@ class SessionManager:
 
     def set_default_export_format(self, fmt: str) -> None:
         self.update_settings({"default_export_format": fmt})
+
+    def get_auto_run_last_used_options(self) -> bool:
+        return bool(self.get_settings().get("auto_run_last_used_options", False))
+
+    def set_auto_run_last_used_options(self, enabled: bool) -> None:
+        self.update_settings({"auto_run_last_used_options": bool(enabled)})
+
+    def get_last_view(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return str(ui.get("last_view") or "home")
+
+    def set_last_view(self, view_name: str) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["last_view"] = str(view_name or "home")
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_window_geometry(self) -> str | None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            value = ui.get("window_geometry")
+            return str(value) if value else None
+
+    def set_window_geometry(self, geometry_hex: str | None) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["window_geometry"] = str(geometry_hex) if geometry_hex else None
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_window_state(self) -> str | None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            value = ui.get("window_state")
+            return str(value) if value else None
+
+    def set_window_state(self, state_hex: str | None) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["window_state"] = str(state_hex) if state_hex else None
+            self._state["ui"] = ui
+            self._save_state()
 
     def mark_dirty(self, dirty: bool, session_id: str | None = None) -> None:
         with self._lock:

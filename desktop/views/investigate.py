@@ -24,6 +24,9 @@ class InvestigateView(QtWidgets.QWidget):
         super().__init__(parent)
         self._bridge = None
         self._current_session_id: str | None = None
+        self._query_history: dict[str, list[str]] = {}
+        self._pending_auto_query: str | None = None
+        self._last_answer_text: str = ""
         self._build_ui()
         if command_bridge is not None:
             self.set_command_bridge(command_bridge)
@@ -78,6 +81,11 @@ class InvestigateView(QtWidgets.QWidget):
         self.notes_input = QtWidgets.QLineEdit()
         self.notes_input.setPlaceholderText("Optional notes")
         config_form.addRow("Notes:", self.notes_input)
+
+        self.auto_query_check = QtWidgets.QCheckBox("Run first query after investigation")
+        self.auto_query_input = QtWidgets.QLineEdit()
+        self.auto_query_input.setPlaceholderText("Optional initial question")
+        config_form.addRow(self.auto_query_check, self.auto_query_input)
         layout.addWidget(config_group)
 
         query_group = QtWidgets.QGroupBox("Query")
@@ -98,6 +106,11 @@ class InvestigateView(QtWidgets.QWidget):
         self.question_input.setPlaceholderText("Ask a structured question")
         query_form.addRow("Question:", self.question_input)
 
+        self.history_combo = QtWidgets.QComboBox()
+        self.history_combo.setEditable(False)
+        self.history_combo.currentTextChanged.connect(self._on_history_selected)
+        query_form.addRow("History:", self.history_combo)
+
         self.focus_input = QtWidgets.QLineEdit()
         self.focus_input.setPlaceholderText("Optional focus path or anchor")
         query_form.addRow("Focus:", self.focus_input)
@@ -113,11 +126,19 @@ class InvestigateView(QtWidgets.QWidget):
         self.start_btn.clicked.connect(self._on_start_investigation)
         self.query_btn = QtWidgets.QPushButton("Run Query")
         self.query_btn.clicked.connect(self._on_run_query)
+        self.copy_answer_btn = QtWidgets.QPushButton("Copy Answer")
+        self.copy_answer_btn.setEnabled(False)
+        self.copy_answer_btn.clicked.connect(self._copy_answer)
+        self.save_answer_btn = QtWidgets.QPushButton("Save Answer")
+        self.save_answer_btn.setEnabled(False)
+        self.save_answer_btn.clicked.connect(self._save_answer)
         self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._on_cancel)
         actions.addWidget(self.start_btn)
         actions.addWidget(self.query_btn)
+        actions.addWidget(self.copy_answer_btn)
+        actions.addWidget(self.save_answer_btn)
         actions.addWidget(self.cancel_btn)
         actions.addStretch(1)
         layout.addLayout(actions)
@@ -155,6 +176,7 @@ class InvestigateView(QtWidgets.QWidget):
         if session_id:
             self.session_combo.setCurrentText(session_id)
             self.session_label.setText(f"Session: {session_id}")
+            self._refresh_query_history(session_id)
         else:
             self.session_label.setText("Session: none")
 
@@ -188,6 +210,15 @@ class InvestigateView(QtWidgets.QWidget):
             idx = self.scope_combo.findText(str(metadata["scope"]))
             if idx >= 0:
                 self.scope_combo.setCurrentIndex(idx)
+        if metadata.get("question_history") and session_id:
+            history = [
+                str(item)
+                for item in metadata.get("question_history", [])
+                if str(item).strip()
+            ]
+            if history:
+                self._query_history[session_id] = history
+                self._refresh_query_history(session_id)
 
     def _on_browse(self) -> None:
         start = self.path_input.text().strip() or str(Path(".").resolve())
@@ -215,6 +246,12 @@ class InvestigateView(QtWidgets.QWidget):
         if not Path(path_value).exists():
             ErrorDialog.show_error(self, "Invalid Path", f"Path does not exist: {path_value}")
             return
+
+        self._pending_auto_query = None
+        if self.auto_query_check.isChecked():
+            question = self.auto_query_input.text().strip()
+            if question:
+                self._pending_auto_query = question
 
         try:
             self._bridge.investigate(
@@ -259,6 +296,7 @@ class InvestigateView(QtWidgets.QWidget):
                 limit=int(self.limit_spin.value()),
                 session_id=session_id,
             )
+            self._record_query(session_id, question)
         except RuntimeError as exc:
             ErrorDialog.show_error(
                 self,
@@ -276,6 +314,8 @@ class InvestigateView(QtWidgets.QWidget):
         if operation not in {"investigate", "query"}:
             return
         self.cancel_btn.setEnabled(True)
+        self.copy_answer_btn.setEnabled(False)
+        self.save_answer_btn.setEnabled(False)
         if operation == "investigate":
             self.start_btn.setEnabled(False)
         if operation == "query":
@@ -310,7 +350,20 @@ class InvestigateView(QtWidgets.QWidget):
             session_id = str(data.get("investigation_id") or data.get("session_id") or "")
             if session_id:
                 self.set_current_session(session_id)
-            self.results.set_text(json.dumps(data, indent=2, default=str))
+            summary = {
+                "investigation_id": data.get("investigation_id"),
+                "status": data.get("status"),
+                "observation_count": data.get("observation_count"),
+                "duration_ms": data.get("duration_ms"),
+            }
+            self.results.set_sections(
+                json.dumps(summary, indent=2, default=str),
+                json.dumps(data, indent=2, default=str),
+            )
+            if session_id and self._pending_auto_query:
+                self.question_input.setText(self._pending_auto_query)
+                self._pending_auto_query = None
+                self._on_run_query()
             return
 
         answer = data.get("answer")
@@ -322,9 +375,16 @@ class InvestigateView(QtWidgets.QWidget):
                 "question": data.get("question"),
                 "answer": answer,
             }
-            self.results.set_text(json.dumps(details, indent=2, default=str))
+            self.results.set_sections(
+                answer,
+                json.dumps(details, indent=2, default=str),
+            )
+            self._last_answer_text = answer
+            self.copy_answer_btn.setEnabled(True)
+            self.save_answer_btn.setEnabled(True)
         else:
-            self.results.set_text(json.dumps(data, indent=2, default=str))
+            rendered = json.dumps(data, indent=2, default=str)
+            self.results.set_sections(rendered[:4000], rendered)
 
     def _on_operation_error(
         self,
@@ -349,3 +409,58 @@ class InvestigateView(QtWidgets.QWidget):
         self.progress_bar.setValue(0)
         self.progress_label.setText(f"{operation} cancelled")
 
+    def _record_query(self, session_id: str, question: str) -> None:
+        if not question.strip():
+            return
+        history = list(self._query_history.get(session_id, []))
+        history = [item for item in history if item != question]
+        history.insert(0, question)
+        self._query_history[session_id] = history[:20]
+        self._refresh_query_history(session_id)
+
+    def _refresh_query_history(self, session_id: str) -> None:
+        history = list(self._query_history.get(session_id, []))
+        self.history_combo.blockSignals(True)
+        self.history_combo.clear()
+        self.history_combo.addItem("")
+        for item in history:
+            self.history_combo.addItem(item)
+        self.history_combo.blockSignals(False)
+
+    def _on_history_selected(self, value: str) -> None:
+        if value:
+            self.question_input.setText(value)
+
+    def _copy_answer(self) -> None:
+        if not self._last_answer_text:
+            return
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(self._last_answer_text)
+
+    def _save_answer(self) -> None:
+        if not self._last_answer_text:
+            return
+        default_name = "query-answer.txt"
+        file_path, _filter = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Query Answer",
+            str(Path(default_name).resolve()),
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not file_path:
+            return
+        Path(file_path).write_text(self._last_answer_text, encoding="utf-8")
+
+    def set_busy(self, is_busy: bool) -> None:
+        if is_busy:
+            self.start_btn.setEnabled(False)
+            self.query_btn.setEnabled(False)
+        else:
+            self.start_btn.setEnabled(True)
+            self.query_btn.setEnabled(True)
+
+    def trigger_primary_action(self) -> None:
+        if self.question_input.text().strip():
+            self._on_run_query()
+            return
+        self._on_start_investigation()
