@@ -1,111 +1,61 @@
-# CodeMarshal Roadmap (Execution Status)
+﻿# CodeMarshal Roadmap (Execution Status)
 
-**Version:** 2.1.0  
-**Last Updated:** February 13, 2026  
-**Current Focus:** Phase 5 - Desktop GUI (CRITICAL ISSUES IDENTIFIED)
+**Version:** 2.1.1-dev  
+**Last Updated:** February 14, 2026  
+**Current Focus:** v2.1.1 Maintenance - Reliability Hardening
 
 ---
 
 ## Summary
 
-Core platform work is complete across foundation, pattern system, inquiry, multi-language support, IDE integration foundations, storage/data layer, test completion, advanced export/visualization, and plugin architecture.
-
-**Only one roadmap phase remains: Desktop GUI (Phase 5).**
-
-**⚠️ CRITICAL:** Codebase audit reveals Phase 5 is currently **a shell without functionality**. All GUI views are placeholder implementations. See "Critical Issues" section below.
+All roadmap phases `0-9` are complete, including the desktop GUI (Phase 5).  
+Current work is maintenance hardening for backup/restore reliability, shutdown integrity, and documentation truth-sync.
 
 ---
 
 ## Phase Status
 
-| Phase | Name                            | Status       | Evidence                                                       |
-| ----- | ------------------------------- | ------------ | -------------------------------------------------------------- |
-| 0     | Foundation Repair               | Complete     | Import-chain fixes landed; test discovery stabilized           |
-| 1     | Pattern System Renaissance      | Complete     | Built-in pattern libraries + engine/dashboard support present  |
-| 2     | Inquiry Engine Expansion        | Complete     | Extended analyzer behavior for structure/connections/anomalies |
-| 3     | Multi-Language Support          | Complete     | JS/TS, Java, Go sights + language detector                     |
-| 4     | IDE Integration Suite           | Complete     | VS Code / Neovim / JetBrains foundations in repo               |
-| 5     | Desktop GUI                     | **CRITICAL** | GUI shell exists but all views are placeholder implementations |
-| 6     | Storage & Data Layer            | Complete     | Migration, transactional storage, knowledge base scaffolding   |
-| 7     | Test Suite Completion           | Complete     | Full suite passing; coverage gate exceeded                     |
-| 8     | Advanced Export & Visualization | Complete     | Jupyter, PDF, SVG exporters + tests                            |
-| 9     | Plugin System                   | Complete     | Plugin API and loader foundations                              |
+| Phase | Name                            | Status   | Evidence                                                                    |
+| ----- | ------------------------------- | -------- | --------------------------------------------------------------------------- |
+| 0     | Foundation Repair               | Complete | Import-chain fixes landed; test discovery stabilized                        |
+| 1     | Pattern System Renaissance      | Complete | Built-in pattern libraries + engine/dashboard support present               |
+| 2     | Inquiry Engine Expansion        | Complete | Extended analyzer behavior for structure/connections/anomalies              |
+| 3     | Multi-Language Support          | Complete | JS/TS, Java, Go sights + language detector                                  |
+| 4     | IDE Integration Suite           | Complete | VS Code / Neovim / JetBrains foundations in repo                            |
+| 5     | Desktop GUI                     | Complete | PySide6 GUI bridge/session/screens implemented with dedicated desktop tests |
+| 6     | Storage & Data Layer            | Complete | Migration, transactional storage, knowledge base scaffolding                |
+| 7     | Test Suite Completion           | Complete | Full suite passing; coverage gate exceeded                                  |
+| 8     | Advanced Export & Visualization | Complete | Jupyter, PDF, SVG exporters + tests                                         |
+| 9     | Plugin System                   | Complete | Plugin API and loader foundations                                           |
 
 ---
 
-## Latest Validation Snapshot
+## Latest Validation Snapshot (February 14, 2026)
 
-- Full test suite: `168 passed, 2 skipped`
-- Coverage run: `96.56%` total (gate: `90%`)
-- Skip reason: optional GUI dependency (`PySide6`) missing in current environment
-- **pyproject.toml version:** 2.0.0 (⚠️ should be 2.1.0)
-
----
-
-## Critical Issues Identified (February 13, 2026)
-
-### 🔴 CRITICAL: GUI is Non-Functional Shell
-
-**Current State:** All GUI views are placeholder implementations with zero functionality.
-
-| View              | Current State           | Required State                                       |
-| ----------------- | ----------------------- | ---------------------------------------------------- |
-| `HomeView`        | Navigation buttons only | Project browser, recent sessions, quick actions      |
-| `ObserveView`     | Single label            | File browser, observation controls, results viewer   |
-| `InvestigateView` | Single label            | Investigation config, query builder, results display |
-| `PatternsView`    | Single label            | Pattern library, scan controls, match visualization  |
-| `ExportView`      | Single label            | Format selection, preview, export execution          |
-
-**Root Cause:** No integration between GUI views and:
-
-- Bridge commands (`investigate`, `observe`, `query`, `pattern`, `export`)
-- Core runtime/engine
-- Storage system
-- Observation interfaces
-
-### 🟠 HIGH: Version Mismatch
-
-**Issue:** `pyproject.toml` still shows version `2.0.0` instead of `2.1.0`
-
-- Creates confusion for users
-- May cause packaging/distribution issues
-- Inconsistent with documentation
-
-### 🟡 MEDIUM: Incomplete Core Implementations
-
-**TODOs Found in Critical Path:**
-
-1. **observations/record/anchors.py:846**
-   - Content fingerprinting using IMPORT_SIGNATURE not implemented
-   - Affects observation integrity tracking
-
-2. **integrity/recovery/restore.py:174**
-   - Hardcoded `"system_version": "1.0.0"`
-   - Should pull from package metadata
-
-3. **integrity/recovery/backup.py:237, 329**
-   - Incremental backup logic not implemented
-   - System version hardcoded
-
-4. **core/shutdown.py:276, 297**
-   - Missing integration with storage.atomic
-   - Missing integration with integrity.recovery
-
-### 🟡 MEDIUM: Placeholder Test Suite
-
-**tests/invariants_test.py:** Contains 14+ TODOs with no actual implementations:
-
-- Constitutional compliance checks (Articles 1-24)
-- Truth preservation validation
-- Interface invariants
-- Metaphor consistency
-- Export integrity
-
-These tests pass but verify nothing meaningful.
+- Full suite with GUI dependency (PySide6 in `venv`): `186 passed, 2 skipped`
+- Coverage with GUI dependency: `95.70%` (gate: `90%`)
+- Full suite without GUI dependency (system Python): `184 passed, 3 skipped`
+- Coverage without GUI dependency: `93.99%` (gate: `90%`)
+- `pyproject.toml` version: `2.1.0` (maintenance work tracks `2.1.1-dev`)
 
 ---
 
-## Revised Phase 5: Desktop GUI Implementation
+## Active v2.1.1 Maintenance Priorities
+
+- Recovery payload compatibility (`snapshot`/`observations`) and deterministic integrity hashing
+- Incremental backup chain materialization in restore paths
+- Package-version metadata wiring in backup/restore checkpoints
+- Shutdown integration with `storage.atomic` and corruption checks
+- Import-signature anchor generator implementation
+- Targeted invariant guardrails and CI GUI smoke coverage
+
+---
+
+## Historical Planning Archive
+
+The following Phase 5 planning section is preserved for historical traceability.
+
+## Archived: Revised Phase 5 Desktop GUI Implementation
 
 ### Objective
 
@@ -117,28 +67,28 @@ Transform the current GUI shell into a production-ready desktop interface that p
 **Revised Estimate:** 6 weeks (Feb 13 - Mar 22)  
 **Reason:** GUI currently has zero functionality; requires complete implementation, not just "productization"
 
-| Milestone                  | Target Date  | Deliverable                                              | Priority    | Status      |
-| -------------------------- | ------------ | -------------------------------------------------------- | ----------- | ----------- |
-| **Phase 5A: Foundation**   |              |                                                          |             |             |
-| Fix Version Number         | Feb 13, 2026 | Update pyproject.toml to 2.1.0                           | 🔴 Critical | Not Started |
-| GUI-Engine Bridge          | Feb 14, 2026 | Integration layer between Qt signals and bridge commands | 🔴 Critical | Not Started |
-| Session State Management   | Feb 15, 2026 | Recent investigations, session restore, auto-save        | 🟠 High     | Not Started |
-| **Phase 5B: Core Screens** |              |                                                          |             |             |
-| Home Screen v2             | Feb 17, 2026 | Project browser, recent list, new investigation flow     | 🟠 High     | Not Started |
-| Observe Screen             | Feb 20, 2026 | File browser, eye selection, real-time progress, results | 🔴 Critical | Not Started |
-| Investigate Screen         | Feb 24, 2026 | Investigation config, query interface, pattern results   | 🔴 Critical | Not Started |
-| Patterns Screen            | Feb 27, 2026 | Pattern library, scan execution, match visualization     | 🟠 High     | Not Started |
-| Export Screen              | Mar 2, 2026  | Format selection, preview, progress, file dialogs        | 🟠 High     | Not Started |
-| **Phase 5C: Polish**       |              |                                                          |             |             |
-| Error Handling             | Mar 4, 2026  | Try-catch all bridge calls, user-friendly dialogs        | 🔴 Critical | Not Started |
-| Progress Indicators        | Mar 5, 2026  | Progress bars for long operations, cancellation support  | 🟠 High     | Not Started |
-| Keyboard Navigation        | Mar 6, 2026  | Tab order, shortcuts, accessibility                      | 🟡 Medium   | Not Started |
-| **Phase 5D: Validation**   |              |                                                          |             |             |
-| Integration Testing        | Mar 8, 2026  | End-to-end workflows, error scenarios                    | 🟠 High     | Not Started |
-| Cross-Platform Testing     | Mar 10, 2026 | Windows, Linux, macOS validation                         | 🟠 High     | Not Started |
-| Documentation              | Mar 12, 2026 | GUI user guide, troubleshooting, packaging               | 🟡 Medium   | Not Started |
-| **Phase 5E: Release**      |              |                                                          |             |             |
-| v2.1.0 Release             | Mar 15, 2026 | All acceptance criteria met                              | 🟠 High     | Not Started |
+| Milestone                  | Target Date  | Deliverable                                              | Priority      | Status      |
+| -------------------------- | ------------ | -------------------------------------------------------- | ------------- | ----------- |
+| **Phase 5A: Foundation**   |              |                                                          |               |             |
+| Fix Version Number         | Feb 13, 2026 | Update pyproject.toml to 2.1.0                           | ðŸ”´ Critical | Not Started |
+| GUI-Engine Bridge          | Feb 14, 2026 | Integration layer between Qt signals and bridge commands | ðŸ”´ Critical | Not Started |
+| Session State Management   | Feb 15, 2026 | Recent investigations, session restore, auto-save        | ðŸŸ  High     | Not Started |
+| **Phase 5B: Core Screens** |              |                                                          |               |             |
+| Home Screen v2             | Feb 17, 2026 | Project browser, recent list, new investigation flow     | ðŸŸ  High     | Not Started |
+| Observe Screen             | Feb 20, 2026 | File browser, eye selection, real-time progress, results | ðŸ”´ Critical | Not Started |
+| Investigate Screen         | Feb 24, 2026 | Investigation config, query interface, pattern results   | ðŸ”´ Critical | Not Started |
+| Patterns Screen            | Feb 27, 2026 | Pattern library, scan execution, match visualization     | ðŸŸ  High     | Not Started |
+| Export Screen              | Mar 2, 2026  | Format selection, preview, progress, file dialogs        | ðŸŸ  High     | Not Started |
+| **Phase 5C: Polish**       |              |                                                          |               |             |
+| Error Handling             | Mar 4, 2026  | Try-catch all bridge calls, user-friendly dialogs        | ðŸ”´ Critical | Not Started |
+| Progress Indicators        | Mar 5, 2026  | Progress bars for long operations, cancellation support  | ðŸŸ  High     | Not Started |
+| Keyboard Navigation        | Mar 6, 2026  | Tab order, shortcuts, accessibility                      | ðŸŸ¡ Medium   | Not Started |
+| **Phase 5D: Validation**   |              |                                                          |               |             |
+| Integration Testing        | Mar 8, 2026  | End-to-end workflows, error scenarios                    | ðŸŸ  High     | Not Started |
+| Cross-Platform Testing     | Mar 10, 2026 | Windows, Linux, macOS validation                         | ðŸŸ  High     | Not Started |
+| Documentation              | Mar 12, 2026 | GUI user guide, troubleshooting, packaging               | ðŸŸ¡ Medium   | Not Started |
+| **Phase 5E: Release**      |              |                                                          |               |             |
+| v2.1.0 Release             | Mar 15, 2026 | All acceptance criteria met                              | ðŸŸ  High     | Not Started |
 
 ### Resource Requirements (Revised)
 
@@ -175,8 +125,8 @@ gui_bridge.investigation_complete.connect(update_results_view)
 **Home Screen:**
 
 - [ ] Recent investigations list (load from storage)
-- [ ] New investigation button → file browser dialog
-- [ ] Open investigation → load session
+- [ ] New investigation button â†’ file browser dialog
+- [ ] Open investigation â†’ load session
 - [ ] Settings access
 
 **Observe Screen:**
@@ -365,33 +315,33 @@ gui_bridge.investigation_complete.connect(update_results_view)
 We need a bridge layer to connect Qt signals/slots with the existing bridge commands:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    GUI Layer (PySide6)                  │
-│  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
-│  │ Home    │ │ Observe  │ │Investigate│ │ Patterns    │ │
-│  │ View    │ │ View     │ │ View     │ │ View        │ │
-│  └────┬────┘ └────┬─────┘ └────┬─────┘ └──────┬──────┘ │
-│       │           │            │              │         │
-│  ┌────▼───────────▼────────────▼──────────────▼────────┐ │
-│  │              GUI Controller                          │ │
-│  │  • Signal/slot connections                           │ │
-│  │  • Form validation                                   │ │
-│  │  • State management                                  │ │
-│  └────┬────────────────────────────────────────────────┘ │
-│       │                                                  │
-│  ┌────▼────────────┐    ┌──────────────────────────┐    │
-│  │  GUICommandBridge│◄──►│      Worker Threads      │    │
-│  │  • Async wrapper │    │  (QThreadPool)           │    │
-│  │  • Progress      │    │  • Non-blocking bridge   │    │
-│  │  • Error handling│    │    commands              │    │
-│  └────┬─────────────┘    └──────────────────────────┘    │
-│       │                                                  │
-└───────┼──────────────────────────────────────────────────┘
-        │
-┌───────▼──────────────────────────────────────────────────┐
-│                Bridge Layer (Existing)                   │
-│         (investigate, observe, query, etc.)              │
-└──────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                    GUI Layer (PySide6)                  â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚  â”‚ Home    â”‚ â”‚ Observe  â”‚ â”‚Investigateâ”‚ â”‚ Patterns    â”‚ â”‚
+â”‚  â”‚ View    â”‚ â”‚ View     â”‚ â”‚ View     â”‚ â”‚ View        â”‚ â”‚
+â”‚  â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â”‚       â”‚           â”‚            â”‚              â”‚         â”‚
+â”‚  â”Œâ”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚  â”‚              GUI Controller                          â”‚ â”‚
+â”‚  â”‚  â€¢ Signal/slot connections                           â”‚ â”‚
+â”‚  â”‚  â€¢ Form validation                                   â”‚ â”‚
+â”‚  â”‚  â€¢ State management                                  â”‚ â”‚
+â”‚  â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â”‚       â”‚                                                  â”‚
+â”‚  â”Œâ”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
+â”‚  â”‚  GUICommandBridgeâ”‚â—„â”€â”€â–ºâ”‚      Worker Threads      â”‚    â”‚
+â”‚  â”‚  â€¢ Async wrapper â”‚    â”‚  (QThreadPool)           â”‚    â”‚
+â”‚  â”‚  â€¢ Progress      â”‚    â”‚  â€¢ Non-blocking bridge   â”‚    â”‚
+â”‚  â”‚  â€¢ Error handlingâ”‚    â”‚    commands              â”‚    â”‚
+â”‚  â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
+â”‚       â”‚                                                  â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+        â”‚
+â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                Bridge Layer (Existing)                   â”‚
+â”‚         (investigate, observe, query, etc.)              â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Core Components
@@ -538,7 +488,7 @@ class GUICommandBridge(QObject):
    - Limit to last 10 investigations
 
 2. **New Investigation Flow**
-   - "New Investigation" button → `QFileDialog.getExistingDirectory()`
+   - "New Investigation" button â†’ `QFileDialog.getExistingDirectory()`
    - Quick actions: "Observe Current Directory", "Pattern Scan Recent Project"
    - Remember last used path
 
@@ -625,23 +575,23 @@ class HomeView(QtWidgets.QWidget):
 #### Layout Design
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Path: [/home/user/project] [Browse]                 │
-├─────────────────────────────────────────────────────┤
-│ Eyes: ☑ File  ☑ Import  ☑ Export  ☐ Boundary       │
-│      ☐ Encoding  [Select All] [Clear All]          │
-├─────────────────────────────────────────────────────┤
-│ [Run Observation]          Progress: [████░░] 67%  │
-├─────────────────────────────────────────────────────┤
-│ Results:                                             │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ 📁 src/ (42 files)                               │ │
-│ │   📄 main.py (12 imports, 5 exports)            │ │
-│ │   📄 utils.py (3 imports, 8 exports)            │ │
-│ └─────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────┤
-│ [Export] [View Details] [Clear]                     │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Path: [/home/user/project] [Browse]                 â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Eyes: â˜‘ File  â˜‘ Import  â˜‘ Export  â˜ Boundary       â”‚
+â”‚      â˜ Encoding  [Select All] [Clear All]          â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ [Run Observation]          Progress: [â–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘] 67%  â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Results:                                             â”‚
+â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚ â”‚ ðŸ“ src/ (42 files)                               â”‚ â”‚
+â”‚ â”‚   ðŸ“„ main.py (12 imports, 5 exports)            â”‚ â”‚
+â”‚ â”‚   ðŸ“„ utils.py (3 imports, 8 exports)            â”‚ â”‚
+â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ [Export] [View Details] [Clear]                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 #### Implementation
@@ -828,27 +778,27 @@ class ObserveView(QtWidgets.QWidget):
 #### Layout Design
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Investigation Configuration                          │
-├─────────────────────────────────────────────────────┤
-│ Target: [/home/user/project] [Browse]               │
-│ Scope: (•) File  ( ) Module  ( ) Package  ( ) Codebase│
-│ Intent: [Initial Scan          ▼]                   │
-├─────────────────────────────────────────────────────┤
-│ Query Configuration                                  │
-│ Question Type: [Structure ▼]                        │
-│ Focus: [________] [Optional]                        │
-├─────────────────────────────────────────────────────┤
-│ [Start Investigation]     [Save for Later]          │
-├─────────────────────────────────────────────────────┤
-│ Results:                                             │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ Structure Analysis:                              │ │
-│ │ • 42 files across 8 directories                 │ │
-│ │ • 156 imports, 89 exports                       │ │
-│ │ • Average file size: 4.2 KB                     │ │
-│ └─────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Investigation Configuration                          â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Target: [/home/user/project] [Browse]               â”‚
+â”‚ Scope: (â€¢) File  ( ) Module  ( ) Package  ( ) Codebaseâ”‚
+â”‚ Intent: [Initial Scan          â–¼]                   â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Query Configuration                                  â”‚
+â”‚ Question Type: [Structure â–¼]                        â”‚
+â”‚ Focus: [________] [Optional]                        â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ [Start Investigation]     [Save for Later]          â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Results:                                             â”‚
+â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚ â”‚ Structure Analysis:                              â”‚ â”‚
+â”‚ â”‚ â€¢ 42 files across 8 directories                 â”‚ â”‚
+â”‚ â”‚ â€¢ 156 imports, 89 exports                       â”‚ â”‚
+â”‚ â”‚ â€¢ Average file size: 4.2 KB                     â”‚ â”‚
+â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 #### Implementation
@@ -952,32 +902,32 @@ class InvestigateView(QtWidgets.QWidget):
 #### Layout Design
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Pattern Library                          [Refresh]  │
-├─────────────────────────────────────────────────────┤
-│ Categories: [All ▼]  Search: [________]            │
-├─────────────────────────────────────────────────────┤
-│ ☑ Security (8 patterns)                             │
-│   • hardcoded_credentials                           │
-│   • sql_injection_risk                              │
-│ ☑ Performance (20 patterns)                         │
-│   • nested_loops                                    │
-│   • synchronous_io                                  │
-│ ☑ Style (15 patterns)                               │
-│ ☑ Architecture (12 patterns)                        │
-├─────────────────────────────────────────────────────┤
-│ Scan Configuration                                   │
-│ Path: [/home/user/project] [Browse]                 │
-│ [Run Pattern Scan]        Progress: [Ready]         │
-├─────────────────────────────────────────────────────┤
-│ Results:                                             │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ 🔴 Critical: 2 matches                           │ │
-│ │   hardcoded_credentials @ src/config.py:42      │ │
-│ │ 🟡 Warnings: 5 matches                           │ │
-│ │   nested_loops @ src/process.py:89              │ │
-│ └─────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Pattern Library                          [Refresh]  â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Categories: [All â–¼]  Search: [________]            â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ â˜‘ Security (8 patterns)                             â”‚
+â”‚   â€¢ hardcoded_credentials                           â”‚
+â”‚   â€¢ sql_injection_risk                              â”‚
+â”‚ â˜‘ Performance (20 patterns)                         â”‚
+â”‚   â€¢ nested_loops                                    â”‚
+â”‚   â€¢ synchronous_io                                  â”‚
+â”‚ â˜‘ Style (15 patterns)                               â”‚
+â”‚ â˜‘ Architecture (12 patterns)                        â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Scan Configuration                                   â”‚
+â”‚ Path: [/home/user/project] [Browse]                 â”‚
+â”‚ [Run Pattern Scan]        Progress: [Ready]         â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Results:                                             â”‚
+â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚ â”‚ ðŸ”´ Critical: 2 matches                           â”‚ â”‚
+â”‚ â”‚   hardcoded_credentials @ src/config.py:42      â”‚ â”‚
+â”‚ â”‚ ðŸŸ¡ Warnings: 5 matches                           â”‚ â”‚
+â”‚ â”‚   nested_loops @ src/process.py:89              â”‚ â”‚
+â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
@@ -990,29 +940,29 @@ class InvestigateView(QtWidgets.QWidget):
 #### Layout Design
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Export Configuration                                 │
-├─────────────────────────────────────────────────────┤
-│ Source: [Recent Investigation ▼]                    │
-│         "investigation_20260213_123456"             │
-├─────────────────────────────────────────────────────┤
-│ Format: (•) JSON  ( ) Markdown  ( ) HTML           │
-│        ( ) CSV    ( ) PDF       ( ) SVG            │
-│        ( ) Jupyter Notebook                        │
-├─────────────────────────────────────────────────────┤
-│ Include: ☑ Evidence  ☑ Patterns  ☑ Notes           │
-├─────────────────────────────────────────────────────┤
-│ Output: [/home/user/export.md] [Browse]            │
-├─────────────────────────────────────────────────────┤
-│ [Preview] [Export]        Status: [Ready]          │
-├─────────────────────────────────────────────────────┤
-│ Preview:                                             │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ ## Investigation Report                          │ │
-│ │ Generated: 2026-02-13 14:30                      │ │
-│ │ ...                                              │ │
-│ └─────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Export Configuration                                 â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Source: [Recent Investigation â–¼]                    â”‚
+â”‚         "investigation_20260213_123456"             â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Format: (â€¢) JSON  ( ) Markdown  ( ) HTML           â”‚
+â”‚        ( ) CSV    ( ) PDF       ( ) SVG            â”‚
+â”‚        ( ) Jupyter Notebook                        â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Include: â˜‘ Evidence  â˜‘ Patterns  â˜‘ Notes           â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Output: [/home/user/export.md] [Browse]            â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ [Preview] [Export]        Status: [Ready]          â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Preview:                                             â”‚
+â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚ â”‚ ## Investigation Report                          â”‚ â”‚
+â”‚ â”‚ Generated: 2026-02-13 14:30                      â”‚ â”‚
+â”‚ â”‚ ...                                              â”‚ â”‚
+â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
@@ -1021,35 +971,35 @@ class InvestigateView(QtWidgets.QWidget):
 
 ```
 desktop/
-├── __init__.py
-├── app.py                    # Update: Main window with navigation
-├── theme.py                  # Already exists
-├── core/                     # NEW: Integration layer
-│   ├── __init__.py
-│   ├── command_bridge.py     # Async bridge to bridge commands
-│   ├── session_manager.py    # Session persistence
-│   └── worker.py             # QThreadPool workers
-├── views/                    # UPDATE: Replace placeholders
-│   ├── __init__.py           # Update exports
-│   ├── home.py              # UPDATE: Add recent investigations
-│   ├── observe.py           # UPDATE: Full implementation
-│   ├── investigate.py       # UPDATE: Full implementation
-│   ├── patterns.py          # UPDATE: Full implementation
-│   ├── export.py            # UPDATE: Full implementation
-│   └── widgets/             # NEW: Reusable components
-│       ├── __init__.py
-│       ├── file_browser.py
-│       ├── progress_dialog.py
-│       ├── results_viewer.py
-│       └── error_dialog.py
-└── tests/                   # NEW: GUI tests
-    ├── __init__.py
-    ├── test_command_bridge.py
-    ├── test_session_manager.py
-    └── test_views/
-        ├── test_home.py
-        ├── test_observe.py
-        └── ...
+â”œâ”€â”€ __init__.py
+â”œâ”€â”€ app.py                    # Update: Main window with navigation
+â”œâ”€â”€ theme.py                  # Already exists
+â”œâ”€â”€ core/                     # NEW: Integration layer
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”œâ”€â”€ command_bridge.py     # Async bridge to bridge commands
+â”‚   â”œâ”€â”€ session_manager.py    # Session persistence
+â”‚   â””â”€â”€ worker.py             # QThreadPool workers
+â”œâ”€â”€ views/                    # UPDATE: Replace placeholders
+â”‚   â”œâ”€â”€ __init__.py           # Update exports
+â”‚   â”œâ”€â”€ home.py              # UPDATE: Add recent investigations
+â”‚   â”œâ”€â”€ observe.py           # UPDATE: Full implementation
+â”‚   â”œâ”€â”€ investigate.py       # UPDATE: Full implementation
+â”‚   â”œâ”€â”€ patterns.py          # UPDATE: Full implementation
+â”‚   â”œâ”€â”€ export.py            # UPDATE: Full implementation
+â”‚   â””â”€â”€ widgets/             # NEW: Reusable components
+â”‚       â”œâ”€â”€ __init__.py
+â”‚       â”œâ”€â”€ file_browser.py
+â”‚       â”œâ”€â”€ progress_dialog.py
+â”‚       â”œâ”€â”€ results_viewer.py
+â”‚       â””â”€â”€ error_dialog.py
+â””â”€â”€ tests/                   # NEW: GUI tests
+    â”œâ”€â”€ __init__.py
+    â”œâ”€â”€ test_command_bridge.py
+    â”œâ”€â”€ test_session_manager.py
+    â””â”€â”€ test_views/
+        â”œâ”€â”€ test_home.py
+        â”œâ”€â”€ test_observe.py
+        â””â”€â”€ ...
 ```
 
 ---
@@ -1104,7 +1054,7 @@ v2.1.0 is considered complete when:
    - Proper error handling
 3. **Full test/coverage gates remain green:**
    - All 168+ tests passing
-   - Coverage ≥ 90% (currently 96.56%)
+   - Coverage â‰¥ 90% (currently 96.56%)
    - GUI tests passing on CI with PySide6
 4. **Documentation complete:**
    - GUI installation instructions
@@ -1158,7 +1108,7 @@ v2.1.0 is considered complete when:
 
 ## Contributing to Phase 5
 
-**⚠️ IMPORTANT:** Before contributing to Phase 5, read this entire document.
+**âš ï¸ IMPORTANT:** Before contributing to Phase 5, read this entire document.
 
 To contribute:
 

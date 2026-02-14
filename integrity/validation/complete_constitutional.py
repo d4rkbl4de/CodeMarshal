@@ -5,8 +5,8 @@ from typing import Any
 
 from .. import (
     ValidationResult,
-    validate_interface,
     validate_integration,
+    validate_interface,
     validate_observations,
     validate_patterns,
 )

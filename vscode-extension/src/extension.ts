@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { runCodemarshal, runJsonCommand, normalizeFsPath } from "./cli";
+import { runCodemarshal, runJsonCommand, RunResult } from "./cli";
 import { DiagnosticsManager, PatternMatch } from "./diagnostics";
 import { CodeMarshalCodeLensProvider } from "./codelens";
 import { CodeMarshalHoverProvider } from "./hover";
+import { normalizeFsPath } from "./utils"; // Ensure this is imported from utils
 
+// Helper types and functions (remain at top-level)
 type PatternScanResponse = {
   success: boolean;
   matches_found: number;
@@ -38,6 +40,7 @@ function getWorkspaceRoot(): string | null {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Core services and state
   const output = vscode.window.createOutputChannel("CodeMarshal");
   const matchStore = new Map<string, PatternMatch[]>();
   const diagnosticsCollection =
@@ -46,251 +49,410 @@ export function activate(context: vscode.ExtensionContext): void {
   const codelensProvider = new CodeMarshalCodeLensProvider(matchStore);
   const hoverProvider = new CodeMarshalHoverProvider(matchStore);
 
-  async function runAndLog(args: string[], cwd?: string): Promise<void> {
-    output.show(true);
-    output.appendLine(`codemarshal ${args.join(" ")}`);
-    const result = await runCodemarshal(getCliPath(), args, cwd);
+  // Helper functions used by commands/subscriptions (defined within activate to capture context)
+  async function runAndLog(
+    args: string[],
+    cwd?: string,
+    showOutput: boolean = true,
+  ): Promise<boolean> {
+    const cliPath = getCliPath();
+    if (showOutput) {
+      output.show(true);
+      output.appendLine(`> ${cliPath} ${args.join(" ")}`);
+    }
+
+    let result: RunResult;
+    try {
+      result = await runCodemarshal(cliPath, args, cwd);
+    } catch (err: any) {
+      const errorMessage = `CodeMarshal: Failed to run CLI. Please check your 'codemarshal.cliPath' setting. Error: ${err.message || err}`;
+      if (showOutput) {
+        output.appendLine(errorMessage);
+      }
+      vscode.window.showErrorMessage(errorMessage);
+      return false;
+    }
+
     if (result.stdout) {
-      output.appendLine(result.stdout);
+      if (showOutput) {
+        output.appendLine(result.stdout);
+      }
     }
     if (result.stderr) {
-      output.appendLine(result.stderr);
+      if (showOutput) {
+        output.appendLine(result.stderr);
+      }
+      vscode.window.showErrorMessage(
+        `CodeMarshal CLI Error: ${result.stderr}`,
+      );
+      return false;
     }
+    if (result.exitCode !== 0) {
+      const errorMessage = `CodeMarshal command failed with exit code ${result.exitCode}. See output channel for details.`;
+      if (showOutput) {
+        output.appendLine(errorMessage);
+      }
+      vscode.window.showErrorMessage(errorMessage);
+      return false;
+    }
+    return true;
   }
 
   async function scanFile(uri: vscode.Uri): Promise<void> {
-    const cliPath = getCliPath();
-    const result = await runJsonCommand<PatternScanResponse>(cliPath, [
-      "pattern",
-      "scan",
-      uri.fsPath,
-      "--output=json",
-    ]);
-    if (!result.data) {
-      output.appendLine(
-        `Pattern scan failed: ${result.error || result.run.stderr}`,
-      );
-      return;
-    }
-    const matches = result.data.matches || [];
-    const normalizedFile = normalizeFsPath(uri.fsPath);
-    const filtered = matches.filter(
-      (match) => normalizeFsPath(match.file) === normalizedFile,
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `CodeMarshal: Scanning ${path.basename(uri.fsPath)}`,
+        cancellable: false,
+      },
+      async (progress) => {
+        const cliPath = getCliPath();
+        const result = await runJsonCommand<PatternScanResponse>(cliPath, [
+          "pattern",
+          "scan",
+          uri.fsPath,
+          "--output=json",
+        ]);
+        if (!result.data) {
+          const errorMessage = `CodeMarshal: Pattern scan failed for ${path.basename(uri.fsPath)}. ${result.error || result.run.stderr}`;
+          vscode.window.showErrorMessage(errorMessage);
+          output.appendLine(errorMessage);
+          return;
+        }
+        const matches = result.data.matches || [];
+        const normalized = normalizeFsPath(uri.fsPath);
+        const filtered = matches.filter(
+          (match) => normalizeFsPath(match.file) === normalized,
+        );
+        matchStore.set(normalized, filtered);
+        diagnostics.updateForFile(uri, filtered);
+        codelensProvider.refresh();
+        vscode.window.showInformationMessage(
+          `CodeMarshal: Found ${filtered.length} pattern matches in ${path.basename(uri.fsPath)}.`,
+        );
+      },
     );
-    matchStore.set(normalizedFile, filtered);
-    diagnostics.updateForFile(uri, filtered);
-    codelensProvider.refresh();
   }
 
   async function scanWorkspace(): Promise<void> {
     const root = getWorkspaceRoot();
     if (!root) {
       vscode.window.showWarningMessage(
-        "CodeMarshal: no workspace folder found.",
+        "CodeMarshal: No workspace folder found.",
       );
       return;
     }
-    const cliPath = getCliPath();
-    const result = await runJsonCommand<PatternScanResponse>(cliPath, [
-      "pattern",
-      "scan",
-      root,
-      "--output=json",
-    ]);
-    if (!result.data) {
-      output.appendLine(
-        `Pattern scan failed: ${result.error || result.run.stderr}`,
-      );
-      return;
-    }
-    const matches = result.data.matches || [];
-    const matchesByFile = new Map<string, PatternMatch[]>();
-    for (const match of matches) {
-      const key = normalizeFsPath(match.file);
-      const list = matchesByFile.get(key) || [];
-      list.push(match);
-      matchesByFile.set(key, list);
-    }
-    matchStore.clear();
-    for (const [filePath, fileMatches] of matchesByFile.entries()) {
-      matchStore.set(filePath, fileMatches);
-      diagnostics.updateForFile(
-        vscode.Uri.file(filePath),
-        fileMatches,
-      );
-    }
-    codelensProvider.refresh();
+
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "CodeMarshal: Scanning workspace for patterns...",
+        cancellable: false,
+      },
+      async (progress) => {
+        const cliPath = getCliPath();
+        const result = await runJsonCommand<PatternScanResponse>(cliPath, [
+          "pattern",
+          "scan",
+          root,
+          "--output=json",
+        ]);
+        if (!result.data) {
+          const errorMessage = `CodeMarshal: Pattern scan failed for workspace. ${result.error || result.run.stderr}`;
+          vscode.window.showErrorMessage(errorMessage);
+          output.appendLine(errorMessage);
+          return;
+        }
+        const matches = result.data.matches || [];
+        const matchesByFile = new Map<string, PatternMatch[]>();
+        for (const match of matches) {
+          const key = normalizeFsPath(match.file);
+          const list = matchesByFile.get(key) || [];
+          list.push(match);
+          matchesByFile.set(key, list);
+        }
+        matchStore.clear();
+        for (const [filePath, fileMatches] of matchesByFile.entries()) {
+          matchStore.set(filePath, fileMatches);
+          diagnostics.updateForFile(
+            vscode.Uri.file(filePath),
+            fileMatches,
+          );
+        }
+        codelensProvider.refresh();
+        vscode.window.showInformationMessage(
+          `CodeMarshal: Found ${matches.length} pattern matches in the workspace.`,
+        );
+      },
+    );
   }
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "codemarshal.investigate",
-      async () => {
-        const activeFile = vscode.window.activeTextEditor?.document
-          .uri.fsPath;
-        const target =
-          activeFile ? path.dirname(activeFile) : getWorkspaceRoot();
-        if (!target) {
-          vscode.window.showWarningMessage(
-            "CodeMarshal: no target selected.",
+  // --- Command Registration ---
+  function registerCommands(context: vscode.ExtensionContext): void {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "codemarshal.investigate",
+        async () => {
+          const activeFile = vscode.window.activeTextEditor?.document
+            .uri.fsPath;
+          const target = activeFile
+            ? path.dirname(activeFile)
+            : getWorkspaceRoot();
+          if (!target) {
+            vscode.window.showWarningMessage(
+              "CodeMarshal: No target selected for investigation.",
+            );
+            return;
+          }
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `CodeMarshal: Investigating ${path.basename(target)}...`,
+              cancellable: false,
+            },
+            async () => {
+              await runAndLog([
+                "investigate",
+                target,
+                "--scope=module",
+                "--intent=initial_scan",
+              ]);
+            },
           );
-          return;
-        }
-        await runAndLog([
-          "investigate",
-          target,
-          "--scope=module",
-          "--intent=initial_scan",
-        ]);
-      },
-    ),
-    vscode.commands.registerCommand(
-      "codemarshal.observe",
-      async () => {
-        const activeFile = vscode.window.activeTextEditor?.document
-          .uri.fsPath;
-        const target = activeFile || getWorkspaceRoot();
-        if (!target) {
-          vscode.window.showWarningMessage(
-            "CodeMarshal: no target selected.",
+        },
+      ),
+      vscode.commands.registerCommand(
+        "codemarshal.observe",
+        async () => {
+          const activeFile = vscode.window.activeTextEditor?.document
+            .uri.fsPath;
+          const target = activeFile || getWorkspaceRoot();
+          if (!target) {
+            vscode.window.showWarningMessage(
+              "CodeMarshal: No target selected for observation.",
+            );
+            return;
+          }
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `CodeMarshal: Observing ${path.basename(target)}...`,
+              cancellable: false,
+            },
+            async () => {
+              await runAndLog([
+                "observe",
+                target,
+                "--scope=module",
+                "--constitutional",
+              ]);
+            },
           );
-          return;
-        }
-        await runAndLog([
-          "observe",
-          target,
-          "--scope=module",
-          "--constitutional",
-        ]);
-      },
-    ),
-    vscode.commands.registerCommand(
-      "codemarshal.scanPatterns",
-      async () => {
-        await scanWorkspace();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "codemarshal.listPatterns",
-      async () => {
-        const result = await runJsonCommand<{
-          total_count: number;
-          patterns: Array<{
-            id: string;
-            name: string;
-            severity: string;
-          }>;
-        }>(getCliPath(), ["pattern", "list", "--output=json"]);
-        output.show(true);
-        if (!result.data) {
-          output.appendLine(
-            `Pattern list failed: ${result.error || result.run.stderr}`,
+        },
+      ),
+      vscode.commands.registerCommand(
+        "codemarshal.scanPatterns",
+        async () => {
+          await scanWorkspace();
+        },
+      ),
+      vscode.commands.registerCommand(
+        "codemarshal.listPatterns",
+        async () => {
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: "CodeMarshal: Listing patterns...",
+              cancellable: false,
+            },
+            async () => {
+              const result = await runJsonCommand<{
+                total_count: number;
+                patterns: Array<{
+                  id: string;
+                  name: string;
+                  severity: string;
+                }>;
+              }>(getCliPath(), ["pattern", "list", "--output=json"]);
+              output.show(true);
+              if (!result.data) {
+                const errorMessage = `CodeMarshal: Pattern list failed. ${result.error || result.run.stderr}`;
+                vscode.window.showErrorMessage(errorMessage);
+                output.appendLine(errorMessage);
+                return;
+              }
+              output.appendLine(
+                `Available patterns: ${result.data.total_count}`,
+              );
+              for (const pattern of result.data.patterns) {
+                output.appendLine(
+                  `${pattern.id} - ${pattern.name} (${pattern.severity})`,
+                );
+              }
+            },
           );
-          return;
-        }
-        output.appendLine(
-          `Available patterns: ${result.data.total_count}`,
+        },
+      ),
+      vscode.commands.registerCommand("codemarshal.query", async () => {
+        const investigationId = await vscode.window.showQuickPick(
+          ["latest", "Enter ID..."],
+          {
+            placeHolder: "Investigation/session ID (type 'latest' for the most recent)",
+          },
         );
-        for (const pattern of result.data.patterns) {
-          output.appendLine(
-            `${pattern.id} - ${pattern.name} (${pattern.severity})`,
-          );
-        }
-      },
-    ),
-    vscode.commands.registerCommand("codemarshal.query", async () => {
-      const investigationId = await vscode.window.showInputBox({
-        prompt: "Investigation/session ID",
-      });
-      if (!investigationId) {
-        return;
-      }
-      const question = await vscode.window.showInputBox({
-        prompt: "Question to ask",
-      });
-      if (!question) {
-        return;
-      }
-      await runAndLog([
-        "query",
-        investigationId,
-        "--question",
-        question,
-        "--question-type=connections",
-      ]);
-    }),
-    vscode.commands.registerCommand("codemarshal.export", async () => {
-      const investigationId = await vscode.window.showInputBox({
-        prompt: "Investigation/session ID",
-      });
-      if (!investigationId) {
-        return;
-      }
-      const format = await vscode.window.showQuickPick(
-        ["markdown", "json", "html", "text"],
-        { placeHolder: "Export format" },
-      );
-      if (!format) {
-        return;
-      }
-      const outputUri = await vscode.window.showSaveDialog({
-        saveLabel: "Export",
-      });
-      if (!outputUri) {
-        return;
-      }
-      await runAndLog([
-        "export",
-        investigationId,
-        `--format=${format}`,
-        `--output=${outputUri.fsPath}`,
-        "--confirm-overwrite",
-      ]);
-    }),
-    vscode.commands.registerCommand(
-      "codemarshal.showPatternsForFile",
-      async (uri?: vscode.Uri) => {
-        const targetUri =
-          uri || vscode.window.activeTextEditor?.document.uri;
-        if (!targetUri) {
+        if (!investigationId) {
           return;
         }
-        const matches =
-          matchStore.get(normalizeFsPath(targetUri.fsPath)) || [];
-        output.show(true);
-        output.appendLine(
-          `Pattern matches for ${targetUri.fsPath}: ${matches.length}`,
-        );
-        for (const match of matches) {
-          output.appendLine(
-            `- ${match.pattern_name || match.pattern_id}: ${match.message}`,
-          );
+        let finalInvestigationId = investigationId;
+        if (investigationId === "Enter ID...") {
+          const inputId = await vscode.window.showInputBox({
+            prompt: "Enter Investigation/session ID",
+          });
+          if (!inputId) {
+            return;
+          }
+          finalInvestigationId = inputId;
         }
-      },
-    ),
-  );
 
-  context.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument((document) => {
-      if (!getScanOnSave()) {
-        return;
-      }
-      void scanFile(document.uri);
-    }),
-  );
+        const question = await vscode.window.showInputBox({
+          prompt: "Question to ask",
+        });
+        if (!question) {
+          return;
+        }
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "CodeMarshal: Running query...",
+            cancellable: false,
+          },
+          async () => {
+            await runAndLog([
+              "query",
+              finalInvestigationId,
+              "--question",
+              question,
+              "--question-type=connections",
+            ]);
+          },
+        );
+      }),
+      vscode.commands.registerCommand("codemarshal.export", async () => {
+        const investigationId = await vscode.window.showQuickPick(
+          ["latest", "Enter ID..."],
+          {
+            placeHolder: "Investigation/session ID (type 'latest' for the most recent)",
+          },
+        );
+        if (!investigationId) {
+          return;
+        }
+        let finalInvestigationId = investigationId;
+        if (investigationId === "Enter ID...") {
+          const inputId = await vscode.window.showInputBox({
+            prompt: "Enter Investigation/session ID",
+          });
+          if (!inputId) {
+            return;
+          }
+          finalInvestigationId = inputId;
+        }
 
-  context.subscriptions.push(
-    vscode.languages.registerCodeLensProvider(
-      { scheme: "file" },
-      codelensProvider,
-    ),
-    vscode.languages.registerHoverProvider(
-      { scheme: "file" },
-      hoverProvider,
-    ),
-  );
+        const format = await vscode.window.showQuickPick(
+          ["markdown", "json", "html", "text", "csv", "jupyter", "pdf", "svg"],
+          { placeHolder: "Export format" },
+        );
+        if (!format) {
+          return;
+        }
+        const outputUri = await vscode.window.showSaveDialog({
+          saveLabel: "Export",
+          filters: {
+            "CodeMarshal Export": [format],
+          },
+        });
+        if (!outputUri) {
+          return;
+        }
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "CodeMarshal: Exporting...",
+            cancellable: false,
+          },
+          async () => {
+            await runAndLog([
+              "export",
+              finalInvestigationId,
+              `--format=${format}`,
+              `--output=${outputUri.fsPath}`,
+              "--confirm-overwrite",
+            ]);
+          },
+        );
+      }),
+      vscode.commands.registerCommand(
+        "codemarshal.showPatternsForFile",
+        async (uri?: vscode.Uri) => {
+          const targetUri =
+            uri || vscode.window.activeTextEditor?.document.uri;
+          if (!targetUri) {
+            vscode.window.showWarningMessage(
+              "CodeMarshal: No file selected to show patterns for.",
+            );
+            return;
+          }
+          const matches =
+            matchStore.get(normalizeFsPath(targetUri.fsPath)) || [];
+          output.show(true);
+          output.appendLine(
+            `--- Pattern matches for ${targetUri.fsPath} (${matches.length}) ---`,
+          );
+          if (matches.length === 0) {
+            output.appendLine("No pattern matches found for this file.");
+            vscode.window.showInformationMessage(
+              `CodeMarshal: No pattern matches found for ${path.basename(targetUri.fsPath)}.`,
+            );
+          } else {
+            for (const match of matches) {
+              output.appendLine(
+                `- [${match.severity}] ${match.pattern_name || match.pattern_id}: ${match.message} (Line: ${match.line})`,
+              );
+            }
+            vscode.window.showInformationMessage(
+              `CodeMarshal: Displaying ${matches.length} pattern matches for ${path.basename(targetUri.fsPath)} in output channel.`,
+            );
+          }
+        },
+      ),
+    );
+  }
 
-  context.subscriptions.push(output, diagnosticsCollection);
+  // --- Event Subscriptions ---
+  function registerSubscriptions(context: vscode.ExtensionContext): void {
+    context.subscriptions.push(
+      vscode.workspace.onDidSaveTextDocument((document) => {
+        if (!getScanOnSave()) {
+          return;
+        }
+        void scanFile(document.uri);
+      }),
+      vscode.languages.registerCodeLensProvider(
+        { scheme: "file" },
+        codelensProvider,
+      ),
+      vscode.languages.registerHoverProvider(
+        { scheme: "file" },
+        hoverProvider,
+      ),
+      output,
+      diagnosticsCollection,
+    );
+  }
+
+  // Register all commands and subscriptions
+  registerCommands(context);
+  registerSubscriptions(context);
 }
 
 export function deactivate(): void {

@@ -12,14 +12,13 @@ Features:
 - Symlink handling
 """
 
+import argparse
+import fnmatch
 import os
 import sys
-import argparse
 import time
-import fnmatch
 from collections import defaultdict
 from pathlib import Path
-from typing import Set, List, Tuple
 
 # Default directories to skip (common build artifacts, dependencies, IDE files)
 DEFAULT_SKIP_DIRS = {
@@ -224,7 +223,7 @@ def is_binary(file_path: Path) -> bool:
                     return True
                 return False
 
-    except (IOError, OSError):
+    except OSError:
         return True  # If we can't read it, treat as binary
 
 
@@ -232,7 +231,7 @@ def count_lines_in_file(
     file_path: Path,
     skip_blank: bool = False,
     skip_comments: bool = False,
-    comment_patterns: List[str] | None = None,
+    comment_patterns: list[str] | None = None,
 ) -> int:
     """
     Count lines in a text file.
@@ -247,7 +246,7 @@ def count_lines_in_file(
         Number of lines
     """
     try:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
 
         count = 0
@@ -266,12 +265,12 @@ def count_lines_in_file(
 
         return count
 
-    except (IOError, OSError):
+    except OSError:
         return 0
 
 
 def should_skip_dir(
-    dir_name: str, skip_dirs: Set[str], case_sensitive: bool = False
+    dir_name: str, skip_dirs: set[str], case_sensitive: bool = False
 ) -> bool:
     """
     Check if a directory should be skipped.
@@ -294,7 +293,7 @@ def should_skip_dir(
         )
 
 
-def get_comment_patterns(extension: str) -> List[str]:
+def get_comment_patterns(extension: str) -> list[str]:
     """Get comment patterns for a given file extension."""
     patterns = {
         ".py": ["#"],
@@ -519,7 +518,7 @@ Examples:
 
                 try:
                     file_size = file_path.stat().st_size
-                except (OSError, IOError):
+                except OSError:
                     errors += 1
                     continue
 

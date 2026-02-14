@@ -1,13 +1,14 @@
-import psutil # psutil still needed here for system_memory.total/available/used
 from typing import Any
 
+import psutil  # psutil still needed here for system_memory.total/available/used
+
 from core.memory_monitor_interface import (
-    MemoryMonitorInterface,
     MemoryMonitorError,
+    MemoryMonitorInterface,
     MemoryMonitorNotAvailableError,
     MemoryStats,
 )
-from integrity.monitoring.memory import MemoryMonitor, PSUTIL_AVAILABLE
+from integrity.monitoring.memory import PSUTIL_AVAILABLE, MemoryMonitor
 
 
 class IntegrityMemoryMonitorAdapter(MemoryMonitorInterface):

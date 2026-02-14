@@ -27,6 +27,14 @@ from observations.record.snapshot import Snapshot, load_snapshot
 from storage.atomic import atomic_write
 from storage.corruption import detect_corruption
 
+from ._compat import (
+    compute_hash_candidates,
+    compute_integrity_hash,
+    get_snapshot_payload,
+    get_system_version,
+    with_observation_aliases,
+)
+
 
 # Type definitions for truth preservation
 class BackupManifest(NamedTuple):
@@ -52,7 +60,7 @@ class BackupOutcome(NamedTuple):
 
 
 # Constants for truth consistency
-BACKUP_FORMAT_VERSION: int = 1
+BACKUP_FORMAT_VERSION: int = 2
 MINIMUM_BACKUP_SIZE_BYTES: int = 1024  # 1KB minimum backup size
 MAX_BACKUP_AGE_DAYS: int = 30  # Automatic cleanup after 30 days
 COMPRESSION_THRESHOLD_BYTES: int = 10 * 1024 * 1024  # 10MB
@@ -98,15 +106,17 @@ def collect_observations_snapshot() -> Snapshot | None:
     try:
         snapshot = load_snapshot()
 
-        # Detect any corruption in the snapshot before backing up
-        corruption = detect_corruption(snapshot)
+        # Detect any corruption in serialized snapshot before backing up
+        snapshot_data = (
+            snapshot.to_dict() if hasattr(snapshot, "to_dict") else dict(snapshot)
+        )
+        snapshot_bytes = json.dumps(snapshot_data, sort_keys=True).encode("utf-8")
+        corruption = detect_corruption(snapshot_bytes, "session_context")
         if corruption:
             log_error(
                 f"Corruption detected in snapshot before backup: {corruption}",
                 severity=ErrorSeverity.HIGH,
             )
-            # We still backup, but with corruption flag
-            snapshot.corruption_detected = True
 
         return snapshot
     except Exception as e:
@@ -203,27 +213,96 @@ def validate_backup_completeness(backup_data: dict[str, Any]) -> list[str]:
 
     Constitutional: Article 11 (Declared Limitations) - Know what we're missing
     """
-    warnings = []
-    required_components = ["observations", "state", "metadata"]
+    warnings: list[str] = []
+    metadata = backup_data.get("metadata", {})
+    backup_type = metadata.get("backup_type", "full")
+    normalized = with_observation_aliases(backup_data)
 
-    for component in required_components:
-        if component not in backup_data:
-            warnings.append(f"Missing required component: {component}")
-        elif not backup_data[component]:
-            warnings.append(f"Empty component: {component}")
+    if backup_type == "incremental":
+        if "parent_backup_path" not in metadata:
+            warnings.append("Incremental backup missing parent_backup_path")
+        if "changed_components" not in backup_data:
+            warnings.append("Incremental backup missing changed_components")
+    else:
+        required_components = ["state", "metadata"]
+        for component in required_components:
+            if component not in normalized:
+                warnings.append(f"Missing required component: {component}")
+            elif not normalized[component]:
+                warnings.append(f"Empty component: {component}")
 
-    # Check observation count
-    observations = backup_data.get("observations", {})
-    if isinstance(observations, dict) and "files" in observations:
-        file_count = len(observations["files"])
-        if file_count == 0:
-            warnings.append("Backup contains 0 observed files")
-        elif file_count < 10:
-            warnings.append(
-                f"Backup contains only {file_count} files - minimal observation"
-            )
+        if get_snapshot_payload(normalized) is None:
+            warnings.append("Missing required component: snapshot/observations")
+
+    # Check observation count when payload shape supports it
+    observations = get_snapshot_payload(normalized) or {}
+    if isinstance(observations, dict):
+        if "files" in observations and isinstance(observations["files"], dict):
+            file_count = len(observations["files"])
+            if file_count == 0:
+                warnings.append("Backup contains 0 observed files")
+            elif file_count < 10:
+                warnings.append(
+                    f"Backup contains only {file_count} files - minimal observation"
+                )
+        elif "groups" in observations and isinstance(observations["groups"], list):
+            if not observations["groups"]:
+                warnings.append("Backup contains empty snapshot groups")
 
     return warnings
+
+
+def _load_backup_payload(path: Path) -> dict[str, Any] | None:
+    """Load backup JSON payload if readable and valid JSON."""
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        return None
+    return None
+
+
+def _parse_backup_timestamp(payload: dict[str, Any]) -> datetime | None:
+    """Parse backup timestamp in UTC-aware form."""
+    timestamp = payload.get("metadata", {}).get("timestamp")
+    if not isinstance(timestamp, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def _find_latest_backup_before(
+    backup_root: Path, since_timestamp: datetime
+) -> tuple[Path | None, dict[str, Any] | None]:
+    """Find the latest restorable backup at or before the provided timestamp."""
+    latest_path: Path | None = None
+    latest_payload: dict[str, Any] | None = None
+    latest_timestamp: datetime | None = None
+
+    for backup_type in ("full", "emergency", "incremental"):
+        type_dir = backup_root / backup_type
+        if not type_dir.exists():
+            continue
+        for backup_file in type_dir.glob("backup_*.json"):
+            payload = _load_backup_payload(backup_file)
+            if not payload:
+                continue
+            parsed = _parse_backup_timestamp(payload)
+            if parsed is None or parsed > since_timestamp:
+                continue
+            if latest_timestamp is None or parsed > latest_timestamp:
+                latest_path = backup_file
+                latest_payload = payload
+                latest_timestamp = parsed
+
+    return latest_path, latest_payload
 
 
 def perform_incremental_backup(
@@ -234,13 +313,157 @@ def perform_incremental_backup(
 
     Constitutional: Article 20 (Progressive Enhancement) - Build on existing functionality
     """
-    # TODO: Implement incremental backup logic
-    # This would require tracking observation changes over time
-    # For now, we'll log that incremental backup is not yet implemented
-    log_error("Incremental backup not yet implemented", severity=ErrorSeverity.LOW)
+    warnings: list[str] = []
+    backup_start = datetime.now(UTC)
 
-    # Fall back to full backup
-    return perform_backup(backup_dir, backup_type="emergency")
+    try:
+        backup_root = create_backup_directory(backup_dir)
+        base_path, base_payload = _find_latest_backup_before(backup_root, since_timestamp)
+        if not base_path or not base_payload:
+            fallback = perform_backup(
+                str(backup_root),
+                backup_type="full",
+                description=(
+                    "Incremental backup fallback: no base backup available "
+                    f"before {since_timestamp.isoformat()}"
+                ),
+            )
+            merged_warnings = list(fallback.warnings)
+            merged_warnings.append(
+                "No eligible base backup found; wrote full backup instead"
+            )
+            return fallback._replace(warnings=merged_warnings)
+
+        snapshot = collect_observations_snapshot()
+        state = collect_investigation_state()
+        config = collect_configuration()
+        if snapshot is None or state is None:
+            return BackupOutcome(
+                success=False,
+                backup_path=None,
+                manifest=None,
+                warnings=warnings,
+                error_message="Failed to collect required components for incremental backup",
+            )
+
+        snapshot_data = (
+            snapshot.to_dict() if hasattr(snapshot, "to_dict") else dict(snapshot)
+        )
+        state_data = state.to_dict() if hasattr(state, "to_dict") else dict(state)
+        base_normalized = with_observation_aliases(base_payload)
+        base_snapshot = get_snapshot_payload(base_normalized)
+        base_state = base_normalized.get("state")
+        base_config = base_normalized.get("config")
+
+        current_components = {
+            "snapshot": snapshot_data,
+            "state": state_data,
+            "config": config,
+        }
+        base_components = {
+            "snapshot": base_snapshot,
+            "state": base_state,
+            "config": base_config,
+        }
+
+        changed_components: list[str] = []
+        integrity_hashes: dict[str, str] = {}
+        incremental_payload: dict[str, Any] = {}
+
+        for component_name, current_data in current_components.items():
+            current_hash = compute_component_hash(component_name, current_data)
+            base_hash = compute_component_hash(component_name, base_components[component_name])
+            if current_hash and current_hash != base_hash:
+                changed_components.append(component_name)
+                integrity_hashes[component_name] = current_hash
+                incremental_payload[component_name] = current_data
+
+        backup_filename = create_backup_filename(backup_start, "incremental")
+        backup_path = backup_root / "incremental" / backup_filename
+        backup_id = backup_filename.removesuffix(".json")
+
+        runtime_context = {}
+        try:
+            context = get_runtime_context()
+            runtime_context = (
+                context.to_dict() if hasattr(context, "to_dict") else dict(context)
+            )
+        except Exception:
+            runtime_context = {}
+
+        backup_data: dict[str, Any] = {
+            "metadata": {
+                "timestamp": backup_start.isoformat(),
+                "system_version": get_system_version(),
+                "backup_format_version": BACKUP_FORMAT_VERSION,
+                "backup_type": "incremental",
+                "description": (
+                    f"Incremental backup from {base_path.name}"
+                    if changed_components
+                    else "Incremental backup (no changes)"
+                ),
+                "runtime_context": runtime_context,
+                "backup_id": backup_id,
+                "since_timestamp": since_timestamp.isoformat(),
+                "parent_backup_path": str(base_path.resolve()),
+            },
+            "changed_components": sorted(changed_components),
+            "integrity_hashes": integrity_hashes,
+            **incremental_payload,
+        }
+
+        if "snapshot" in incremental_payload:
+            backup_data["observations"] = incremental_payload["snapshot"]
+
+        backup_data["integrity_hash"] = compute_integrity_hash(backup_data)
+
+        warnings.extend(validate_backup_completeness(backup_data))
+        if not changed_components:
+            warnings.append("No component changes detected since parent backup")
+
+        atomic_write(backup_path, json.dumps(backup_data, indent=2, sort_keys=True))
+
+        manifest = BackupManifest(
+            timestamp=backup_start,
+            system_version=backup_data["metadata"]["system_version"],
+            backup_format_version=BACKUP_FORMAT_VERSION,
+            included_components=list(backup_data.keys()),
+            integrity_hashes=integrity_hashes,
+            total_size_bytes=backup_path.stat().st_size,
+            source_paths=[str(backup_path)],
+        )
+
+        audit_recovery(
+            action="backup_complete",
+            metadata={
+                "timestamp": backup_start.isoformat(),
+                "backup_path": str(backup_path),
+                "backup_type": "incremental",
+                "base_backup_path": str(base_path),
+                "changed_components": sorted(changed_components),
+                "warnings": warnings,
+            },
+        )
+
+        cleanup_old_backups(backup_root / "incremental")
+        return BackupOutcome(
+            success=True,
+            backup_path=backup_path,
+            manifest=manifest,
+            warnings=warnings,
+            error_message=None,
+        )
+
+    except Exception as e:
+        error_msg = f"Incremental backup failed: {str(e)}"
+        log_error(error_msg, severity=ErrorSeverity.HIGH)
+        return BackupOutcome(
+            success=False,
+            backup_path=None,
+            manifest=None,
+            warnings=warnings,
+            error_message=error_msg,
+        )
 
 
 def perform_backup(
@@ -268,6 +491,9 @@ def perform_backup(
     try:
         # Phase 1: Setup and validation
         backup_dir = create_backup_directory(Path(backup_root) if backup_root else None)
+
+        if backup_type == "incremental":
+            return perform_incremental_backup(backup_dir, since_timestamp=backup_start)
 
         # Check disk space before proceeding
         try:
@@ -306,9 +532,9 @@ def perform_backup(
         # Phase 3: Compute integrity hashes
         integrity_hashes = {}
 
-        obs_hash = compute_component_hash("observations", snapshot)
-        if obs_hash:
-            integrity_hashes["observations"] = obs_hash
+        snapshot_hash = compute_component_hash("snapshot", snapshot)
+        if snapshot_hash:
+            integrity_hashes["snapshot"] = snapshot_hash
         else:
             warnings.append("Failed to compute observation hash")
 
@@ -322,39 +548,47 @@ def perform_backup(
         if config_hash:
             integrity_hashes["config"] = config_hash
 
+        snapshot_data = (
+            snapshot.to_dict() if hasattr(snapshot, "to_dict") else dict(snapshot)
+        )
+        state_data = state.to_dict() if hasattr(state, "to_dict") else dict(state)
+        backup_filename = create_backup_filename(backup_start, backup_type)
+        backup_id = backup_filename.removesuffix(".json")
+        runtime_context = {}
+        try:
+            context = get_runtime_context()
+            runtime_context = (
+                context.to_dict() if hasattr(context, "to_dict") else dict(context)
+            )
+        except Exception:
+            runtime_context = {}
+
         # Phase 4: Assemble backup data
-        backup_data = {
+        backup_data: dict[str, Any] = {
             "metadata": {
                 "timestamp": backup_start.isoformat(),
-                "system_version": "1.0.0",  # TODO: Get from package
+                "system_version": get_system_version(),
                 "backup_format_version": BACKUP_FORMAT_VERSION,
                 "backup_type": backup_type,
                 "description": description or f"{backup_type.capitalize()} backup",
-                "runtime_context": get_runtime_context().to_dict()
-                if hasattr(get_runtime_context(), "to_dict")
-                else {},
+                "runtime_context": runtime_context,
+                "backup_id": backup_id,
             },
-            "observations": snapshot.to_dict()
-            if hasattr(snapshot, "to_dict")
-            else dict(snapshot),
-            "state": state.to_dict() if hasattr(state, "to_dict") else dict(state),
+            "snapshot": snapshot_data,
+            "observations": snapshot_data,  # Backward-compatible alias
+            "state": state_data,
             "config": config,
             "integrity_hashes": integrity_hashes,
         }
 
         # Compute overall integrity hash
-        # Exclude integrity_hashes from the hash computation (circular)
-        hash_data = {k: v for k, v in backup_data.items() if k != "integrity_hashes"}
-        json_str = json.dumps(hash_data, sort_keys=True, separators=(",", ":"))
-        overall_hash = hashlib.sha256(json_str.encode("utf-8")).hexdigest()
-        backup_data["integrity_hash"] = overall_hash
+        backup_data["integrity_hash"] = compute_integrity_hash(backup_data)
 
         # Phase 5: Validate backup completeness
         completeness_warnings = validate_backup_completeness(backup_data)
         warnings.extend(completeness_warnings)
 
         # Phase 6: Write backup atomically
-        backup_filename = create_backup_filename(backup_start, backup_type)
         backup_path = backup_dir / backup_type / backup_filename
 
         # Convert to pretty JSON for human readability (with atomic write guarantee)
@@ -381,7 +615,9 @@ def perform_backup(
                 "backup_path": str(backup_path),
                 "backup_type": backup_type,
                 "size_bytes": total_size,
-                "observation_hash": obs_hash[:16] + "..." if obs_hash else "unknown",
+                "observation_hash": snapshot_hash[:16] + "..."
+                if snapshot_hash
+                else "unknown",
                 "state_hash": state_hash[:16] + "..." if state_hash else "unknown",
                 "warnings": warnings,
                 "description": description,
@@ -533,21 +769,36 @@ def verify_backup(backup_path: str) -> dict[str, Any]:
         with path.open("r", encoding="utf-8") as f:
             backup_data = json.load(f)
 
-        # Check required structure
-        required_keys = {"metadata", "observations", "state", "integrity_hash"}
+        # Check required top-level structure
+        required_keys = {"metadata", "integrity_hash"}
         if not required_keys.issubset(backup_data.keys()):
             missing = required_keys - set(backup_data.keys())
             return {"valid": False, "error": f"Missing keys: {missing}"}
 
-        # Verify integrity hash
-        hash_data = {k: v for k, v in backup_data.items() if k != "integrity_hash"}
-        json_str = json.dumps(hash_data, sort_keys=True, separators=(",", ":"))
-        computed_hash = hashlib.sha256(json_str.encode("utf-8")).hexdigest()
+        metadata = backup_data.get("metadata", {})
+        backup_type = metadata.get("backup_type", "full")
+        normalized = with_observation_aliases(backup_data)
 
-        if computed_hash != backup_data["integrity_hash"]:
+        if backup_type == "incremental":
+            if "parent_backup_path" not in metadata:
+                return {
+                    "valid": False,
+                    "error": "Incremental backup missing parent_backup_path",
+                }
+        else:
+            if "state" not in normalized:
+                return {"valid": False, "error": "Missing keys: {'state'}"}
+            if get_snapshot_payload(normalized) is None:
+                return {
+                    "valid": False,
+                    "error": "Missing keys: {'snapshot/observations'}",
+                }
+
+        expected_hash = backup_data.get("integrity_hash", "")
+        if expected_hash not in compute_hash_candidates(backup_data):
             return {
                 "valid": False,
-                "error": f"Hash mismatch: expected {backup_data['integrity_hash'][:16]}..., got {computed_hash[:16]}...",
+                "error": "Hash mismatch for all known backup compatibility strategies",
             }
 
         # Check component hashes if present
@@ -555,8 +806,8 @@ def verify_backup(backup_path: str) -> dict[str, Any]:
         verification_results = {}
 
         for component, expected_hash in integrity_hashes.items():
-            if component in hash_data:
-                component_data = hash_data[component]
+            if component in normalized:
+                component_data = normalized[component]
                 component_json = json.dumps(
                     component_data, sort_keys=True, separators=(",", ":")
                 )
@@ -570,7 +821,6 @@ def verify_backup(backup_path: str) -> dict[str, Any]:
                     "actual": computed_component_hash[:16] + "...",
                 }
 
-        metadata = backup_data["metadata"]
         return {
             "valid": True,
             "timestamp": metadata.get("timestamp"),

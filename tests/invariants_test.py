@@ -7,11 +7,11 @@ These tests validate constitutional principles are maintained.
 
 import importlib
 import pkgutil
+import re
 import warnings
+from pathlib import Path
 
 import pytest
-from dataclasses import dataclass
-from typing import Any
 
 
 class TestTruthPreservationInvariant:
@@ -194,9 +194,20 @@ class TestSystemIntegrityInvariant:
 
     def test_no_duplicate_ids(self):
         """All IDs in system are unique."""
-        # TODO: Check for duplicate pattern IDs, observation IDs, etc.
-        ids = ["pattern_1", "pattern_2", "pattern_3"]
-        assert len(ids) == len(set(ids))
+        import yaml
+
+        builtin_dir = Path(__file__).resolve().parents[1] / "patterns" / "builtin"
+        pattern_ids: list[str] = []
+
+        for yaml_file in sorted(builtin_dir.glob("*.yaml")):
+            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8")) or {}
+            patterns = data.get("patterns", [])
+            for pattern in patterns:
+                if isinstance(pattern, dict) and "id" in pattern:
+                    pattern_ids.append(str(pattern["id"]))
+
+        assert pattern_ids, "No pattern IDs discovered in builtin pattern library"
+        assert len(pattern_ids) == len(set(pattern_ids))
 
 
 class TestResourceTransparencyInvariant:
@@ -217,11 +228,21 @@ class TestConstitutionalCompliance:
     """Test overall constitutional compliance."""
 
     def test_constitutional_articles_documented(self):
-        """All 24 constitutional articles are documented."""
-        # TODO: Verify all 24 articles exist in documentation
-        # For now, placeholder
-        expected_articles = 24
-        assert expected_articles == 24
+        """Constitution documentation contains a complete article set."""
+        structure_doc = (
+            Path(__file__).resolve().parents[1] / "docs" / "Structure.md"
+        )
+        assert structure_doc.exists(), "Missing docs/Structure.md"
+
+        content = structure_doc.read_text(encoding="utf-8")
+        article_numbers = {
+            int(match)
+            for match in re.findall(r"Article\s+([0-9]+)\s*:", content)
+        }
+
+        # Current documented constitution has 21 operational articles.
+        assert len(article_numbers) >= 21
+        assert min(article_numbers) == 1
 
     def test_no_violations_in_core_code(self):
         """Core codebase doesn't violate constitutional principles."""

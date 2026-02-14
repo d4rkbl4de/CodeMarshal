@@ -14,7 +14,6 @@ This is a router, not a worker.
 from __future__ import annotations
 
 import datetime
-import hashlib
 import importlib
 import logging
 import sys
@@ -23,11 +22,10 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
-from core.memory_monitor_interface import MemoryMonitorInterface
-
 # Allowed imports per constitutional rules
 from core.context import RuntimeContext
 from core.interfaces import InquiryInterface, LensInterface, ObservationInterface
+from core.memory_monitor_interface import MemoryMonitorInterface
 from core.state import InvestigationPhase, InvestigationState
 from core.storage_interface import InvestigationStorageInterface
 

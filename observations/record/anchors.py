@@ -816,6 +816,125 @@ class PythonASTAnchorGenerator(AnchorGenerator):
         return hasher.hexdigest()
 
 
+class ImportSignatureAnchorGenerator(AnchorGenerator):
+    """Generate anchors from static Python import signatures."""
+
+    def __init__(self, algorithm: str = "sha256"):
+        self._algorithm = algorithm
+        self._fallback = FileContentAnchorGenerator(algorithm=algorithm)
+
+    @property
+    def method(self) -> ContentFingerprintMethod:
+        return ContentFingerprintMethod.IMPORT_SIGNATURE
+
+    def generate(self, path: str | Path, **kwargs: Any) -> Anchor:
+        """Generate anchor by hashing normalized import signatures."""
+        path_obj = Path(path)
+        if not path_obj.is_file():
+            raise ValueError(f"Path is not a file: {path}")
+
+        relative_path = None
+        if "base_path" in kwargs:
+            try:
+                relative_path = str(Path(path).relative_to(kwargs["base_path"]))
+            except ValueError:
+                pass
+
+        if path_obj.suffix != ".py":
+            return self._fallback_anchor(path_obj, relative_path, reason="non_python_file")
+
+        try:
+            import ast
+        except ImportError as exc:
+            raise RuntimeError("AST module not available") from exc
+
+        try:
+            source = path_obj.read_text(encoding="utf-8", errors="ignore")
+        except (OSError, UnicodeError) as exc:
+            raise ValueError(f"Cannot read file {path}: {exc}") from exc
+
+        try:
+            tree = ast.parse(source, filename=path_obj.name)
+        except SyntaxError:
+            return self._fallback_anchor(path_obj, relative_path, reason="syntax_error")
+
+        signatures: list[tuple[str, Any]] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    signatures.append(
+                        (
+                            "import",
+                            alias.name,
+                            alias.asname or "",
+                        )
+                    )
+            elif isinstance(node, ast.ImportFrom):
+                imported_names = tuple(
+                    sorted((alias.name, alias.asname or "") for alias in node.names)
+                )
+                signatures.append(
+                    (
+                        "from",
+                        node.module or "",
+                        int(node.level or 0),
+                        imported_names,
+                    )
+                )
+
+        signatures.sort(key=lambda item: json.dumps(item, sort_keys=True))
+        signature_payload = {"imports": signatures}
+        signature_json = json.dumps(signature_payload, sort_keys=True, separators=(",", ":"))
+        hasher = hashlib.new(self._algorithm)
+        hasher.update(signature_json.encode("utf-8"))
+        signature_hash = hasher.hexdigest()
+
+        content_hasher = hashlib.new(self._algorithm)
+        content_hasher.update(source.encode("utf-8"))
+        full_content_hash = content_hasher.hexdigest()
+
+        return Anchor(
+            identifier=f"import_sig:{self._algorithm}:{signature_hash}",
+            anchor_type=AnchorType.MODULE,
+            content_fingerprint=signature_hash,
+            fingerprint_method=self.method,
+            original_path=str(path_obj.absolute()),
+            relative_path=relative_path,
+            metadata=AnchorMetadata.create(
+                method=self.method,
+                algorithm=self._algorithm,
+                parameters={
+                    "signature_count": len(signatures),
+                    "fallback": False,
+                },
+            ),
+            auxiliary_fingerprints={"full_content": full_content_hash},
+        )
+
+    def _fallback_anchor(
+        self, path_obj: Path, relative_path: str | None, reason: str
+    ) -> Anchor:
+        """Fallback to content hash while preserving import-signature method metadata."""
+        file_anchor = self._fallback.generate(path_obj)
+        return Anchor(
+            identifier=f"import_sig:{self._algorithm}:{file_anchor.content_fingerprint}",
+            anchor_type=file_anchor.anchor_type,
+            content_fingerprint=file_anchor.content_fingerprint,
+            fingerprint_method=self.method,
+            original_path=file_anchor.original_path,
+            relative_path=relative_path,
+            metadata=AnchorMetadata.create(
+                method=self.method,
+                algorithm=self._algorithm,
+                parameters={
+                    "fallback": True,
+                    "fallback_reason": reason,
+                },
+            ),
+            auxiliary_fingerprints={"full_content": file_anchor.content_fingerprint},
+        )
+
+
 # ============================================================================
 # ANCHOR REGISTRY AND FACTORY
 # ============================================================================
@@ -843,7 +962,7 @@ class AnchorFactory:
                 ContentFingerprintMethod.LINE_HASH_MERKLE: LineHashMerkleAnchorGenerator(),
                 ContentFingerprintMethod.STRUCTURAL_SKELETON: DirectoryStructureAnchorGenerator(),
                 ContentFingerprintMethod.AST_HASH: PythonASTAnchorGenerator(),
-                ContentFingerprintMethod.IMPORT_SIGNATURE: FileContentAnchorGenerator(),  # TODO: Implement
+                ContentFingerprintMethod.IMPORT_SIGNATURE: ImportSignatureAnchorGenerator(),
             }
             if method in defaults:
                 cls._generators[method] = defaults[method]
@@ -1191,6 +1310,10 @@ AnchorFactory.register_generator(
 
 AnchorFactory.register_generator(
     ContentFingerprintMethod.AST_HASH, PythonASTAnchorGenerator()
+)
+
+AnchorFactory.register_generator(
+    ContentFingerprintMethod.IMPORT_SIGNATURE, ImportSignatureAnchorGenerator()
 )
 
 # ============================================================================

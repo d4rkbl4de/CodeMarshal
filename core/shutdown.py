@@ -24,12 +24,14 @@ What it must do:
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 import signal
 import sys
 import traceback
 from dataclasses import dataclass
 from enum import Enum, auto
+from pathlib import Path
 from typing import Any
 
 from core.context import RuntimeContext
@@ -270,10 +272,12 @@ class ShutdownManager:
         """
         try:
             self._logger.debug("Flushing pending writes...")
+            from storage.atomic import flush_pending_writes
 
-            # In production, this would use storage.atomic.flush_all()
-            # For now, simulate success
-            # TODO: Integrate with storage.atomic when available
+            flushed = flush_pending_writes()
+            if not flushed:
+                self._logger.warning("Pending writes flush reported failure")
+                return False
 
             self._logger.info("Pending writes flushed")
             return True
@@ -291,10 +295,18 @@ class ShutdownManager:
         """
         try:
             self._logger.debug("Running corruption checks...")
+            from observations.record.snapshot import load_snapshot
+            from storage.corruption import detect_corruption
 
-            # In production, this would use integrity.recovery.check_corruption()
-            # For now, simulate success
-            # TODO: Integrate with integrity.recovery when available
+            snapshot = load_snapshot()
+            snapshot_data = (
+                snapshot.to_dict() if hasattr(snapshot, "to_dict") else dict(snapshot)
+            )
+            serialized = json.dumps(snapshot_data, sort_keys=True).encode("utf-8")
+            corruption = detect_corruption(serialized, "session_context")
+            if corruption is not None:
+                self._logger.error(f"Corruption detected during shutdown: {corruption}")
+                return False
 
             self._logger.info("Corruption checks passed")
             return True
@@ -312,9 +324,20 @@ class ShutdownManager:
         """
         try:
             self._logger.debug("Saving session state...")
+            from core.state import get_current_state
+            from storage.atomic import atomic_write_json_compatible
 
-            # In production, this would save investigation state
-            # For now, simulate success
+            current_state = get_current_state()
+            state_payload = (
+                current_state.to_dict()
+                if hasattr(current_state, "to_dict")
+                else dict(current_state)
+            )
+
+            session_dir = Path(".codemarshal") / "session_state"
+            session_dir.mkdir(parents=True, exist_ok=True)
+            target = session_dir / f"{self._context.session_id_str}.json"
+            atomic_write_json_compatible(target, state_payload, indent=2)
 
             self._logger.info("Session state saved")
             return True

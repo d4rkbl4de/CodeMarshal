@@ -431,6 +431,16 @@ def read_atomic(path: str | Path) -> AtomicReadResult:
         return AtomicReadResult(False, None, e)
 
 
+def flush_pending_writes() -> bool:
+    """
+    Flush pending storage writes.
+
+    CodeMarshal currently performs explicit fsync operations per atomic write,
+    so this function is a deterministic no-op success marker for shutdown flows.
+    """
+    return True
+
+
 # Export public API
 __all__ = [
     "AtomicWriteError",
@@ -448,4 +458,5 @@ __all__ = [
     "AtomicReadResult",
     "write_atomic",
     "read_atomic",
+    "flush_pending_writes",
 ]

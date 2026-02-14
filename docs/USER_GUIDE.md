@@ -1,7 +1,7 @@
 # CodeMarshal User Guide
 
-**Version:** 2.1.0  
-**Last Updated:** February 13, 2026
+**Version:** 2.1.1-dev  
+**Last Updated:** February 14, 2026
 
 ---
 
@@ -11,8 +11,9 @@ Current delivery status:
 
 - Completed phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
 - Latest validation:
-  - `175 passed, 3 skipped` (`pytest -q`)
-  - `93.53%` coverage (`pytest --cov=. --cov-report=term-missing -q`)
+  - `186 passed, 2 skipped` with PySide6 (`venv\\Scripts\\python -m pytest -q`)
+  - `184 passed, 3 skipped` without PySide6 (`python -m pytest -q`)
+  - `95.70%` coverage with PySide6 / `93.99%` without (`pytest --cov=. --cov-report=term -q`)
 
 Roadmap details are in `ROADMAP.md`.
 

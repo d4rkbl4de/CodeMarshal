@@ -22,6 +22,13 @@ from observations.record.snapshot import Snapshot, load_snapshot, save_snapshot
 # Core imports - truth preservation layers
 from storage.atomic import atomic_write
 
+from ._compat import (
+    compute_hash_candidates,
+    get_snapshot_payload,
+    get_system_version,
+    with_observation_aliases,
+)
+
 
 # Type definitions for truth preservation
 class BackupMetadata(NamedTuple):
@@ -45,7 +52,7 @@ class RestorationOutcome(NamedTuple):
 
 
 # Constants for truth consistency
-BACKUP_FORMAT_VERSION: int = 1
+BACKUP_FORMAT_VERSION: int = 2
 MINIMUM_BACKUP_VERSION: int = 1
 VALIDATION_HASH_ALGORITHM: str = "sha256"
 
@@ -78,8 +85,8 @@ def validate_backup_file(
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         return False, f"Backup file is not valid JSON/UTF-8: {e}", None
 
-    # Validate required structure - truth about format
-    required_keys = {"metadata", "state", "snapshot", "integrity_hash"}
+    # Validate required top-level structure
+    required_keys = {"metadata", "integrity_hash"}
     if not required_keys.issubset(backup_data.keys()):
         missing = required_keys - set(backup_data.keys())
         return False, f"Backup missing required keys: {missing}", None
@@ -103,28 +110,30 @@ def validate_backup_file(
     if format_version < MINIMUM_BACKUP_VERSION:
         return False, f"Backup format version {format_version} is too old", None
 
+    backup_type = metadata.get("backup_type", "full")
+    normalized = with_observation_aliases(backup_data)
+
+    if backup_type == "incremental":
+        if "parent_backup_path" not in metadata:
+            return False, "Incremental backup missing parent_backup_path", None
+    else:
+        if "state" not in normalized:
+            return False, "Backup missing required key: state", None
+        if get_snapshot_payload(normalized) is None:
+            return False, "Backup missing required key: snapshot/observations", None
+
     # Compute integrity hash - verify truth hasn't been corrupted
     expected_hash = backup_data["integrity_hash"]
-
-    # Recreate the data that was hashed (excluding the hash itself)
-    data_to_hash = {
-        "metadata": backup_data["metadata"],
-        "state": backup_data["state"],
-        "snapshot": backup_data["snapshot"],
-    }
-    json_str = json.dumps(data_to_hash, sort_keys=True, separators=(",", ":"))
-
-    computed_hash = hashlib.sha256(json_str.encode("utf-8")).hexdigest()
-
-    if computed_hash != expected_hash:
+    candidates = compute_hash_candidates(backup_data)
+    if expected_hash not in candidates:
         return (
             False,
-            f"Integrity hash mismatch: expected {expected_hash[:16]}..., got {computed_hash[:16]}...",
+            "Integrity hash mismatch for all known backup compatibility strategies",
             None,
         )
 
     # All validations passed - truth verified
-    return True, None, backup_data
+    return True, None, normalized
 
 
 def compute_current_observation_hash() -> str:
@@ -159,8 +168,8 @@ def create_restoration_checkpoint(backup_path: Path) -> Path | None:
     checkpoint_dir = Path("./.codemarshal/checkpoints")
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(UTC).isoformat()
-    checkpoint_path = checkpoint_dir / f"pre_restore_{timestamp}.json"
+    timestamp = datetime.now(UTC)
+    checkpoint_path = checkpoint_dir / f"pre_restore_{timestamp.strftime('%Y%m%dT%H%M%SZ')}.json"
 
     try:
         current_state = get_current_state()
@@ -168,10 +177,10 @@ def create_restoration_checkpoint(backup_path: Path) -> Path | None:
 
         checkpoint_data = {
             "metadata": {
-                "timestamp": timestamp,
+                "timestamp": timestamp.isoformat(),
                 "operation": "pre_restore_checkpoint",
                 "backup_being_restored": str(backup_path),
-                "system_version": "1.0.0",  # TODO: Get from config
+                "system_version": get_system_version(),
             },
             "state": current_state.to_dict()
             if hasattr(current_state, "to_dict")
@@ -188,6 +197,56 @@ def create_restoration_checkpoint(backup_path: Path) -> Path | None:
     except Exception as e:
         log_error(f"Failed to create restoration checkpoint: {e}")
         return None
+
+
+def _materialize_backup_payload(
+    backup_path: Path,
+    backup_data: dict[str, Any],
+    seen_paths: set[Path] | None = None,
+) -> dict[str, Any]:
+    """
+    Materialize backup payload for restore.
+
+    Incremental backups are recursively merged with their parent backup chain.
+    """
+    normalized = with_observation_aliases(backup_data)
+    metadata = normalized.get("metadata", {})
+    backup_type = metadata.get("backup_type", "full")
+    if backup_type != "incremental":
+        return normalized
+
+    parent_value = metadata.get("parent_backup_path")
+    if not isinstance(parent_value, str) or not parent_value.strip():
+        raise ValueError("Incremental backup missing parent_backup_path")
+
+    parent_path = Path(parent_value)
+    if not parent_path.is_absolute():
+        parent_path = (backup_path.parent / parent_path).resolve()
+
+    if seen_paths is None:
+        seen_paths = set()
+    if backup_path in seen_paths:
+        raise ValueError(f"Cyclic incremental chain detected at {backup_path}")
+    seen_paths.add(backup_path)
+
+    is_valid, error_msg, parent_data = validate_backup_file(parent_path)
+    if not is_valid or parent_data is None:
+        raise ValueError(f"Parent backup invalid: {error_msg}")
+
+    parent_materialized = _materialize_backup_payload(parent_path, parent_data, seen_paths)
+
+    merged = dict(parent_materialized)
+    for key in ("snapshot", "observations", "state", "config"):
+        if key in normalized and normalized[key] is not None:
+            merged[key] = normalized[key]
+
+    merged_metadata = dict(parent_materialized.get("metadata", {}))
+    merged_metadata.update(metadata)
+    merged_metadata["materialized_from"] = str(backup_path)
+    merged["metadata"] = merged_metadata
+    merged["integrity_hash"] = normalized.get("integrity_hash")
+
+    return with_observation_aliases(merged)
 
 
 def perform_restore(backup_file_path: str) -> RestorationOutcome:
@@ -238,10 +297,21 @@ def perform_restore(backup_file_path: str) -> RestorationOutcome:
         # Warn but continue - restoration might still succeed
         log_error("Failed to create checkpoint, proceeding with restoration anyway")
 
+    # Phase 2b: Materialize incremental chain if required
+    try:
+        effective_backup_data = _materialize_backup_payload(backup_path, backup_data)
+    except Exception as e:
+        error_msg = f"Failed to materialize backup payload: {e}"
+        log_error(error_msg)
+        raise ValueError(error_msg) from e
+
     # Phase 3: Restore snapshot (observations) - immutable truth layer
     snapshot_restored = False
     try:
-        snapshot_dict = backup_data["snapshot"]
+        snapshot_dict = get_snapshot_payload(effective_backup_data)
+        if snapshot_dict is None:
+            raise ValueError("No snapshot data available after backup materialization")
+
         # Assuming Snapshot has a from_dict method or similar constructor
         if hasattr(Snapshot, "from_dict"):
             snapshot = Snapshot.from_dict(snapshot_dict)
@@ -258,7 +328,7 @@ def perform_restore(backup_file_path: str) -> RestorationOutcome:
         outcome = RestorationOutcome(
             success=False,
             backup_timestamp=datetime.fromisoformat(
-                backup_data["metadata"]["timestamp"]
+                effective_backup_data["metadata"]["timestamp"]
             ),
             restored_files=0,
             validation_passed=True,  # Backup was valid, restoration failed
@@ -279,7 +349,7 @@ def perform_restore(backup_file_path: str) -> RestorationOutcome:
 
     # Phase 4: Restore state - mutable but controlled layer
     try:
-        state_dict = backup_data["state"]
+        state_dict = effective_backup_data["state"]
         # Assuming InvestigationState has a from_dict method
         if hasattr(InvestigationState, "from_dict"):
             state = InvestigationState.from_dict(state_dict)
@@ -305,7 +375,7 @@ def perform_restore(backup_file_path: str) -> RestorationOutcome:
         outcome = RestorationOutcome(
             success=False,
             backup_timestamp=datetime.fromisoformat(
-                backup_data["metadata"]["timestamp"]
+                effective_backup_data["metadata"]["timestamp"]
             ),
             restored_files=1 if snapshot_restored else 0,
             validation_passed=True,
@@ -331,7 +401,9 @@ def perform_restore(backup_file_path: str) -> RestorationOutcome:
 
     outcome = RestorationOutcome(
         success=True,
-        backup_timestamp=datetime.fromisoformat(backup_data["metadata"]["timestamp"]),
+        backup_timestamp=datetime.fromisoformat(
+            effective_backup_data["metadata"]["timestamp"]
+        ),
         restored_files=2,  # snapshot + state
         validation_passed=True,
         error_message=None,
@@ -342,13 +414,13 @@ def perform_restore(backup_file_path: str) -> RestorationOutcome:
         metadata={
             "timestamp": restoration_end.isoformat(),
             "backup_path": str(backup_path),
-            "backup_timestamp": backup_data["metadata"]["timestamp"],
+            "backup_timestamp": effective_backup_data["metadata"]["timestamp"],
             "success": True,
             "duration_ms": duration_ms,
             "restored_files": outcome.restored_files,
             "checkpoint_created": checkpoint_path is not None,
             "checkpoint_path": str(checkpoint_path) if checkpoint_path else None,
-            "validation_hash": backup_data.get("integrity_hash", "unknown"),
+            "validation_hash": effective_backup_data.get("integrity_hash", "unknown"),
         },
     )
 
@@ -370,7 +442,14 @@ def list_available_backups(backup_dir: str | None = None) -> dict[str, dict[str,
 
     available_backups = {}
 
-    for backup_file in backup_path.glob("*.json"):
+    candidate_files: list[Path] = []
+    for subdir in ("full", "incremental", "emergency"):
+        subpath = backup_path / subdir
+        if subpath.exists():
+            candidate_files.extend(sorted(subpath.glob("backup_*.json")))
+    candidate_files.extend(sorted(backup_path.glob("backup_*.json")))
+
+    for backup_file in candidate_files:
         is_valid, error_msg, backup_data = validate_backup_file(backup_file)
         if is_valid and backup_data:
             metadata = backup_data["metadata"]
@@ -380,6 +459,7 @@ def list_available_backups(backup_dir: str | None = None) -> dict[str, dict[str,
                 "format_version": metadata.get("backup_format_version", 0),
                 "path": str(backup_file),
                 "size_bytes": backup_file.stat().st_size,
+                "backup_type": metadata.get("backup_type", "unknown"),
             }
 
     return available_backups
@@ -400,7 +480,8 @@ def get_backup_info(backup_file_path: str) -> dict[str, Any] | None:
     metadata = backup_data["metadata"]
 
     # Count observations in snapshot (if structured)
-    snapshot = backup_data.get("snapshot", {})
+    normalized = with_observation_aliases(backup_data)
+    snapshot = get_snapshot_payload(normalized) or {}
     observation_count = 0
     if isinstance(snapshot, dict):
         # Try to count observations - structure may vary

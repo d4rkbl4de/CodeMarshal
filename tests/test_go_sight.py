@@ -2,8 +2,8 @@
 Tests for GoSight import/package/export detection.
 """
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from observations.eyes.go_sight import GoSight
 

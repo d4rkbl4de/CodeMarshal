@@ -651,7 +651,7 @@ class MinimalObservationInterface(ObservationInterface):
             elif isinstance(entry, dict):
                 name = entry.get("name")
             elif hasattr(entry, "name"):
-                name = getattr(entry, "name")
+                name = entry.name
             if not name or name in seen:
                 continue
             seen.add(name)

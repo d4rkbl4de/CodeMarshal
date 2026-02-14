@@ -5,9 +5,7 @@ tests/test_cli/test_search.py - Tests for search CLI command
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from bridge.commands.search import SearchCommand, SearchResults
+from bridge.commands.search import SearchCommand
 
 
 class TestSearchCommand:

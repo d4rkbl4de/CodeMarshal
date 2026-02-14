@@ -10,8 +10,8 @@ from patterns.loader import (
     PatternLoader,
     PatternManager,
     PatternMatch,
-    PatternScanResult,
     PatternScanner,
+    PatternScanResult,
     load_patterns,
     scan_patterns,
 )

@@ -11,7 +11,6 @@ Command:
 from __future__ import annotations
 
 import json
-import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -124,10 +123,10 @@ class RepairCommand:
             report["checked"] += 1
 
             try:
-                with open(json_file, "r") as f:
+                with open(json_file) as f:
                     content = f.read()
                     json.loads(content)
-            except json.JSONDecodeError as e:
+            except json.JSONDecodeError:
                 report["valid"] = False
                 report["errors"].append(f"Corrupted: {json_file}")
 
@@ -145,7 +144,7 @@ class RepairCommand:
 
                     report["fixed_count"] += 1
                     if verbose:
-                        print(f"    [OK] Fixed")
+                        print("    [OK] Fixed")
 
                 except Exception as fix_error:
                     report["errors"].append(f"Cannot fix: {json_file} - {fix_error}")
@@ -213,7 +212,7 @@ class RepairCommand:
 
         # Check storage
         try:
-            from storage.atomic import atomic_write_text, atomic_read_binary
+            from storage.atomic import atomic_read_binary, atomic_write_text
 
             test_file = path / ".codemarshal" / ".integrity_test"
             atomic_write_text(test_file, "test")

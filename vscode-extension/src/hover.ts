@@ -1,11 +1,7 @@
 import * as vscode from "vscode";
-import * as path from "path";
+import { normalizeFsPath } from "./utils";
 import { PatternMatch } from "./diagnostics";
 
-function normalizeFsPath(p: string): string {
-  const resolved = path.resolve(p);
-  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
-}
 
 export class CodeMarshalHoverProvider implements vscode.HoverProvider {
   constructor(

@@ -1,15 +1,16 @@
 # CodeMarshal Feature Matrix
 
-**Version:** 2.1.0  
-**Last Updated:** February 13, 2026
+**Version:** 2.1.1-dev  
+**Last Updated:** February 14, 2026
 
 ---
 
 ## Current Product State
 
 - Completed roadmap phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
-- Test status: `175 passed, 3 skipped`
-- Coverage status: `93.53%` total (`90%` minimum)
+- Test status (with PySide6): `186 passed, 2 skipped`
+- Test status (without PySide6): `184 passed, 3 skipped`
+- Coverage status: `95.70%` with GUI extra / `93.99%` without (`90%` minimum)
 
 ---
 
@@ -100,7 +101,7 @@ Advanced export components are implemented and tested:
 
 ## Remaining Work
 
-No roadmap phases remain for v2.1.0. Follow-up hardening and maintenance items are tracked in `ROADMAP.md`.
+No new roadmap phases remain after v2.1.0 delivery. Active hardening and maintenance items are tracked in `ROADMAP.md` (v2.1.1 maintenance).
 
 ---
 
@@ -114,5 +115,5 @@ No roadmap phases remain for v2.1.0. Follow-up hardening and maintenance items a
 
 ---
 
-**Feature Matrix Version: 2.1.0**  
-**Last Updated: February 13, 2026**
+**Feature Matrix Version: 2.1.1-dev**  
+**Last Updated: February 14, 2026**

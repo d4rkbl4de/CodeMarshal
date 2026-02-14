@@ -5,8 +5,6 @@ tests/test_export/test_csv_exporter.py - Tests for CSV export format
 import csv
 import io
 
-import pytest
-
 from bridge.integration.export_formats import (
     CSVExporter,
     ExportFormat,

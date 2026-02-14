@@ -5,6 +5,35 @@ All notable changes to CodeMarshal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-02-14
+
+### Summary
+Maintenance release focused on reliability hardening after the Phase 5 desktop GUI delivery.
+
+**Test Status (with PySide6):** 186 passed, 2 skipped  
+**Coverage (with PySide6):** 95.70% (gate: 90%)
+
+### Added
+- Import-signature anchor generator for `ContentFingerprintMethod.IMPORT_SIGNATURE`
+- Recovery compatibility helper module (`integrity/recovery/_compat.py`)
+- Headless GUI smoke CI job for PySide6 desktop tests
+- New maintenance tests:
+  - `tests/test_recovery_maintenance.py`
+  - `tests/test_anchor_import_signature.py`
+  - `tests/test_shutdown_manager.py`
+
+### Fixed
+- Backup/restore schema compatibility between `snapshot` and legacy `observations` payload keys
+- Incremental backup implementation with parent-chain materialization during restore
+- Hardcoded recovery version metadata (`\"1.0.0\"`) replaced with runtime package version resolution
+- Shutdown manager integration with atomic write flush, corruption checks, and session-state persistence
+- Deterministic integrity hash validation for legacy and current backup formats
+
+### Changed
+- Backup format metadata advanced to v2 canonical hashing while preserving compatibility validation
+- Invariant guardrails strengthened for duplicate pattern IDs and constitutional documentation checks
+- Documentation status synchronized across README, roadmap, and docs index/user guide
+
 ## [2.1.0] - 2026-02-13
 
 ### Summary
@@ -174,6 +203,9 @@ CodeMarshal v2.0+ is a complete architectural redesign. Investigations from v1.x
 
 ### From v2.0.0 to v2.1.0
 No breaking changes. New features are additive only.
+
+### From v2.1.0 to v2.1.1
+No breaking CLI/API changes. This release is reliability and maintenance focused.
 
 ---
 

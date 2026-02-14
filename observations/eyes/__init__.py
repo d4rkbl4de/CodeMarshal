@@ -54,25 +54,6 @@ from .export_sight import (
     Visibility,
     observe_exports,
 )
-from .go_sight import (
-    GoExportDefinition,
-    GoImportStatement,
-    GoObservation,
-    GoSight,
-)
-from .java_sight import (
-    JavaClassDefinition,
-    JavaImportStatement,
-    JavaObservation,
-    JavaSight,
-)
-from .javascript_sight import (
-    JSImportExportObservation,
-    JSImportStatement,
-    JSExportStatement,
-    JavaScriptSight,
-)
-from .language_detector import LanguageDetection, LanguageDetector
 
 # Import all concrete eyes
 from .file_sight import (
@@ -83,12 +64,31 @@ from .file_sight import (
     observe_directory,
     observe_file,
 )
+from .go_sight import (
+    GoExportDefinition,
+    GoImportStatement,
+    GoObservation,
+    GoSight,
+)
 from .import_sight import (
     ImportObservation,
     ImportSight,
     ImportStatement,
     observe_imports,
 )
+from .java_sight import (
+    JavaClassDefinition,
+    JavaImportStatement,
+    JavaObservation,
+    JavaSight,
+)
+from .javascript_sight import (
+    JavaScriptSight,
+    JSExportStatement,
+    JSImportExportObservation,
+    JSImportStatement,
+)
+from .language_detector import LanguageDetection, LanguageDetector
 
 
 @dataclass(frozen=True)

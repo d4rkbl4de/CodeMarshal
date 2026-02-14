@@ -1800,7 +1800,7 @@ Commands: list, scan, add
             elif args.config_command == "edit":
                 result = execute_config_edit(path=args.path, editor=args.editor)
                 if result.success:
-                    print(f"Configuration edited successfully")
+                    print("Configuration edited successfully")
                     if result.backup_path:
                         print(f"  Backup created: {result.backup_path}")
                     return 0
@@ -1821,7 +1821,7 @@ Commands: list, scan, add
                     create_backup=not args.no_backup,
                 )
                 if result.success:
-                    print(f"Configuration reset to defaults")
+                    print("Configuration reset to defaults")
                     if result.backup_path:
                         print(f"  Backup created: {result.backup_path}")
                     return 0
@@ -1963,7 +1963,7 @@ Commands: list, scan, add
             if result.success:
                 if result.dry_run:
                     return 0
-                print(f"Cleanup completed")
+                print("Cleanup completed")
                 print(f"  Removed: {result.removed_count} items")
                 print(f"  Freed: {result.freed_space_mb:.2f} MB")
                 if result.errors:
@@ -1998,7 +1998,7 @@ Commands: list, scan, add
                 if args.validate_only:
                     print("Validation completed")
                 else:
-                    print(f"Repair completed")
+                    print("Repair completed")
                     print(f"  Fixed: {result.fixed_items} items")
 
                 if result.errors:
@@ -2235,7 +2235,7 @@ Commands: list, scan, add
                     return 0 if result.matches_found == 0 else 1
 
                 if result.success:
-                    print(f"\nPattern Scan Results")
+                    print("\nPattern Scan Results")
                     print("=" * 80)
                     print(f"Patterns scanned: {result.patterns_scanned}")
                     print(f"Files scanned: {result.files_scanned}")
@@ -2323,7 +2323,7 @@ Commands: list, scan, add
         import platform
 
         try:
-            from importlib.metadata import version, requires
+            from importlib.metadata import requires, version
 
             codemarshal_version = version("codemarshal")
         except ImportError:

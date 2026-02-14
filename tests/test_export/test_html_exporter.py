@@ -2,7 +2,6 @@
 tests/test_export/test_html_exporter.py - Tests for HTML export format
 """
 
-import pytest
 
 from bridge.integration.export_formats import (
     ExportFormat,

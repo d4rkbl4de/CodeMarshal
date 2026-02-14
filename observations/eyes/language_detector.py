@@ -93,7 +93,7 @@ class LanguageDetector:
     def detect_language_from_text(
         self, text: str, extension: str | None = None
     ) -> LanguageDetection:
-        scores: dict[str, float] = {name: 0.0 for name in self.LANGUAGE_SIGNATURES}
+        scores: dict[str, float] = dict.fromkeys(self.LANGUAGE_SIGNATURES, 0.0)
         extension = (extension or "").lower()
 
         for language, signature in self.LANGUAGE_SIGNATURES.items():
@@ -135,7 +135,7 @@ class LanguageDetector:
         Scan a directory to estimate language distribution.
         """
         extensions = self.supported_extensions()
-        counts: dict[str, int] = {lang: 0 for lang in self.LANGUAGE_SIGNATURES}
+        counts: dict[str, int] = dict.fromkeys(self.LANGUAGE_SIGNATURES, 0)
         scanned = 0
 
         for path in root.rglob("*"):

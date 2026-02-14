@@ -8,11 +8,11 @@ Supports both built-in patterns and user-defined patterns.
 from __future__ import annotations
 
 import re
-import yaml
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import yaml
 
 
 @dataclass
@@ -141,7 +141,7 @@ class PatternLoader:
         patterns = []
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             if not data:
@@ -266,7 +266,7 @@ class PatternScanner:
         file_lang = lang_map.get(file_ext)
 
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
             lines = content.splitlines()
 
@@ -395,7 +395,7 @@ class PatternManager:
             # Load existing patterns
             existing = []
             if custom_file.exists():
-                with open(custom_file, "r", encoding="utf-8") as f:
+                with open(custom_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
                     if data and "patterns" in data:
                         existing = data["patterns"]

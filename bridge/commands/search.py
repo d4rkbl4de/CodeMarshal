@@ -16,9 +16,8 @@ import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 
 @dataclass
@@ -302,7 +301,7 @@ class SearchCommand:
             lines = lines_cache.get(file_path)
             if lines is None:
                 try:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(file_path, encoding="utf-8", errors="ignore") as f:
                         lines = f.readlines()
                 except (UnicodeDecodeError, PermissionError, OSError):
                     lines = []
@@ -442,7 +441,7 @@ class SearchCommand:
         results = []
 
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()
 
             for i, line in enumerate(lines):

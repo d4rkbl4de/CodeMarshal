@@ -21,6 +21,30 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any
 
+from .backup import (
+    BackupCreateResult,
+    BackupListResult,
+    BackupRestoreResult,
+    BackupVerifyResult,
+    execute_backup_create,
+    execute_backup_list,
+    execute_backup_restore,
+    execute_backup_verify,
+)
+from .cleanup import (
+    CleanupResult,
+    execute_cleanup,
+)
+from .config import (
+    ConfigEditResult,
+    ConfigResetResult,
+    ConfigShowResult,
+    ConfigValidateResult,
+    execute_config_edit,
+    execute_config_reset,
+    execute_config_show,
+    execute_config_validate,
+)
 from .export import (
     ExportFormat,
     ExportRequest,
@@ -48,44 +72,6 @@ from .observe import (
     observe_file_structure,
     observe_imports,
 )
-from .config import (
-    ConfigEditResult,
-    ConfigResetResult,
-    ConfigShowResult,
-    ConfigValidateResult,
-    execute_config_edit,
-    execute_config_reset,
-    execute_config_show,
-    execute_config_validate,
-)
-from .backup import (
-    BackupCreateResult,
-    BackupListResult,
-    BackupRestoreResult,
-    BackupVerifyResult,
-    execute_backup_create,
-    execute_backup_list,
-    execute_backup_restore,
-    execute_backup_verify,
-)
-from .cleanup import (
-    CleanupResult,
-    execute_cleanup,
-)
-from .repair import (
-    RepairResult,
-    execute_repair,
-)
-from .test_cmd import (
-    TestResult,
-    execute_test,
-)
-from .search import (
-    SearchCommandResult,
-    SearchResult,
-    SearchResults,
-    execute_search,
-)
 from .pattern import (
     PatternAddResult,
     PatternListResult,
@@ -100,6 +86,20 @@ from .query import (
     QueryType,
     QuestionName,
     execute_query,
+)
+from .repair import (
+    RepairResult,
+    execute_repair,
+)
+from .search import (
+    SearchCommandResult,
+    SearchResult,
+    SearchResults,
+    execute_search,
+)
+from .test_cmd import (
+    TestResult,
+    execute_test,
 )
 
 

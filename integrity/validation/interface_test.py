@@ -5,8 +5,9 @@ Tests that validate CodeMarshal's interface contracts and protocols.
 Ensures that interfaces are properly defined and implemented.
 """
 
-import pytest
 from typing import Protocol, runtime_checkable
+
+import pytest
 
 
 class TestInterfaceContracts:

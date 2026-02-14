@@ -17,7 +17,6 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -135,7 +134,7 @@ class ConfigShowCommand:
             return self._get_default_config()
 
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 config = yaml.safe_load(f)
                 return config if config else self._get_default_config()
         except Exception:
@@ -385,7 +384,7 @@ class ConfigValidateCommand:
 
         # Load configuration
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = yaml.safe_load(f)
         except Exception as e:
             return ConfigValidateResult(

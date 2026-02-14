@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import * as path from "path";
+import { normalizeFsPath } from "./utils";
 
 export interface RunResult {
   stdout: string;
@@ -29,10 +29,6 @@ function extractJsonPayload(text: string): string | null {
   return null;
 }
 
-export function normalizeFsPath(p: string): string {
-  const resolved = path.resolve(p);
-  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
-}
 
 export function runCodemarshal(
   cliPath: string,

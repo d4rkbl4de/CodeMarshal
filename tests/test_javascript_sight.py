@@ -2,8 +2,8 @@
 Tests for JavaScriptSight import/export detection.
 """
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from observations.eyes.javascript_sight import JavaScriptSight
 

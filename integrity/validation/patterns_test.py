@@ -5,9 +5,9 @@ Tests that validate the pattern detection system's integrity,
 accuracy, and constitutional compliance.
 """
 
-import pytest
 import re
-from typing import Dict, List, Any
+
+import pytest
 
 
 class TestPatternDefinition:

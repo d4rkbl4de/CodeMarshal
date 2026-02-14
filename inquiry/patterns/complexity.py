@@ -468,7 +468,7 @@ class ComplexityPatterns:
     def _extract_file_contents(self) -> dict[Path, str]:
         """Best-effort extraction of file contents from snapshot."""
         if hasattr(self._snapshot, "file_contents"):
-            candidate = getattr(self._snapshot, "file_contents")
+            candidate = self._snapshot.file_contents
             if isinstance(candidate, dict):
                 return {
                     Path(path): str(content)

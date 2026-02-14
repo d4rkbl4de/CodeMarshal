@@ -16,12 +16,13 @@ This module must be boring, strict, and merciless.
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 
 # Type-only imports to avoid circular dependencies
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from observations.record.snapshot import Snapshot

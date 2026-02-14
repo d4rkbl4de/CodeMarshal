@@ -5,11 +5,9 @@ tests/test_cli/test_config.py - Tests for config CLI command
 import tempfile
 from pathlib import Path
 
-import pytest
 import yaml
 
 from bridge.commands.config import (
-    ConfigEditCommand,
     ConfigResetCommand,
     ConfigShowCommand,
     ConfigValidateCommand,

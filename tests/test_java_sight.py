@@ -2,8 +2,8 @@
 Tests for JavaSight import/class detection.
 """
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from observations.eyes.java_sight import JavaSight
 

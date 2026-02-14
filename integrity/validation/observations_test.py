@@ -5,11 +5,11 @@ Tests that validate the observation system's integrity, immutability,
 and constitutional compliance.
 """
 
-import pytest
-import json
 import hashlib
-from pathlib import Path
+import json
 from datetime import datetime
+
+import pytest
 
 
 class TestObservationImmutability:

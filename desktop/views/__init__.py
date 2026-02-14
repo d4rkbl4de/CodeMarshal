@@ -2,11 +2,11 @@
 Desktop GUI views.
 """
 
-from .home import HomeView
-from .observe import ObserveView
-from .investigate import InvestigateView
-from .patterns import PatternsView
 from .export import ExportView
+from .home import HomeView
+from .investigate import InvestigateView
+from .observe import ObserveView
+from .patterns import PatternsView
 
 __all__ = [
     "HomeView",

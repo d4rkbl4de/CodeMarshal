@@ -12,9 +12,7 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 
 @dataclass
@@ -175,7 +173,7 @@ class CleanupCommand:
                             shutil.rmtree(item_path)
                             removed_items.append(str(item_path))
                             freed_space += size
-            except PermissionError as e:
+            except PermissionError:
                 errors.append(f"Permission denied: {item_path}")
             except Exception as e:
                 errors.append(f"Error cleaning {item_path}: {e}")
