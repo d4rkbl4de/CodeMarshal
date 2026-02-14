@@ -1,9 +1,15 @@
-"""
-desktop - Desktop GUI entry points for CodeMarshal.
+"""Desktop GUI entry points for CodeMarshal."""
 
-Local-only, single-focus interface layer.
-"""
+from __future__ import annotations
 
-from .app import main
+from pathlib import Path
 
 __all__ = ["main"]
+
+
+def main(argv: list[str] | None = None, start_path: Path | None = None) -> int:
+    """Lazy desktop launcher to avoid importing PySide6 on module import."""
+    from .app import main as _main
+
+    return _main(argv=argv, start_path=start_path)
+

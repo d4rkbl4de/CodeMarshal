@@ -18,18 +18,18 @@ Core platform work is complete across foundation, pattern system, inquiry, multi
 
 ## Phase Status
 
-| Phase | Name | Status | Evidence |
-| --- | --- | --- | --- |
-| 0 | Foundation Repair | Complete | Import-chain fixes landed; test discovery stabilized |
-| 1 | Pattern System Renaissance | Complete | Built-in pattern libraries + engine/dashboard support present |
-| 2 | Inquiry Engine Expansion | Complete | Extended analyzer behavior for structure/connections/anomalies |
-| 3 | Multi-Language Support | Complete | JS/TS, Java, Go sights + language detector |
-| 4 | IDE Integration Suite | Complete | VS Code / Neovim / JetBrains foundations in repo |
-| 5 | Desktop GUI | **CRITICAL** | GUI shell exists but all views are placeholder implementations |
-| 6 | Storage & Data Layer | Complete | Migration, transactional storage, knowledge base scaffolding |
-| 7 | Test Suite Completion | Complete | Full suite passing; coverage gate exceeded |
-| 8 | Advanced Export & Visualization | Complete | Jupyter, PDF, SVG exporters + tests |
-| 9 | Plugin System | Complete | Plugin API and loader foundations |
+| Phase | Name                            | Status       | Evidence                                                       |
+| ----- | ------------------------------- | ------------ | -------------------------------------------------------------- |
+| 0     | Foundation Repair               | Complete     | Import-chain fixes landed; test discovery stabilized           |
+| 1     | Pattern System Renaissance      | Complete     | Built-in pattern libraries + engine/dashboard support present  |
+| 2     | Inquiry Engine Expansion        | Complete     | Extended analyzer behavior for structure/connections/anomalies |
+| 3     | Multi-Language Support          | Complete     | JS/TS, Java, Go sights + language detector                     |
+| 4     | IDE Integration Suite           | Complete     | VS Code / Neovim / JetBrains foundations in repo               |
+| 5     | Desktop GUI                     | **CRITICAL** | GUI shell exists but all views are placeholder implementations |
+| 6     | Storage & Data Layer            | Complete     | Migration, transactional storage, knowledge base scaffolding   |
+| 7     | Test Suite Completion           | Complete     | Full suite passing; coverage gate exceeded                     |
+| 8     | Advanced Export & Visualization | Complete     | Jupyter, PDF, SVG exporters + tests                            |
+| 9     | Plugin System                   | Complete     | Plugin API and loader foundations                              |
 
 ---
 
@@ -48,13 +48,13 @@ Core platform work is complete across foundation, pattern system, inquiry, multi
 
 **Current State:** All GUI views are placeholder implementations with zero functionality.
 
-| View | Current State | Required State |
-|------|---------------|----------------|
-| `HomeView` | Navigation buttons only | Project browser, recent sessions, quick actions |
-| `ObserveView` | Single label | File browser, observation controls, results viewer |
-| `InvestigateView` | Single label | Investigation config, query builder, results display |
-| `PatternsView` | Single label | Pattern library, scan controls, match visualization |
-| `ExportView` | Single label | Format selection, preview, export execution |
+| View              | Current State           | Required State                                       |
+| ----------------- | ----------------------- | ---------------------------------------------------- |
+| `HomeView`        | Navigation buttons only | Project browser, recent sessions, quick actions      |
+| `ObserveView`     | Single label            | File browser, observation controls, results viewer   |
+| `InvestigateView` | Single label            | Investigation config, query builder, results display |
+| `PatternsView`    | Single label            | Pattern library, scan controls, match visualization  |
+| `ExportView`      | Single label            | Format selection, preview, export execution          |
 
 **Root Cause:** No integration between GUI views and:
 
@@ -117,38 +117,38 @@ Transform the current GUI shell into a production-ready desktop interface that p
 **Revised Estimate:** 6 weeks (Feb 13 - Mar 22)  
 **Reason:** GUI currently has zero functionality; requires complete implementation, not just "productization"
 
-| Milestone | Target Date | Deliverable | Priority | Status |
-|-----------|-------------|-------------|----------|--------|
-| **Phase 5A: Foundation** | | | | |
-| Fix Version Number | Feb 13, 2026 | Update pyproject.toml to 2.1.0 | 🔴 Critical | Not Started |
-| GUI-Engine Bridge | Feb 14, 2026 | Integration layer between Qt signals and bridge commands | 🔴 Critical | Not Started |
-| Session State Management | Feb 15, 2026 | Recent investigations, session restore, auto-save | 🟠 High | Not Started |
-| **Phase 5B: Core Screens** | | | | |
-| Home Screen v2 | Feb 17, 2026 | Project browser, recent list, new investigation flow | 🟠 High | Not Started |
-| Observe Screen | Feb 20, 2026 | File browser, eye selection, real-time progress, results | 🔴 Critical | Not Started |
-| Investigate Screen | Feb 24, 2026 | Investigation config, query interface, pattern results | 🔴 Critical | Not Started |
-| Patterns Screen | Feb 27, 2026 | Pattern library, scan execution, match visualization | 🟠 High | Not Started |
-| Export Screen | Mar 2, 2026 | Format selection, preview, progress, file dialogs | 🟠 High | Not Started |
-| **Phase 5C: Polish** | | | | |
-| Error Handling | Mar 4, 2026 | Try-catch all bridge calls, user-friendly dialogs | 🔴 Critical | Not Started |
-| Progress Indicators | Mar 5, 2026 | Progress bars for long operations, cancellation support | 🟠 High | Not Started |
-| Keyboard Navigation | Mar 6, 2026 | Tab order, shortcuts, accessibility | 🟡 Medium | Not Started |
-| **Phase 5D: Validation** | | | | |
-| Integration Testing | Mar 8, 2026 | End-to-end workflows, error scenarios | 🟠 High | Not Started |
-| Cross-Platform Testing | Mar 10, 2026 | Windows, Linux, macOS validation | 🟠 High | Not Started |
-| Documentation | Mar 12, 2026 | GUI user guide, troubleshooting, packaging | 🟡 Medium | Not Started |
-| **Phase 5E: Release** | | | | |
-| v2.1.0 Release | Mar 15, 2026 | All acceptance criteria met | 🟠 High | Not Started |
+| Milestone                  | Target Date  | Deliverable                                              | Priority    | Status      |
+| -------------------------- | ------------ | -------------------------------------------------------- | ----------- | ----------- |
+| **Phase 5A: Foundation**   |              |                                                          |             |             |
+| Fix Version Number         | Feb 13, 2026 | Update pyproject.toml to 2.1.0                           | 🔴 Critical | Not Started |
+| GUI-Engine Bridge          | Feb 14, 2026 | Integration layer between Qt signals and bridge commands | 🔴 Critical | Not Started |
+| Session State Management   | Feb 15, 2026 | Recent investigations, session restore, auto-save        | 🟠 High     | Not Started |
+| **Phase 5B: Core Screens** |              |                                                          |             |             |
+| Home Screen v2             | Feb 17, 2026 | Project browser, recent list, new investigation flow     | 🟠 High     | Not Started |
+| Observe Screen             | Feb 20, 2026 | File browser, eye selection, real-time progress, results | 🔴 Critical | Not Started |
+| Investigate Screen         | Feb 24, 2026 | Investigation config, query interface, pattern results   | 🔴 Critical | Not Started |
+| Patterns Screen            | Feb 27, 2026 | Pattern library, scan execution, match visualization     | 🟠 High     | Not Started |
+| Export Screen              | Mar 2, 2026  | Format selection, preview, progress, file dialogs        | 🟠 High     | Not Started |
+| **Phase 5C: Polish**       |              |                                                          |             |             |
+| Error Handling             | Mar 4, 2026  | Try-catch all bridge calls, user-friendly dialogs        | 🔴 Critical | Not Started |
+| Progress Indicators        | Mar 5, 2026  | Progress bars for long operations, cancellation support  | 🟠 High     | Not Started |
+| Keyboard Navigation        | Mar 6, 2026  | Tab order, shortcuts, accessibility                      | 🟡 Medium   | Not Started |
+| **Phase 5D: Validation**   |              |                                                          |             |             |
+| Integration Testing        | Mar 8, 2026  | End-to-end workflows, error scenarios                    | 🟠 High     | Not Started |
+| Cross-Platform Testing     | Mar 10, 2026 | Windows, Linux, macOS validation                         | 🟠 High     | Not Started |
+| Documentation              | Mar 12, 2026 | GUI user guide, troubleshooting, packaging               | 🟡 Medium   | Not Started |
+| **Phase 5E: Release**      |              |                                                          |             |             |
+| v2.1.0 Release             | Mar 15, 2026 | All acceptance criteria met                              | 🟠 High     | Not Started |
 
 ### Resource Requirements (Revised)
 
-| Resource | Requirement | Notes |
-|----------|-------------|-------|
-| Development | 2 developers minimum | PySide6/Qt experience **required** |
-| Architecture | Senior review | Bridge-Engine-GUI integration design |
-| Testing | QA validation | Cross-platform testing (Win/Linux/macOS) |
-| Documentation | Technical writer | GUI-specific user guides |
-| Infrastructure | CI updates | GUI testing in headless environments |
+| Resource       | Requirement          | Notes                                    |
+| -------------- | -------------------- | ---------------------------------------- |
+| Development    | 2 developers minimum | PySide6/Qt experience **required**       |
+| Architecture   | Senior review        | Bridge-Engine-GUI integration design     |
+| Testing        | QA validation        | Cross-platform testing (Win/Linux/macOS) |
+| Documentation  | Technical writer     | GUI-specific user guides                 |
+| Infrastructure | CI updates           | GUI testing in headless environments     |
 
 ### Required Deliverables (Revised)
 
@@ -270,15 +270,15 @@ gui_bridge.investigation_complete.connect(update_results_view)
 
 ### Risk Assessment (Revised)
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| GUI-Engine integration complexity | **High** | **Critical** | Design integration layer before coding; pair programming |
-| PySide6 threading issues | **High** | **High** | Use QThreadPool for all bridge calls; extensive testing |
-| Current placeholder architecture unsuitable | **Medium** | **High** | Review architecture before implementation; refactor if needed |
-| Cross-platform UI inconsistencies | **High** | **Medium** | Test early on all platforms; use Qt stylesheets |
-| Performance with large codebases | **Medium** | **Medium** | Implement lazy loading; pagination; background threads |
-| Scope creep | **High** | **High** | Strict scope enforcement; defer non-critical features |
-| Developer availability | **Medium** | **High** | Require 2 developers minimum; knowledge sharing |
+| Risk                                        | Probability | Impact       | Mitigation                                                    |
+| ------------------------------------------- | ----------- | ------------ | ------------------------------------------------------------- |
+| GUI-Engine integration complexity           | **High**    | **Critical** | Design integration layer before coding; pair programming      |
+| PySide6 threading issues                    | **High**    | **High**     | Use QThreadPool for all bridge calls; extensive testing       |
+| Current placeholder architecture unsuitable | **Medium**  | **High**     | Review architecture before implementation; refactor if needed |
+| Cross-platform UI inconsistencies           | **High**    | **Medium**   | Test early on all platforms; use Qt stylesheets               |
+| Performance with large codebases            | **Medium**  | **Medium**   | Implement lazy loading; pagination; background threads        |
+| Scope creep                                 | **High**    | **High**     | Strict scope enforcement; defer non-critical features         |
+| Developer availability                      | **Medium**  | **High**     | Require 2 developers minimum; knowledge sharing               |
 
 **Overall Risk Level:** **HIGH**  
 **Mitigation Strategy:**
@@ -355,6 +355,741 @@ gui_bridge.investigation_complete.connect(update_results_view)
 
 - **Day 1-2:** Release preparation
 - **Day 3:** v2.1.0 release
+
+---
+
+## GUI Implementation Architecture
+
+### GUI-Engine Integration Layer
+
+We need a bridge layer to connect Qt signals/slots with the existing bridge commands:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    GUI Layer (PySide6)                  │
+│  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
+│  │ Home    │ │ Observe  │ │Investigate│ │ Patterns    │ │
+│  │ View    │ │ View     │ │ View     │ │ View        │ │
+│  └────┬────┘ └────┬─────┘ └────┬─────┘ └──────┬──────┘ │
+│       │           │            │              │         │
+│  ┌────▼───────────▼────────────▼──────────────▼────────┐ │
+│  │              GUI Controller                          │ │
+│  │  • Signal/slot connections                           │ │
+│  │  • Form validation                                   │ │
+│  │  • State management                                  │ │
+│  └────┬────────────────────────────────────────────────┘ │
+│       │                                                  │
+│  ┌────▼────────────┐    ┌──────────────────────────┐    │
+│  │  GUICommandBridge│◄──►│      Worker Threads      │    │
+│  │  • Async wrapper │    │  (QThreadPool)           │    │
+│  │  • Progress      │    │  • Non-blocking bridge   │    │
+│  │  • Error handling│    │    commands              │    │
+│  └────┬─────────────┘    └──────────────────────────┘    │
+│       │                                                  │
+└───────┼──────────────────────────────────────────────────┘
+        │
+┌───────▼──────────────────────────────────────────────────┐
+│                Bridge Layer (Existing)                   │
+│         (investigate, observe, query, etc.)              │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Core Components
+
+#### 1. GUICommandBridge (`desktop/core/command_bridge.py`)
+
+**Responsibilities:**
+
+- Async execution of bridge commands using `QThreadPool`
+- Signal emission for progress updates (every 100ms)
+- Error handling with recovery options
+- Cancellation support via `QMutex`
+
+**Key Methods:**
+
+```python
+class GUICommandBridge(QObject):
+    # Signals
+    observation_started = Signal(str)
+    observation_progress = Signal(int, int)  # current, total
+    observation_complete = Signal(dict)
+    observation_error = Signal(str, str)
+
+    # Async methods
+    async def run_observation(self, path: Path, eye_types: List[str])
+    async def run_investigation(self, path: Path, scope: str, intent: str)
+    async def run_pattern_scan(self, path: Path, categories: List[str])
+    async def run_export(self, session_id: str, format: str, output: Path)
+```
+
+#### 2. Session Manager (`desktop/core/session_manager.py`)
+
+**Responsibilities:**
+
+- Auto-save current session every 30 seconds
+- Load/save recent investigations list
+- Session recovery on crash
+- Track dirty state (unsaved changes)
+
+#### 3. Worker Threads (`desktop/core/worker.py`)
+
+**Responsibilities:**
+
+- Wrap bridge commands in `QRunnable`
+- Handle thread lifecycle
+- Report progress back to GUI
+- Handle cancellation requests
+
+---
+
+## Screen-by-Screen Implementation Details
+
+### Phase 1: Foundation Components (Week 1)
+
+#### GUICommandBridge Implementation
+
+```python
+# desktop/core/command_bridge.py
+from PySide6.QtCore import QObject, Signal, QThreadPool, QRunnable
+from typing import Any, Callable
+import asyncio
+
+class WorkerSignals(QObject):
+    finished = Signal(object)
+    error = Signal(str, str)
+    progress = Signal(int, int)
+
+class BridgeWorker(QRunnable):
+    def __init__(self, fn: Callable, *args, **kwargs):
+        super().__init__()
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+        self._is_cancelled = False
+
+    def run(self):
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+            if not self._is_cancelled:
+                self.signals.finished.emit(result)
+        except Exception as e:
+            self.signals.error.emit(type(e).__name__, str(e))
+
+    def cancel(self):
+        self._is_cancelled = True
+
+class GUICommandBridge(QObject):
+    observation_started = Signal(str)
+    observation_progress = Signal(int, int)
+    observation_complete = Signal(dict)
+    observation_error = Signal(str, str)
+
+    def __init__(self):
+        super().__init__()
+        self.thread_pool = QThreadPool()
+        self.active_workers = []
+
+    def run_observation(self, path: Path, eye_types: List[str]):
+        """Start observation in background thread."""
+        self.observation_started.emit(str(path))
+
+        worker = BridgeWorker(
+            self._execute_observation,
+            path, eye_types
+        )
+        worker.signals.finished.connect(self.observation_complete.emit)
+        worker.signals.error.connect(self.observation_error.emit)
+        worker.signals.progress.connect(self.observation_progress.emit)
+
+        self.active_workers.append(worker)
+        self.thread_pool.start(worker)
+
+    def _execute_observation(self, path: Path, eye_types: List[str]):
+        # Call existing bridge command
+        from bridge.commands.observe import execute_observation, ObservationRequest, ObservationType
+
+        request = ObservationRequest(
+            types={ObservationType(t) for t in eye_types},
+            target_path=path,
+            session_id=self._get_current_session_id()
+        )
+
+        return execute_observation(request)
+```
+
+---
+
+### Phase 2: Home Screen (Week 1-2)
+
+**Current State:** Navigation buttons only  
+**Target State:** Full project browser with recent investigations
+
+#### Implementation
+
+**File:** `desktop/views/home.py` (update existing)
+
+**Key Features:**
+
+1. **Recent Investigations Panel**
+   - Load from `storage.investigation_storage`
+   - Display: name, date, path, file count
+   - Actions: open, delete, export
+   - Limit to last 10 investigations
+
+2. **New Investigation Flow**
+   - "New Investigation" button → `QFileDialog.getExistingDirectory()`
+   - Quick actions: "Observe Current Directory", "Pattern Scan Recent Project"
+   - Remember last used path
+
+3. **Settings Access**
+   - Button to open settings dialog
+   - Theme toggle (dark/light)
+   - Default export format selection
+   - Storage location configuration
+
+```python
+class HomeView(QtWidgets.QWidget):
+    """Enhanced home view with recent investigations."""
+
+    navigate_requested = Signal(str)
+    investigation_opened = Signal(str)  # session_id
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.session_manager = SessionManager()
+        self._build_ui()
+        self._load_recent_investigations()
+
+    def _build_ui(self):
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # Title section
+        title = QtWidgets.QLabel("CodeMarshal")
+        title.setObjectName("title")
+        layout.addWidget(title, alignment=QtCore.Qt.AlignHCenter)
+
+        # Recent investigations
+        recent_group = QtWidgets.QGroupBox("Recent Investigations")
+        self.recent_list = QtWidgets.QListWidget()
+        self.recent_list.itemDoubleClicked.connect(self._on_investigation_selected)
+        recent_layout = QtWidgets.QVBoxLayout(recent_group)
+        recent_layout.addWidget(self.recent_list)
+        layout.addWidget(recent_group)
+
+        # Quick actions
+        actions_group = QtWidgets.QGroupBox("Quick Actions")
+        actions_layout = QtWidgets.QHBoxLayout(actions_group)
+
+        new_btn = QtWidgets.QPushButton("New Investigation")
+        new_btn.clicked.connect(self._on_new_investigation)
+        actions_layout.addWidget(new_btn)
+
+        observe_btn = QtWidgets.QPushButton("Quick Observe")
+        observe_btn.clicked.connect(lambda: self.navigate_requested.emit("observe"))
+        actions_layout.addWidget(observe_btn)
+
+        layout.addWidget(actions_group)
+
+    def _load_recent_investigations(self):
+        """Load and display recent investigations."""
+        investigations = self.session_manager.get_recent_investigations(limit=10)
+        self.recent_list.clear()
+
+        for inv in investigations:
+            item = QtWidgets.QListWidgetItem()
+            item.setText(f"{inv['name']} - {inv['path']}")
+            item.setData(QtCore.Qt.UserRole, inv['session_id'])
+            item.setToolTip(f"Created: {inv['created']}\nFiles: {inv['file_count']}")
+            self.recent_list.addItem(item)
+
+    def _on_new_investigation(self):
+        """Open file dialog for new investigation."""
+        path = QtWidgets.QFileDialog.getExistingDirectory(
+            self,
+            "Select Directory to Investigate",
+            self.session_manager.get_last_path()
+        )
+        if path:
+            self.session_manager.set_last_path(path)
+            self.navigate_requested.emit("investigate")
+```
+
+---
+
+### Phase 3: Observe Screen (Week 2)
+
+**Current State:** Single label  
+**Target State:** Full observation workflow
+
+#### Layout Design
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Path: [/home/user/project] [Browse]                 │
+├─────────────────────────────────────────────────────┤
+│ Eyes: ☑ File  ☑ Import  ☑ Export  ☐ Boundary       │
+│      ☐ Encoding  [Select All] [Clear All]          │
+├─────────────────────────────────────────────────────┤
+│ [Run Observation]          Progress: [████░░] 67%  │
+├─────────────────────────────────────────────────────┤
+│ Results:                                             │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ 📁 src/ (42 files)                               │ │
+│ │   📄 main.py (12 imports, 5 exports)            │ │
+│ │   📄 utils.py (3 imports, 8 exports)            │ │
+│ └─────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────┤
+│ [Export] [View Details] [Clear]                     │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Implementation
+
+**File:** `desktop/views/observe.py` (rewrite)
+
+```python
+class ObserveView(QtWidgets.QWidget):
+    """Complete observation workflow."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.command_bridge = GUICommandBridge()
+        self._setup_signals()
+        self._build_ui()
+
+    def _setup_signals(self):
+        """Connect command bridge signals."""
+        self.command_bridge.observation_started.connect(self._on_observation_started)
+        self.command_bridge.observation_progress.connect(self._on_observation_progress)
+        self.command_bridge.observation_complete.connect(self._on_observation_complete)
+        self.command_bridge.observation_error.connect(self._on_observation_error)
+
+    def _build_ui(self):
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # Path selection
+        path_layout = QtWidgets.QHBoxLayout()
+        path_layout.addWidget(QtWidgets.QLabel("Path:"))
+        self.path_input = QtWidgets.QLineEdit()
+        self.path_input.setPlaceholderText("Select directory to observe...")
+        path_layout.addWidget(self.path_input)
+
+        browse_btn = QtWidgets.QPushButton("Browse")
+        browse_btn.clicked.connect(self._on_browse)
+        path_layout.addWidget(browse_btn)
+        layout.addLayout(path_layout)
+
+        # Eye selection
+        eyes_group = QtWidgets.QGroupBox("Observation Eyes")
+        eyes_layout = QtWidgets.QGridLayout(eyes_group)
+
+        self.eye_checkboxes = {}
+        eyes = [
+            ("file_sight", "File Structure"),
+            ("import_sight", "Imports"),
+            ("export_sight", "Exports"),
+            ("boundary_sight", "Boundaries"),
+            ("encoding_sight", "Encoding"),
+        ]
+
+        for i, (eye_id, eye_name) in enumerate(eyes):
+            checkbox = QtWidgets.QCheckBox(eye_name)
+            checkbox.setChecked(True)  # Default to selected
+            checkbox.setToolTip(f"Observe {eye_name.lower()}")
+            self.eye_checkboxes[eye_id] = checkbox
+            eyes_layout.addWidget(checkbox, i // 3, i % 3)
+
+        # Select All / Clear All buttons
+        buttons_layout = QtWidgets.QHBoxLayout()
+        select_all_btn = QtWidgets.QPushButton("Select All")
+        select_all_btn.clicked.connect(self._select_all_eyes)
+        clear_all_btn = QtWidgets.QPushButton("Clear All")
+        clear_all_btn.clicked.connect(self._clear_all_eyes)
+        buttons_layout.addWidget(select_all_btn)
+        buttons_layout.addWidget(clear_all_btn)
+        buttons_layout.addStretch()
+        eyes_layout.addLayout(buttons_layout, 2, 0, 1, 3)
+
+        layout.addWidget(eyes_group)
+
+        # Run button and progress
+        action_layout = QtWidgets.QHBoxLayout()
+        self.run_btn = QtWidgets.QPushButton("Run Observation")
+        self.run_btn.clicked.connect(self._on_run_observation)
+        action_layout.addWidget(self.run_btn)
+
+        action_layout.addStretch()
+        action_layout.addWidget(QtWidgets.QLabel("Progress:"))
+        self.progress_bar = QtWidgets.QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        action_layout.addWidget(self.progress_bar)
+
+        layout.addLayout(action_layout)
+
+        # Results viewer
+        results_group = QtWidgets.QGroupBox("Results")
+        self.results_tree = QtWidgets.QTreeWidget()
+        self.results_tree.setHeaderLabels(["Item", "Details"])
+        results_layout = QtWidgets.QVBoxLayout(results_group)
+        results_layout.addWidget(self.results_tree)
+        layout.addWidget(results_group)
+
+        # Action buttons
+        bottom_layout = QtWidgets.QHBoxLayout()
+        export_btn = QtWidgets.QPushButton("Export")
+        export_btn.clicked.connect(self._on_export)
+        clear_btn = QtWidgets.QPushButton("Clear")
+        clear_btn.clicked.connect(self._on_clear)
+        bottom_layout.addWidget(export_btn)
+        bottom_layout.addWidget(clear_btn)
+        bottom_layout.addStretch()
+        layout.addLayout(bottom_layout)
+
+    def _on_browse(self):
+        """Open file browser dialog."""
+        path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Select Directory"
+        )
+        if path:
+            self.path_input.setText(path)
+
+    def _on_run_observation(self):
+        """Start observation with error handling."""
+        path = Path(self.path_input.text())
+
+        # Validation
+        if not path.exists():
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Invalid Path",
+                f"The path '{path}' does not exist."
+            )
+            return
+
+        # Get selected eyes
+        selected_eyes = [
+            eye_id for eye_id, checkbox in self.eye_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+
+        if not selected_eyes:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "No Eyes Selected",
+                "Please select at least one observation eye."
+            )
+            return
+
+        # Disable UI during operation
+        self.run_btn.setEnabled(False)
+        self.progress_bar.setValue(0)
+
+        # Start observation
+        self.command_bridge.run_observation(path, selected_eyes)
+
+    def _on_observation_complete(self, results: dict):
+        """Display observation results."""
+        self.run_btn.setEnabled(True)
+        self.progress_bar.setValue(100)
+
+        # Clear previous results
+        self.results_tree.clear()
+
+        # Populate tree with results
+        if "observations" in results:
+            for obs in results["observations"]:
+                item = QtWidgets.QTreeWidgetItem([
+                    obs.get("path", "Unknown"),
+                    f"{obs.get('file_count', 0)} files"
+                ])
+                self.results_tree.addTopLevelItem(item)
+
+    def _on_observation_error(self, error_type: str, message: str):
+        """Handle observation errors."""
+        self.run_btn.setEnabled(True)
+
+        QtWidgets.QMessageBox.critical(
+            self,
+            f"Observation Failed - {error_type}",
+            f"Could not complete observation:\n\n{message}\n\n"
+            f"Try reducing scope or checking file permissions."
+        )
+```
+
+---
+
+### Phase 4: Investigate Screen (Week 2-3)
+
+**Current State:** Single label  
+**Target State:** Investigation configuration and results
+
+#### Layout Design
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Investigation Configuration                          │
+├─────────────────────────────────────────────────────┤
+│ Target: [/home/user/project] [Browse]               │
+│ Scope: (•) File  ( ) Module  ( ) Package  ( ) Codebase│
+│ Intent: [Initial Scan          ▼]                   │
+├─────────────────────────────────────────────────────┤
+│ Query Configuration                                  │
+│ Question Type: [Structure ▼]                        │
+│ Focus: [________] [Optional]                        │
+├─────────────────────────────────────────────────────┤
+│ [Start Investigation]     [Save for Later]          │
+├─────────────────────────────────────────────────────┤
+│ Results:                                             │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ Structure Analysis:                              │ │
+│ │ • 42 files across 8 directories                 │ │
+│ │ • 156 imports, 89 exports                       │ │
+│ │ • Average file size: 4.2 KB                     │ │
+│ └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Implementation
+
+**File:** `desktop/views/investigate.py` (rewrite)
+
+```python
+class InvestigateView(QtWidgets.QWidget):
+    """Complete investigation workflow."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.command_bridge = GUICommandBridge()
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # Investigation configuration
+        config_group = QtWidgets.QGroupBox("Investigation Configuration")
+        config_layout = QtWidgets.QFormLayout(config_group)
+
+        # Target path
+        path_layout = QtWidgets.QHBoxLayout()
+        self.path_input = QtWidgets.QLineEdit()
+        browse_btn = QtWidgets.QPushButton("Browse")
+        browse_btn.clicked.connect(self._on_browse)
+        path_layout.addWidget(self.path_input)
+        path_layout.addWidget(browse_btn)
+        config_layout.addRow("Target:", path_layout)
+
+        # Scope selection
+        self.scope_group = QtWidgets.QButtonGroup(self)
+        scope_layout = QtWidgets.QHBoxLayout()
+        for scope in ["File", "Module", "Package", "Codebase"]:
+            radio = QtWidgets.QRadioButton(scope)
+            self.scope_group.addButton(radio)
+            scope_layout.addWidget(radio)
+        config_layout.addRow("Scope:", scope_layout)
+
+        # Intent dropdown
+        self.intent_combo = QtWidgets.QComboBox()
+        self.intent_combo.addItems([
+            "Initial Scan",
+            "Deep Analysis",
+            "Architecture Review",
+            "Security Audit",
+            "Performance Review"
+        ])
+        config_layout.addRow("Intent:", self.intent_combo)
+
+        layout.addWidget(config_group)
+
+        # Query configuration
+        query_group = QtWidgets.QGroupBox("Query Configuration")
+        query_layout = QtWidgets.QFormLayout(query_group)
+
+        self.question_type = QtWidgets.QComboBox()
+        self.question_type.addItems([
+            "Structure",
+            "Purpose",
+            "Connections",
+            "Anomalies",
+            "Thinking"
+        ])
+        query_layout.addRow("Question Type:", self.question_type)
+
+        self.focus_input = QtWidgets.QLineEdit()
+        self.focus_input.setPlaceholderText("Optional path or pattern to focus on")
+        query_layout.addRow("Focus:", self.focus_input)
+
+        layout.addWidget(query_group)
+
+        # Action buttons
+        action_layout = QtWidgets.QHBoxLayout()
+        start_btn = QtWidgets.QPushButton("Start Investigation")
+        start_btn.clicked.connect(self._on_start)
+        save_btn = QtWidgets.QPushButton("Save for Later")
+        save_btn.clicked.connect(self._on_save)
+        action_layout.addWidget(start_btn)
+        action_layout.addWidget(save_btn)
+        action_layout.addStretch()
+        layout.addLayout(action_layout)
+
+        # Results area
+        results_group = QtWidgets.QGroupBox("Results")
+        self.results_text = QtWidgets.QTextEdit()
+        self.results_text.setReadOnly(True)
+        results_layout = QtWidgets.QVBoxLayout(results_group)
+        results_layout.addWidget(self.results_text)
+        layout.addWidget(results_group)
+```
+
+---
+
+### Phase 5: Patterns Screen (Week 3-4)
+
+**Current State:** Single label  
+**Target State:** Pattern library and scanning
+
+#### Layout Design
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Pattern Library                          [Refresh]  │
+├─────────────────────────────────────────────────────┤
+│ Categories: [All ▼]  Search: [________]            │
+├─────────────────────────────────────────────────────┤
+│ ☑ Security (8 patterns)                             │
+│   • hardcoded_credentials                           │
+│   • sql_injection_risk                              │
+│ ☑ Performance (20 patterns)                         │
+│   • nested_loops                                    │
+│   • synchronous_io                                  │
+│ ☑ Style (15 patterns)                               │
+│ ☑ Architecture (12 patterns)                        │
+├─────────────────────────────────────────────────────┤
+│ Scan Configuration                                   │
+│ Path: [/home/user/project] [Browse]                 │
+│ [Run Pattern Scan]        Progress: [Ready]         │
+├─────────────────────────────────────────────────────┤
+│ Results:                                             │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ 🔴 Critical: 2 matches                           │ │
+│ │   hardcoded_credentials @ src/config.py:42      │ │
+│ │ 🟡 Warnings: 5 matches                           │ │
+│ │   nested_loops @ src/process.py:89              │ │
+│ └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+### Phase 6: Export Screen (Week 4)
+
+**Current State:** Single label  
+**Target State:** Complete export workflow
+
+#### Layout Design
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Export Configuration                                 │
+├─────────────────────────────────────────────────────┤
+│ Source: [Recent Investigation ▼]                    │
+│         "investigation_20260213_123456"             │
+├─────────────────────────────────────────────────────┤
+│ Format: (•) JSON  ( ) Markdown  ( ) HTML           │
+│        ( ) CSV    ( ) PDF       ( ) SVG            │
+│        ( ) Jupyter Notebook                        │
+├─────────────────────────────────────────────────────┤
+│ Include: ☑ Evidence  ☑ Patterns  ☑ Notes           │
+├─────────────────────────────────────────────────────┤
+│ Output: [/home/user/export.md] [Browse]            │
+├─────────────────────────────────────────────────────┤
+│ [Preview] [Export]        Status: [Ready]          │
+├─────────────────────────────────────────────────────┤
+│ Preview:                                             │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ ## Investigation Report                          │ │
+│ │ Generated: 2026-02-13 14:30                      │ │
+│ │ ...                                              │ │
+│ └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## File Structure
+
+```
+desktop/
+├── __init__.py
+├── app.py                    # Update: Main window with navigation
+├── theme.py                  # Already exists
+├── core/                     # NEW: Integration layer
+│   ├── __init__.py
+│   ├── command_bridge.py     # Async bridge to bridge commands
+│   ├── session_manager.py    # Session persistence
+│   └── worker.py             # QThreadPool workers
+├── views/                    # UPDATE: Replace placeholders
+│   ├── __init__.py           # Update exports
+│   ├── home.py              # UPDATE: Add recent investigations
+│   ├── observe.py           # UPDATE: Full implementation
+│   ├── investigate.py       # UPDATE: Full implementation
+│   ├── patterns.py          # UPDATE: Full implementation
+│   ├── export.py            # UPDATE: Full implementation
+│   └── widgets/             # NEW: Reusable components
+│       ├── __init__.py
+│       ├── file_browser.py
+│       ├── progress_dialog.py
+│       ├── results_viewer.py
+│       └── error_dialog.py
+└── tests/                   # NEW: GUI tests
+    ├── __init__.py
+    ├── test_command_bridge.py
+    ├── test_session_manager.py
+    └── test_views/
+        ├── test_home.py
+        ├── test_observe.py
+        └── ...
+```
+
+---
+
+## Risk Mitigation
+
+| Risk                            | Mitigation                                               |
+| ------------------------------- | -------------------------------------------------------- |
+| Threading issues                | Use QThreadPool exclusively, never block GUI thread      |
+| Memory leaks                    | Profile with memory_profiler, use weakrefs for callbacks |
+| Cross-platform UI               | Test on all platforms weekly, use Qt stylesheets         |
+| Performance with large projects | Implement lazy loading, pagination, virtual lists        |
+| Bridge API changes              | Abstract bridge calls in command_bridge.py               |
+
+---
+
+## Success Criteria
+
+### Must Have (Release Blockers)
+
+- [ ] All 5 screens fully functional
+- [ ] All bridge commands callable from GUI
+- [ ] No GUI freezing during operations
+- [ ] Comprehensive error handling
+- [ ] Progress indicators for long operations
+- [ ] Session auto-save and recovery
+- [ ] 80% test coverage for desktop/ module
+
+### Should Have
+
+- [ ] Keyboard shortcuts
+- [ ] Export preview
+- [ ] Results filtering
+- [ ] Recent investigations list
+
+### Nice to Have
+
+- [ ] Drag-and-drop file support
+- [ ] Customizable layouts
+- [ ] Plugin UI hooks
 
 ---
 

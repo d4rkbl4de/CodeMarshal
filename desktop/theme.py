@@ -35,6 +35,11 @@ def build_stylesheet() -> str:
         color: {PALETTE['text_secondary']};
         font-size: 12px;
     }}
+    QLabel#sectionTitle {{
+        font-family: "Cinzel", "Playfair Display", serif;
+        font-size: 20px;
+        color: {PALETTE['accent']};
+    }}
     QPushButton {{
         background: {PALETTE['surface_primary']};
         border: 1px solid {PALETTE['surface_secondary']};
@@ -43,6 +48,37 @@ def build_stylesheet() -> str:
     }}
     QPushButton:hover {{
         border-color: {PALETTE['accent']};
+    }}
+    QPushButton:disabled {{
+        color: {PALETTE['text_secondary']};
+        border-color: {PALETTE['surface_secondary']};
+    }}
+    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit, QTreeWidget, QTableWidget {{
+        background: {PALETTE['surface_primary']};
+        border: 1px solid {PALETTE['surface_secondary']};
+        border-radius: 4px;
+        padding: 6px;
+    }}
+    QGroupBox {{
+        border: 1px solid {PALETTE['surface_secondary']};
+        border-radius: 8px;
+        margin-top: 8px;
+        padding-top: 12px;
+    }}
+    QGroupBox::title {{
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 4px;
+        color: {PALETTE['accent']};
+    }}
+    QProgressBar {{
+        border: 1px solid {PALETTE['surface_secondary']};
+        border-radius: 6px;
+        text-align: center;
+        background: {PALETTE['surface_primary']};
+    }}
+    QProgressBar::chunk {{
+        background: {PALETTE['accent']};
     }}
     QFrame#panel {{
         background: {PALETTE['surface_primary']};

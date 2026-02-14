@@ -88,7 +88,7 @@ class BaseExporter:
     ) -> dict[str, Any]:
         """Create standard metadata header for all exports."""
         return {
-            "codemarshal_version": "2.0.0",
+            "codemarshal_version": "2.1.0",
             "format": self.format_type.value,
             "exported_at": datetime.now(UTC).isoformat(),
             "snapshot_version": snapshot_version,
@@ -621,7 +621,7 @@ class HTMLExporter(BaseExporter):
         html_parts.append(
             f"  <p><strong>Exported:</strong> {metadata['exported_at']}</p>"
         )
-        html_parts.append(f"  <p><strong>Format:</strong> HTML</p>")
+        html_parts.append("  <p><strong>Format:</strong> HTML</p>")
         html_parts.append(
             f"  <p><strong>Version:</strong> {metadata['codemarshal_version']}</p>"
         )
@@ -667,7 +667,7 @@ class HTMLExporter(BaseExporter):
         if anchors:
             html_parts.append("<h2>⚓ Anchors</h2>")
             for i, anchor in enumerate(anchors, 1):
-                html_parts.append(f"<div class='anchor'>")
+                html_parts.append("<div class='anchor'>")
                 html_parts.append(f"  <h3>Anchor {i}</h3>")
                 if hasattr(anchor, "type"):
                     html_parts.append(f"  <p><strong>Type:</strong> {anchor.type}</p>")
@@ -685,7 +685,7 @@ class HTMLExporter(BaseExporter):
         if notebook_entries:
             html_parts.append("<h2>📝 Notebook Entries</h2>")
             for i, entry in enumerate(notebook_entries, 1):
-                html_parts.append(f"<div class='note'>")
+                html_parts.append("<div class='note'>")
                 html_parts.append(f"  <h3>Entry {i}</h3>")
                 if hasattr(entry, "content"):
                     html_parts.append(f"  <p>{entry.content}</p>")

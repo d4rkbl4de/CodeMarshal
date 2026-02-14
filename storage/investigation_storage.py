@@ -110,6 +110,54 @@ class InvestigationStorage:
         except Exception as e:
             raise TransactionalStorageError(f"Failed to save session: {e}") from e
 
+    def load_session_metadata(self, session_id: str) -> dict[str, Any] | None:
+        """Load session metadata by session ID."""
+        session_file = self.base_path / "sessions" / f"{session_id}.session.json"
+        if not session_file.exists():
+            return None
+
+        try:
+            data = json.loads(session_file.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return None
+            data.setdefault("id", session_id)
+            data.setdefault("session_id", data.get("id", session_id))
+            return data
+        except (OSError, json.JSONDecodeError, ValueError):
+            return None
+
+    def list_sessions(self, limit: int = 10) -> list[dict[str, Any]]:
+        """List session metadata ordered by most recently updated first."""
+        sessions_dir = self.base_path / "sessions"
+        if not sessions_dir.exists():
+            return []
+
+        records: list[tuple[float, dict[str, Any]]] = []
+        for session_file in sessions_dir.glob("*.session.json"):
+            session_id = session_file.name[: -len(".session.json")]
+            metadata = self.load_session_metadata(session_id)
+            if not metadata:
+                continue
+
+            sort_ts = self._session_timestamp(metadata, session_file.stat().st_mtime)
+            records.append((sort_ts, metadata))
+
+        records.sort(key=lambda item: item[0], reverse=True)
+        if limit <= 0:
+            return [item[1] for item in records]
+        return [item[1] for item in records[:limit]]
+
+    def delete_session_metadata(self, session_id: str) -> bool:
+        """Delete session metadata file if it exists."""
+        session_file = self.base_path / "sessions" / f"{session_id}.session.json"
+        if not session_file.exists():
+            return False
+        try:
+            session_file.unlink()
+            return True
+        except OSError:
+            return False
+
     def save_observation(self, observation_data, session_id):
         """
         Save observation with full transactional guarantees.
@@ -342,6 +390,19 @@ class InvestigationStorage:
         """Calculate hash for immutability verification."""
         data_str = json.dumps(data, sort_keys=True, default=str)
         return hashlib.sha256(data_str.encode()).hexdigest()
+
+    def _session_timestamp(self, metadata: dict[str, Any], fallback: float) -> float:
+        """Best-effort timestamp extraction for session ordering."""
+        for field in ("modified_at", "saved_at", "created_at"):
+            value = metadata.get(field)
+            if not value:
+                continue
+            try:
+                normalized = str(value).replace("Z", "+00:00")
+                return datetime.fromisoformat(normalized).timestamp()
+            except ValueError:
+                continue
+        return fallback
 
 
 class StreamingObservation:

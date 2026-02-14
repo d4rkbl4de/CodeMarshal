@@ -1,7 +1,7 @@
 # CodeMarshal Documentation
 
 **Version:** 2.1.0  
-**Last Updated:** February 12, 2026
+**Last Updated:** February 13, 2026
 
 Welcome to the CodeMarshal documentation. This guide helps you navigate all available documentation.
 
@@ -13,7 +13,7 @@ New to CodeMarshal? Start here:
 
 1. **[README.md](../README.md)** - Project overview, installation, and quick start
 2. **[docs/USER_GUIDE.md](USER_GUIDE.md)** - Complete command reference and workflows
-3. **[ROADMAP.md](../ROADMAP.md)** - Current execution status and remaining work
+3. **[ROADMAP.md](../ROADMAP.md)** - Current execution status and milestones
 
 ---
 
@@ -111,13 +111,12 @@ Learn more: [docs/architecture.md](architecture.md)
 
 ## Current Status
 
-**Version:** 2.1.0 (pre-GUI completion)  
-**Completed Phases:** 0, 1, 2, 3, 4, 6, 7, 8, 9  
-**Remaining Phase:** 5 (Desktop GUI)  
-**Test Status:** 168 passed, 2 skipped  
-**Coverage:** 96.56%
+**Version:** 2.1.0  
+**Completed Phases:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  
+**Test Status:** 175 passed, 3 skipped  
+**Coverage:** 93.53%
 
-See [ROADMAP.md](../ROADMAP.md) for detailed Phase 5 timeline and milestones.
+See [ROADMAP.md](../ROADMAP.md) for detailed execution status and follow-up milestones.
 
 ---
 
@@ -136,4 +135,4 @@ See [LICENSE](../LICENSE) file for details.
 ---
 
 **Documentation Index Version:** 2.1.0  
-**Last Updated:** February 12, 2026
+**Last Updated:** February 13, 2026

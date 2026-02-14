@@ -1,16 +1,15 @@
 # CodeMarshal Feature Matrix
 
-**Version:** 2.1.0 (pre-GUI completion)  
-**Last Updated:** February 12, 2026
+**Version:** 2.1.0  
+**Last Updated:** February 13, 2026
 
 ---
 
 ## Current Product State
 
-- Completed roadmap phases: `0, 1, 2, 3, 4, 6, 7, 8, 9`
-- Remaining roadmap phase: `5 (Desktop GUI)`
-- Test status: `168 passed, 2 skipped`
-- Coverage status: `96.56%` total (`90%` minimum)
+- Completed roadmap phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
+- Test status: `175 passed, 3 skipped`
+- Coverage status: `93.53%` total (`90%` minimum)
 
 ---
 
@@ -91,7 +90,7 @@ Advanced export components are implemented and tested:
 | 2 | Inquiry engine expansion | Complete |
 | 3 | Multi-language support | Complete |
 | 4 | IDE integration suite foundations | Complete |
-| 5 | Desktop GUI | In progress |
+| 5 | Desktop GUI | Complete |
 | 6 | Storage and data layer | Complete |
 | 7 | Test suite completion and coverage gate | Complete |
 | 8 | Advanced export and visualization | Complete |
@@ -101,19 +100,13 @@ Advanced export components are implemented and tested:
 
 ## Remaining Work
 
-Only Phase 5 remains:
-
-- Productionize desktop GUI flow end-to-end.
-- Finalize GUI screen workflows (Home/Observe/Investigate/Patterns/Export).
-- Close GUI dependency and packaging documentation gaps.
-
-See `ROADMAP.md` for acceptance criteria.
+No roadmap phases remain for v2.1.0. Follow-up hardening and maintenance items are tracked in `ROADMAP.md`.
 
 ---
 
 ## Related Documentation
 
-- **[ROADMAP.md](../ROADMAP.md)** - Execution status and Phase 5 timeline
+- **[ROADMAP.md](../ROADMAP.md)** - Execution status and follow-up milestones
 - **[CHANGELOG.md](../CHANGELOG.md)** - Version history and migration guides
 - **[docs/USER_GUIDE.md](USER_GUIDE.md)** - Command usage and tutorials
 - **[docs/architecture.md](architecture.md)** - System architecture and design
@@ -122,4 +115,4 @@ See `ROADMAP.md` for acceptance criteria.
 ---
 
 **Feature Matrix Version: 2.1.0**  
-**Last Updated: February 12, 2026**
+**Last Updated: February 13, 2026**

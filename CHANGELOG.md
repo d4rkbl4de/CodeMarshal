@@ -5,13 +5,13 @@ All notable changes to CodeMarshal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2026-02-12
+## [2.1.0] - 2026-02-13
 
 ### Summary
-This release completes phases 0, 1, 2, 3, 4, 6, 7, 8, and 9 of the roadmap. Only Phase 5 (Desktop GUI) remains for full v2.1.0 completion.
+This release completes phases 0 through 9 of the roadmap, including the desktop GUI implementation in Phase 5.
 
-**Test Status:** 168 passed, 2 skipped  
-**Coverage:** 96.56% (gate: 90%)
+**Test Status:** 175 passed, 3 skipped  
+**Coverage:** 93.53% (gate: 90%)
 
 ### Added
 
@@ -60,7 +60,7 @@ This release completes phases 0, 1, 2, 3, 4, 6, 7, 8, and 9 of the roadmap. Only
 - `cleanup` - Cleanup operations
 - `repair` - Repair operations
 - `migrate` - Schema migration
-- `gui` - Desktop GUI entrypoint (PySide6-based, Phase 5 in progress)
+- `gui` - Desktop GUI entrypoint (PySide6-based)
 
 ### Enhanced
 
@@ -94,10 +94,10 @@ This release completes phases 0, 1, 2, 3, 4, 6, 7, 8, and 9 of the roadmap. Only
 #### Foundation (Phase 0)
 - Import-chain fixes landed
 - Test discovery stabilized
-- Full test suite operational (168 passed, 2 skipped)
+- Full test suite operational (175 passed, 3 skipped)
 
 #### Coverage
-- Coverage gate enforcement now at 96.56% (exceeds 90% minimum)
+- Coverage gate enforcement now at 93.53% (exceeds 90% minimum)
 - Invariant tests for observation layer
 - Integration test coverage expanded
 
@@ -110,21 +110,20 @@ This release completes phases 0, 1, 2, 3, 4, 6, 7, 8, and 9 of the roadmap. Only
 - Created directory structure documentation
 - Improved cross-references between documents
 
-### In Progress
+### Completed
 
 #### Phase 5: Desktop GUI
-- PySide6-based desktop interface
-- Five core screens: Home, Observe, Investigate, Patterns, Export
-- Command parity with CLI
-- GUI smoke tests in development
+- Implemented five functional screens: Home, Observe, Investigate, Patterns, Export
+- Added async bridge/runtime integration with worker-thread execution
+- Added progress, cancellation, and GUI error handling flow
+- Added desktop session state persistence and recovery scaffolding
 
-**Note:** GUI requires `pip install -e .[gui]` for PySide6 dependency. Tests skip if not available.
+**Note:** GUI requires `pip install -e .[gui]` for PySide6 dependency. GUI tests skip when optional dependency is unavailable.
 
 ### Known Limitations
 
-1. **Desktop GUI (Phase 5):** Not yet fully productized. Basic entrypoint exists but end-to-end workflow completion pending.
-2. **PDF Export:** Requires native libraries (GTK on Windows, Cairo/Pango on Linux) or Docker container.
-3. **GUI Tests:** 2 tests skipped when PySide6 not installed.
+1. **PDF Export:** Requires native libraries (GTK on Windows, Cairo/Pango on Linux) or Docker container.
+2. **Optional GUI Dependency:** GUI runtime/tests require PySide6 and are skipped when unavailable.
 
 ### Dependencies
 

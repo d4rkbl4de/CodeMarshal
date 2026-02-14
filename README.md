@@ -2,12 +2,11 @@
 
 Truth-preserving investigation tooling for complex codebases.
 
-## Current Status (February 12, 2026)
+## Current Status (February 13, 2026)
 
-- Phases complete: `0, 1, 2, 3, 4, 6, 7, 8, 9`
-- Remaining phase: `5 (Desktop GUI)`
-- Full test suite: `168 passed, 2 skipped`
-- Coverage gate: `96.56%` total (`fail_under = 90%`)
+- Phases complete: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
+- Full test suite: `175 passed, 3 skipped`
+- Coverage gate: `93.53%` total (`fail_under = 90%`)
 
 See `ROADMAP.md` for the execution-status roadmap.
 
@@ -56,7 +55,7 @@ codemarshal export <investigation_id> --format=pdf --output=report.pdf --confirm
 - `search` - regex/text search with limit/context/file filters
 - `pattern` - list, scan, or add patterns
 - `export` - export investigation data (`json`, `markdown`, `html`, `plain`, `csv`, `jupyter`, `pdf`, `svg`)
-- `gui` - desktop GUI entrypoint (phase still in progress)
+- `gui` - desktop GUI entrypoint
 - `tui` - terminal UI
 - `config`, `backup`, `cleanup`, `repair`, `test`, `migrate`
 
@@ -91,7 +90,7 @@ On Windows host environments, PDF export still requires GTK runtime/native libra
 
 ## Documentation
 
-- **[ROADMAP.md](ROADMAP.md)** - current execution status and remaining scope
+- **[ROADMAP.md](ROADMAP.md)** - execution status and implementation milestones
 - **[CHANGELOG.md](CHANGELOG.md)** - version history and migration guides
 - **[docs/index.md](docs/index.md)** - documentation navigation guide
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** - command usage and workflows

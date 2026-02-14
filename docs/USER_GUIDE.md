@@ -1,7 +1,7 @@
 # CodeMarshal User Guide
 
-**Version:** 2.1.0 (pre-GUI completion)  
-**Last Updated:** February 12, 2026
+**Version:** 2.1.0  
+**Last Updated:** February 13, 2026
 
 ---
 
@@ -9,11 +9,10 @@
 
 Current delivery status:
 
-- Completed phases: `0, 1, 2, 3, 4, 6, 7, 8, 9`
-- Remaining phase: `5 (Desktop GUI productization)`
+- Completed phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
 - Latest validation:
-  - `168 passed, 2 skipped` (`pytest -q`)
-  - `96.56%` coverage (`pytest --cov=. --cov-report=term-missing -q`)
+  - `175 passed, 3 skipped` (`pytest -q`)
+  - `93.53%` coverage (`pytest --cov=. --cov-report=term-missing -q`)
 
 Roadmap details are in `ROADMAP.md`.
 
@@ -190,8 +189,6 @@ Desktop GUI entrypoint.
 codemarshal gui [path]
 ```
 
-Current state: command exists, but full GUI phase completion is still pending (see `ROADMAP.md`).
-
 ### `tui`
 
 Launch the terminal UI.
@@ -333,7 +330,7 @@ Expected gate:
 
 ## 11. Related Docs
 
-- **[ROADMAP.md](../ROADMAP.md)** - Current execution status and Phase 5 milestones
+- **[ROADMAP.md](../ROADMAP.md)** - Current execution status and implementation milestones
 - **[CHANGELOG.md](../CHANGELOG.md)** - Version history and what's new
 - **[docs/FEATURES.md](FEATURES.md)** - Complete feature matrix and capabilities
 - **[docs/API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Programmatic API reference

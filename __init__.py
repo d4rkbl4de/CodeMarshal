@@ -8,7 +8,7 @@ CodeMarshal follows 24 constitutional articles to ensure truth preservation,
 human primacy, and explicit limitations. Every observation is immutable,
 every claim is anchored to evidence, and every limitation is declared.
 
-Version: 2.0.0
+Version: 2.1.0
 
 Constitutional Foundation:
     - Article 1: Truth Preservation (observations are immutable)
@@ -19,13 +19,13 @@ Constitutional Foundation:
 Quick Start:
     >>> import codemarshal
     >>> codemarshal.__version__
-    '2.0.0'
+    '2.1.0'
 
 For detailed documentation, see README.md and ROADMAP.md
 """
 
-__version__ = "2.0.0"
-__version_info__ = (2, 0, 0)
+__version__ = "2.1.0"
+__version_info__ = (2, 1, 0)
 __author__ = "CodeMarshal Team"
 __license__ = "MIT"
 
