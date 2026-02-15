@@ -10,6 +10,7 @@ project_root = spec_dir.parent.parent
 datas = [
     (str(project_root / "patterns" / "builtin"), "patterns/builtin"),
     (str(project_root / "desktop" / "icons"), "desktop/icons"),
+    (str(project_root / "desktop" / "assets"), "desktop/assets"),
 ]
 
 hiddenimports = [

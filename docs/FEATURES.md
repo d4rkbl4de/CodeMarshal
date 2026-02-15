@@ -1,16 +1,15 @@
 # CodeMarshal Feature Matrix
 
 **Version:** 2.1.1-dev  
-**Last Updated:** February 14, 2026
+**Last Updated:** February 15, 2026
 
 ---
 
 ## Current Product State
 
 - Completed roadmap phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
-- Test status (with PySide6): `186 passed, 2 skipped`
-- Test status (without PySide6): `184 passed, 3 skipped`
-- Coverage status: `95.70%` with GUI extra / `93.99%` without (`90%` minimum)
+- Latest local validation run (`python -m pytest -q`): `213 collected, 211 passed, 2 skipped`
+- Coverage policy: `fail_under = 90%`
 
 ---
 
@@ -63,6 +62,15 @@ Advanced export components are implemented and tested:
 - PDF exporter
 - SVG exporter
 
+Desktop UX enhancements:
+
+- First-run onboarding dialog with guided setup
+- Contextual hints in core workflow screens
+- Inline validation for common input errors
+- Summary/raw result viewer with one-click copy actions
+- Accessibility mode (standard/high-contrast) with persisted font scaling
+- Keyboard-first focus order and shortcut discoverability
+
 ### Storage and Data Layer
 
 - Schema migration flow
@@ -76,7 +84,7 @@ Advanced export components are implemented and tested:
 
 ### Quality and Validation
 
-- Full pytest suite operational
+- Full pytest suite is maintained with active regression tracking
 - Coverage gate enforcement (`fail_under = 90`)
 - Invariant tests and integration coverage
 
@@ -116,4 +124,4 @@ No new roadmap phases remain after v2.1.0 delivery. Active hardening and mainten
 ---
 
 **Feature Matrix Version: 2.1.1-dev**  
-**Last Updated: February 14, 2026**
+**Last Updated: February 15, 2026**

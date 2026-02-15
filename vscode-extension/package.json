@@ -18,10 +18,29 @@
     "onCommand:codemarshal.query",
     "onCommand:codemarshal.export",
     "onCommand:codemarshal.showPatternsForFile",
+    "onView:codemarshal.historyView",
     "workspaceContains:**/*"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codemarshal",
+          "title": "CodeMarshal",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codemarshal": [
+        {
+          "id": "codemarshal.historyView",
+          "name": "Investigation History",
+          "type": "tree"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "codemarshal.investigate",

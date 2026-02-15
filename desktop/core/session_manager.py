@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,17 @@ class SessionManager:
                 "last_view": "home",
                 "window_geometry": None,
                 "window_state": None,
+                "onboarding_completed": False,
+                "onboarding_version": 1,
+                "show_context_hints": True,
+                "accessibility_mode": "standard",
+                "font_scale": 1.0,
+                "visual_theme_variant": "noir_premium",
+                "motion_level": "standard",
+                "sidebar_collapsed": False,
+                "reduced_motion": False,
+                "ui_density": "comfortable",
+                "accent_intensity": "normal",
             },
             "dirty": False,
             "last_saved_at": None,
@@ -82,11 +94,22 @@ class SessionManager:
 
     def _save_state(self) -> None:
         temp_path = self._state_path.with_suffix(".tmp")
-        temp_path.write_text(
-            json.dumps(self._state, indent=2, ensure_ascii=True, default=str),
-            encoding="utf-8",
-        )
-        temp_path.replace(self._state_path)
+        payload = json.dumps(self._state, indent=2, ensure_ascii=True, default=str)
+
+        for _attempt in range(3):
+            try:
+                temp_path.write_text(payload, encoding="utf-8")
+                temp_path.replace(self._state_path)
+                return
+            except PermissionError:
+                time.sleep(0.05)
+
+        # Fallback when atomic replace is blocked by transient file locks.
+        self._state_path.write_text(payload, encoding="utf-8")
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def get_recent_investigations(self, limit: int = 10) -> list[dict[str, Any]]:
         with self._lock:
@@ -221,6 +244,167 @@ class SessionManager:
         with self._lock:
             ui = dict(self._state.get("ui", {}))
             ui["window_state"] = str(state_hex) if state_hex else None
+            self._state["ui"] = ui
+            self._save_state()
+
+    def is_onboarding_completed(self) -> bool:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return bool(ui.get("onboarding_completed", False))
+
+    def set_onboarding_completed(self, value: bool) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["onboarding_completed"] = bool(value)
+            ui["onboarding_version"] = int(ui.get("onboarding_version") or 1)
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_show_context_hints(self) -> bool:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return bool(ui.get("show_context_hints", True))
+
+    def set_show_context_hints(self, value: bool) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["show_context_hints"] = bool(value)
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_accessibility_mode(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            mode = str(ui.get("accessibility_mode") or "standard").strip().lower()
+            return mode if mode in {"standard", "high_contrast"} else "standard"
+
+    def set_accessibility_mode(self, mode: str) -> None:
+        normalized = str(mode or "standard").strip().lower()
+        if normalized not in {"standard", "high_contrast"}:
+            normalized = "standard"
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["accessibility_mode"] = normalized
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_font_scale(self) -> float:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            value = ui.get("font_scale", 1.0)
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                parsed = 1.0
+            return max(0.8, min(1.6, parsed))
+
+    def set_font_scale(self, scale: float) -> None:
+        try:
+            parsed = float(scale)
+        except (TypeError, ValueError):
+            parsed = 1.0
+        parsed = max(0.8, min(1.6, parsed))
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["font_scale"] = parsed
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_visual_theme_variant(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            variant = str(ui.get("visual_theme_variant") or "noir_premium").strip().lower()
+            return (
+                variant
+                if variant in {"noir_premium", "noir", "ledger"}
+                else "noir_premium"
+            )
+
+    def set_visual_theme_variant(self, variant: str) -> None:
+        normalized = str(variant or "noir_premium").strip().lower()
+        if normalized not in {"noir_premium", "noir", "ledger"}:
+            normalized = "noir_premium"
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["visual_theme_variant"] = normalized
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_motion_level(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            level = str(ui.get("motion_level") or "standard").strip().lower()
+            return level if level in {"full", "standard", "reduced"} else "standard"
+
+    def set_motion_level(self, level: str) -> None:
+        normalized = str(level or "standard").strip().lower()
+        if normalized not in {"full", "standard", "reduced"}:
+            normalized = "standard"
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["motion_level"] = normalized
+            if normalized == "reduced":
+                ui["reduced_motion"] = True
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_sidebar_collapsed(self) -> bool:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return bool(ui.get("sidebar_collapsed", False))
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["sidebar_collapsed"] = bool(collapsed)
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_reduced_motion(self) -> bool:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return bool(ui.get("reduced_motion", False))
+
+    def set_reduced_motion(self, enabled: bool) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["reduced_motion"] = bool(enabled)
+            if enabled:
+                ui["motion_level"] = "reduced"
+            elif str(ui.get("motion_level") or "").strip().lower() == "reduced":
+                ui["motion_level"] = "standard"
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_ui_density(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            value = str(ui.get("ui_density") or "comfortable").strip().lower()
+            return value if value in {"comfortable", "compact"} else "comfortable"
+
+    def set_ui_density(self, density: str) -> None:
+        normalized = str(density or "comfortable").strip().lower()
+        if normalized not in {"comfortable", "compact"}:
+            normalized = "comfortable"
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["ui_density"] = normalized
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_accent_intensity(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            value = str(ui.get("accent_intensity") or "normal").strip().lower()
+            return value if value in {"soft", "normal", "bold"} else "normal"
+
+    def set_accent_intensity(self, intensity: str) -> None:
+        normalized = str(intensity or "normal").strip().lower()
+        if normalized not in {"soft", "normal", "bold"}:
+            normalized = "normal"
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["accent_intensity"] = normalized
             self._state["ui"] = ui
             self._save_state()
 

@@ -1,5 +1,31 @@
 import { spawn } from "child_process";
+import * as vscode from "vscode";
+import * as fs from "fs";
 import { normalizeFsPath } from "./utils";
+
+export function getCliPath(): string {
+  return (
+    vscode.workspace
+      .getConfiguration("codemarshal")
+      .get<string>("cliPath") || "codemarshal"
+  );
+}
+
+export function getScanOnSave(): boolean {
+  return (
+    vscode.workspace
+      .getConfiguration("codemarshal")
+      .get<boolean>("scanOnSave") ?? true
+  );
+}
+
+export function getWorkspaceRoot(): string | null {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    return null;
+  }
+  return folders[0].uri.fsPath;
+}
 
 export interface RunResult {
   stdout: string;
@@ -29,13 +55,34 @@ function extractJsonPayload(text: string): string | null {
   return null;
 }
 
+async function handleCliNotFoundError(cliPath: string) {
+  const item = await vscode.window.showErrorMessage(
+    `CodeMarshal: CLI not found at '${cliPath}'. Please check your 'codemarshal.cliPath' setting.`,
+    "Go to Settings",
+  );
+  if (item === "Go to Settings") {
+    await vscode.commands.executeCommand(
+      "workbench.action.openSettings",
+      "@ext:codemarshal-inc.codemarshal codemarshal.cliPath",
+    );
+  }
+}
 
 export function runCodemarshal(
   cliPath: string,
   args: string[],
   cwd?: string,
 ): Promise<RunResult> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
+    try {
+      await fs.promises.stat(cliPath);
+    } catch (err) {
+      if ((err as any).code === "ENOENT") {
+        await handleCliNotFoundError(cliPath);
+        return resolve({ stdout: "", stderr: `CLI not found at ${cliPath}`, exitCode: 1 });
+      }
+    }
+
     const proc = spawn(cliPath, args, {
       cwd,
       shell: false,

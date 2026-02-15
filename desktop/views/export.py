@@ -8,7 +8,14 @@ from typing import Any
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from desktop.widgets import ErrorDialog, ResultsViewer
+from desktop.widgets import (
+    ErrorDialog,
+    HintPanel,
+    ResultsViewer,
+    apply_accessible,
+    clear_invalid,
+    mark_invalid,
+)
 
 
 class ExportView(QtWidgets.QWidget):
@@ -25,6 +32,7 @@ class ExportView(QtWidgets.QWidget):
         self._bridge = None
         self._current_session_id: str | None = None
         self._last_preview_request: dict[str, Any] | None = None
+        self._hints_enabled = True
         self._build_ui()
         if command_bridge is not None:
             self.set_command_bridge(command_bridge)
@@ -34,14 +42,24 @@ class ExportView(QtWidgets.QWidget):
         layout.setSpacing(12)
 
         header = QtWidgets.QHBoxLayout()
-        back_btn = QtWidgets.QPushButton("Home")
-        back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
+        self.back_btn = QtWidgets.QPushButton("Home")
+        self.back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
+        apply_accessible(self.back_btn, name="Return to Home view")
         title = QtWidgets.QLabel("Export")
         title.setObjectName("sectionTitle")
-        header.addWidget(back_btn)
+        header.addWidget(self.back_btn)
         header.addWidget(title)
         header.addStretch(1)
         layout.addLayout(header)
+
+        self.hint_panel = HintPanel(
+            "Export Tips",
+            (
+                "Use Preview before Export on large sessions.\n"
+                "If preview is truncated, use Load Full Preview before writing files."
+            ),
+        )
+        layout.addWidget(self.hint_panel)
 
         config_group = QtWidgets.QGroupBox("Export Configuration")
         config_form = QtWidgets.QFormLayout(config_group)
@@ -50,6 +68,12 @@ class ExportView(QtWidgets.QWidget):
         self.session_combo.setEditable(True)
         self.session_combo.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
         self.session_combo.currentTextChanged.connect(self._suggest_output_path)
+        self.session_combo.currentTextChanged.connect(self._clear_validation)
+        apply_accessible(
+            self.session_combo,
+            name="Export session selector",
+            description="Select investigation session to export.",
+        )
         config_form.addRow("Session:", self.session_combo)
 
         self.format_combo = QtWidgets.QComboBox()
@@ -57,6 +81,7 @@ class ExportView(QtWidgets.QWidget):
             ["json", "markdown", "html", "plain", "csv", "jupyter", "pdf", "svg"]
         )
         self.format_combo.currentTextChanged.connect(self._on_format_changed)
+        apply_accessible(self.format_combo, name="Export format selector")
         config_form.addRow("Format:", self.format_combo)
 
         include_row = QtWidgets.QHBoxLayout()
@@ -64,6 +89,9 @@ class ExportView(QtWidgets.QWidget):
         self.include_patterns = QtWidgets.QCheckBox("Patterns")
         self.include_evidence = QtWidgets.QCheckBox("Evidence")
         self.include_evidence.setChecked(True)
+        apply_accessible(self.include_notes, name="Include notes in export")
+        apply_accessible(self.include_patterns, name="Include patterns in export")
+        apply_accessible(self.include_evidence, name="Include evidence in export")
         include_row.addWidget(self.include_notes)
         include_row.addWidget(self.include_patterns)
         include_row.addWidget(self.include_evidence)
@@ -73,30 +101,40 @@ class ExportView(QtWidgets.QWidget):
         output_row = QtWidgets.QHBoxLayout()
         self.output_input = QtWidgets.QLineEdit()
         self.output_input.setPlaceholderText("Output file path")
-        browse_btn = QtWidgets.QPushButton("Browse")
-        browse_btn.clicked.connect(self._on_browse_output)
+        self.output_input.textChanged.connect(self._clear_validation)
+        apply_accessible(self.output_input, name="Export output file path")
+        self.browse_btn = QtWidgets.QPushButton("Browse")
+        self.browse_btn.clicked.connect(self._on_browse_output)
+        apply_accessible(self.browse_btn, name="Browse export output path")
         output_row.addWidget(self.output_input, stretch=1)
-        output_row.addWidget(browse_btn)
+        output_row.addWidget(self.browse_btn)
         config_form.addRow("Output:", output_row)
         layout.addWidget(config_group)
 
         actions = QtWidgets.QHBoxLayout()
         self.preview_btn = QtWidgets.QPushButton("Preview")
         self.preview_btn.clicked.connect(self._on_preview)
+        apply_accessible(self.preview_btn, name="Preview export output")
         self.full_preview_btn = QtWidgets.QPushButton("Load Full Preview")
         self.full_preview_btn.setEnabled(False)
         self.full_preview_btn.clicked.connect(self._on_load_full_preview)
+        apply_accessible(self.full_preview_btn, name="Load full export preview")
         self.export_btn = QtWidgets.QPushButton("Export")
+        self.export_btn.setProperty("variant", "primary")
         self.export_btn.clicked.connect(self._on_export)
+        apply_accessible(self.export_btn, name="Run export")
         self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._on_cancel)
+        apply_accessible(self.cancel_btn, name="Cancel export operation")
         self.open_folder_btn = QtWidgets.QPushButton("Open Folder")
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self._open_export_folder)
+        apply_accessible(self.open_folder_btn, name="Open exported file folder")
         self.copy_path_btn = QtWidgets.QPushButton("Copy Path")
         self.copy_path_btn.setEnabled(False)
         self.copy_path_btn.clicked.connect(self._copy_output_path)
+        apply_accessible(self.copy_path_btn, name="Copy export output path")
         actions.addWidget(self.preview_btn)
         actions.addWidget(self.full_preview_btn)
         actions.addWidget(self.export_btn)
@@ -106,11 +144,19 @@ class ExportView(QtWidgets.QWidget):
         actions.addStretch(1)
         layout.addLayout(actions)
 
+        self.validation_label = QtWidgets.QLabel("")
+        self.validation_label.setObjectName("validationError")
+        self.validation_label.setWordWrap(True)
+        self.validation_label.setVisible(False)
+        apply_accessible(self.validation_label, name="Export validation message")
+        layout.addWidget(self.validation_label)
+
         progress_row = QtWidgets.QHBoxLayout()
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_label = QtWidgets.QLabel("Idle")
+        apply_accessible(self.progress_label, name="Export progress status")
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
         layout.addLayout(progress_row)
@@ -120,6 +166,19 @@ class ExportView(QtWidgets.QWidget):
         self.preview_viewer = ResultsViewer()
         preview_layout.addWidget(self.preview_viewer)
         layout.addWidget(preview_group, stretch=1)
+
+        self.setTabOrder(self.session_combo, self.format_combo)
+        self.setTabOrder(self.format_combo, self.include_notes)
+        self.setTabOrder(self.include_notes, self.include_patterns)
+        self.setTabOrder(self.include_patterns, self.include_evidence)
+        self.setTabOrder(self.include_evidence, self.output_input)
+        self.setTabOrder(self.output_input, self.browse_btn)
+        self.setTabOrder(self.browse_btn, self.preview_btn)
+        self.setTabOrder(self.preview_btn, self.full_preview_btn)
+        self.setTabOrder(self.full_preview_btn, self.export_btn)
+        self.setTabOrder(self.export_btn, self.open_folder_btn)
+        self.setTabOrder(self.open_folder_btn, self.copy_path_btn)
+        self.setTabOrder(self.copy_path_btn, self.cancel_btn)
 
     def set_command_bridge(self, command_bridge: Any) -> None:
         if self._bridge is command_bridge:
@@ -176,8 +235,9 @@ class ExportView(QtWidgets.QWidget):
 
         session_id = self.session_combo.currentText().strip() or self._current_session_id
         if not session_id:
-            ErrorDialog.show_error(self, "Missing Session", "Choose a session for preview.")
+            self._set_validation("Choose a session for preview.", self.session_combo)
             return
+        self._clear_validation()
 
         try:
             self._last_preview_request = {
@@ -222,13 +282,21 @@ class ExportView(QtWidgets.QWidget):
 
         session_id = self.session_combo.currentText().strip() or self._current_session_id
         if not session_id:
-            ErrorDialog.show_error(self, "Missing Session", "Choose a session before export.")
+            self._set_validation("Choose a session before export.", self.session_combo)
             return
 
         output_path = self.output_input.text().strip()
         if not output_path:
-            ErrorDialog.show_error(self, "Missing Output", "Choose an output path.")
+            self._set_validation("Choose an output path.", self.output_input)
             return
+        output_parent = Path(output_path).resolve().parent
+        if not output_parent.exists():
+            self._set_validation(
+                f"Output directory does not exist: {output_parent}",
+                self.output_input,
+            )
+            return
+        self._clear_validation()
         output_file = Path(output_path).resolve()
         if output_file.exists():
             answer = QtWidgets.QMessageBox.question(
@@ -407,3 +475,13 @@ class ExportView(QtWidgets.QWidget):
     def trigger_primary_action(self) -> None:
         if self.export_btn.isEnabled():
             self._on_export()
+
+    def set_hints_enabled(self, enabled: bool) -> None:
+        self._hints_enabled = bool(enabled)
+        self.hint_panel.setVisible(self._hints_enabled)
+
+    def _set_validation(self, message: str, widget: QtWidgets.QWidget | None = None) -> None:
+        mark_invalid(widget, self.validation_label, message)
+
+    def _clear_validation(self, *_args: object) -> None:
+        clear_invalid((self.output_input, self.session_combo), self.validation_label)

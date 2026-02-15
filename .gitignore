@@ -89,3 +89,6 @@ coverage.xml
 *.h5
 *.pkl
 *.pickle
+.pytest_tmp/
+storage/pytest_tmp/
+tmp_local/

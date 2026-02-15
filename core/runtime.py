@@ -25,7 +25,7 @@ import uuid
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Callable
 
 # Allowed imports per constitutional rules
 from core.context import RuntimeContext
@@ -130,7 +130,12 @@ class Runtime:
     5. Complete separation of concerns
     """
 
-    def __init__(self, config: RuntimeConfiguration) -> None:
+    def __init__(
+        self,
+        config: RuntimeConfiguration,
+        flush_writes_func: Callable[[], bool],
+        atomic_write_func: Callable[[Path, Any, int], None],
+    ) -> None:
         """
         Initialize runtime with validation but don't start execution.
 
@@ -143,6 +148,8 @@ class Runtime:
         """
         self._config = config
         self._logger = self._create_logger()
+        self._flush_writes_func = flush_writes_func
+        self._atomic_write_func = atomic_write_func
 
         # Initialize in order
         try:
@@ -155,7 +162,12 @@ class Runtime:
             self._context = self._create_runtime_context()
 
             # Phase 3: Initialize Shutdown System
-            initialize_shutdown(self._context)
+
+            initialize_shutdown(
+                self._context,
+                self._flush_writes_func,
+                self._atomic_write_func,
+            )
 
             # Phase 4: Activate Runtime Prohibitions
             self._activate_prohibitions()
@@ -749,6 +761,8 @@ def create_runtime(
     execution_mode: str = "CLI",
     constitution_path: Path | None = None,
     code_root: Path | None = None,
+    flush_writes_func: Callable[[], bool] | None = None,
+    atomic_write_func: Callable[[Path, Any, int], None] | None = None,
     **kwargs,
 ) -> Runtime:
     """
@@ -762,6 +776,8 @@ def create_runtime(
         execution_mode: One of "CLI", "TUI", "API", "EXPORT"
         constitution_path: Optional path to constitution file
         code_root: Optional path to CodeMarshal source code
+        flush_writes_func: Optional callable to flush pending writes (for dependency injection)
+        atomic_write_func: Optional callable for atomic JSON writes (for dependency injection)
         **kwargs: Additional configuration options
 
     Returns:
@@ -806,7 +822,11 @@ def create_runtime(
     config.validate()
 
     # Create and return runtime
-    return Runtime(config)
+    return Runtime(
+        config,
+        flush_writes_func=flush_writes_func,
+        atomic_write_func=atomic_write_func,
+    )
 
 
 def execute_witness_command(investigation_path: Path) -> dict[str, Any]:

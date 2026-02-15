@@ -8,7 +8,14 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
-from desktop.widgets import ErrorDialog, ResultsViewer
+from desktop.widgets import (
+    ErrorDialog,
+    HintPanel,
+    ResultsViewer,
+    apply_accessible,
+    clear_invalid,
+    mark_invalid,
+)
 
 
 class InvestigateView(QtWidgets.QWidget):
@@ -27,6 +34,7 @@ class InvestigateView(QtWidgets.QWidget):
         self._query_history: dict[str, list[str]] = {}
         self._pending_auto_query: str | None = None
         self._last_answer_text: str = ""
+        self._hints_enabled = True
         self._build_ui()
         if command_bridge is not None:
             self.set_command_bridge(command_bridge)
@@ -36,16 +44,31 @@ class InvestigateView(QtWidgets.QWidget):
         layout.setSpacing(12)
 
         header = QtWidgets.QHBoxLayout()
-        back_btn = QtWidgets.QPushButton("Home")
-        back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
+        self.back_btn = QtWidgets.QPushButton("Home")
+        self.back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
+        apply_accessible(self.back_btn, name="Return to Home view")
         title = QtWidgets.QLabel("Investigate")
         title.setObjectName("sectionTitle")
         self.session_label = QtWidgets.QLabel("Session: none")
-        header.addWidget(back_btn)
+        apply_accessible(
+            self.session_label,
+            name="Current session label",
+            description="Shows active investigation session identifier.",
+        )
+        header.addWidget(self.back_btn)
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(self.session_label)
         layout.addLayout(header)
+
+        self.hint_panel = HintPanel(
+            "New Here?",
+            (
+                "Start with intent 'initial_scan' for unknown codebases.\n"
+                "After completion, ask a structure question to build context quickly."
+            ),
+        )
+        layout.addWidget(self.hint_panel)
 
         config_group = QtWidgets.QGroupBox("Investigation Configuration")
         config_form = QtWidgets.QFormLayout(config_group)
@@ -53,14 +76,22 @@ class InvestigateView(QtWidgets.QWidget):
         path_row = QtWidgets.QHBoxLayout()
         self.path_input = QtWidgets.QLineEdit()
         self.path_input.setPlaceholderText("Project root or file path")
-        browse_btn = QtWidgets.QPushButton("Browse")
-        browse_btn.clicked.connect(self._on_browse)
+        self.path_input.textChanged.connect(self._clear_validation)
+        apply_accessible(
+            self.path_input,
+            name="Investigation target path",
+            description="Root path or file for investigation.",
+        )
+        self.browse_btn = QtWidgets.QPushButton("Browse")
+        self.browse_btn.clicked.connect(self._on_browse)
+        apply_accessible(self.browse_btn, name="Browse investigation target")
         path_row.addWidget(self.path_input, stretch=1)
-        path_row.addWidget(browse_btn)
+        path_row.addWidget(self.browse_btn)
         config_form.addRow("Target:", path_row)
 
         self.scope_combo = QtWidgets.QComboBox()
         self.scope_combo.addItems(["project", "package", "module", "file"])
+        apply_accessible(self.scope_combo, name="Investigation scope")
         config_form.addRow("Scope:", self.scope_combo)
 
         self.intent_combo = QtWidgets.QComboBox()
@@ -72,19 +103,24 @@ class InvestigateView(QtWidgets.QWidget):
                 "architecture_review",
             ]
         )
+        apply_accessible(self.intent_combo, name="Investigation intent")
         config_form.addRow("Intent:", self.intent_combo)
 
         self.name_input = QtWidgets.QLineEdit()
         self.name_input.setPlaceholderText("Optional investigation name")
+        apply_accessible(self.name_input, name="Investigation name")
         config_form.addRow("Name:", self.name_input)
 
         self.notes_input = QtWidgets.QLineEdit()
         self.notes_input.setPlaceholderText("Optional notes")
+        apply_accessible(self.notes_input, name="Investigation notes")
         config_form.addRow("Notes:", self.notes_input)
 
         self.auto_query_check = QtWidgets.QCheckBox("Run first query after investigation")
         self.auto_query_input = QtWidgets.QLineEdit()
         self.auto_query_input.setPlaceholderText("Optional initial question")
+        apply_accessible(self.auto_query_check, name="Auto-run first query")
+        apply_accessible(self.auto_query_input, name="Initial query text")
         config_form.addRow(self.auto_query_check, self.auto_query_input)
         layout.addWidget(config_group)
 
@@ -94,47 +130,62 @@ class InvestigateView(QtWidgets.QWidget):
         self.session_combo = QtWidgets.QComboBox()
         self.session_combo.setEditable(True)
         self.session_combo.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        self.session_combo.currentTextChanged.connect(self._clear_validation)
+        apply_accessible(self.session_combo, name="Query session selector")
         query_form.addRow("Session:", self.session_combo)
 
         self.question_type_combo = QtWidgets.QComboBox()
         self.question_type_combo.addItems(
             ["structure", "purpose", "connections", "anomalies", "thinking"]
         )
+        apply_accessible(self.question_type_combo, name="Question type selector")
         query_form.addRow("Question Type:", self.question_type_combo)
 
         self.question_input = QtWidgets.QLineEdit()
         self.question_input.setPlaceholderText("Ask a structured question")
+        self.question_input.textChanged.connect(self._clear_validation)
+        self.question_input.returnPressed.connect(self._on_run_query)
+        apply_accessible(self.question_input, name="Query question input")
         query_form.addRow("Question:", self.question_input)
 
         self.history_combo = QtWidgets.QComboBox()
         self.history_combo.setEditable(False)
         self.history_combo.currentTextChanged.connect(self._on_history_selected)
+        apply_accessible(self.history_combo, name="Query history selector")
         query_form.addRow("History:", self.history_combo)
 
         self.focus_input = QtWidgets.QLineEdit()
         self.focus_input.setPlaceholderText("Optional focus path or anchor")
+        apply_accessible(self.focus_input, name="Query focus filter")
         query_form.addRow("Focus:", self.focus_input)
 
         self.limit_spin = QtWidgets.QSpinBox()
         self.limit_spin.setRange(1, 5000)
         self.limit_spin.setValue(25)
+        apply_accessible(self.limit_spin, name="Query result limit")
         query_form.addRow("Limit:", self.limit_spin)
         layout.addWidget(query_group)
 
         actions = QtWidgets.QHBoxLayout()
         self.start_btn = QtWidgets.QPushButton("Start Investigation")
+        self.start_btn.setProperty("variant", "primary")
         self.start_btn.clicked.connect(self._on_start_investigation)
+        apply_accessible(self.start_btn, name="Start investigation")
         self.query_btn = QtWidgets.QPushButton("Run Query")
         self.query_btn.clicked.connect(self._on_run_query)
+        apply_accessible(self.query_btn, name="Run query")
         self.copy_answer_btn = QtWidgets.QPushButton("Copy Answer")
         self.copy_answer_btn.setEnabled(False)
         self.copy_answer_btn.clicked.connect(self._copy_answer)
+        apply_accessible(self.copy_answer_btn, name="Copy query answer")
         self.save_answer_btn = QtWidgets.QPushButton("Save Answer")
         self.save_answer_btn.setEnabled(False)
         self.save_answer_btn.clicked.connect(self._save_answer)
+        apply_accessible(self.save_answer_btn, name="Save query answer")
         self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._on_cancel)
+        apply_accessible(self.cancel_btn, name="Cancel investigate or query operation")
         actions.addWidget(self.start_btn)
         actions.addWidget(self.query_btn)
         actions.addWidget(self.copy_answer_btn)
@@ -143,11 +194,23 @@ class InvestigateView(QtWidgets.QWidget):
         actions.addStretch(1)
         layout.addLayout(actions)
 
+        self.validation_label = QtWidgets.QLabel("")
+        self.validation_label.setObjectName("validationError")
+        self.validation_label.setWordWrap(True)
+        self.validation_label.setVisible(False)
+        apply_accessible(self.validation_label, name="Investigation validation message")
+        layout.addWidget(self.validation_label)
+
         progress_row = QtWidgets.QHBoxLayout()
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_label = QtWidgets.QLabel("Idle")
+        apply_accessible(
+            self.progress_label,
+            name="Investigation progress status",
+            description="Status updates for investigate and query operations.",
+        )
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
         layout.addLayout(progress_row)
@@ -157,6 +220,25 @@ class InvestigateView(QtWidgets.QWidget):
         self.results = ResultsViewer()
         results_layout.addWidget(self.results)
         layout.addWidget(results_group, stretch=1)
+
+        self.setTabOrder(self.path_input, self.browse_btn)
+        self.setTabOrder(self.browse_btn, self.scope_combo)
+        self.setTabOrder(self.scope_combo, self.intent_combo)
+        self.setTabOrder(self.intent_combo, self.name_input)
+        self.setTabOrder(self.name_input, self.notes_input)
+        self.setTabOrder(self.notes_input, self.auto_query_check)
+        self.setTabOrder(self.auto_query_check, self.auto_query_input)
+        self.setTabOrder(self.auto_query_input, self.start_btn)
+        self.setTabOrder(self.start_btn, self.session_combo)
+        self.setTabOrder(self.session_combo, self.question_type_combo)
+        self.setTabOrder(self.question_type_combo, self.question_input)
+        self.setTabOrder(self.question_input, self.history_combo)
+        self.setTabOrder(self.history_combo, self.focus_input)
+        self.setTabOrder(self.focus_input, self.limit_spin)
+        self.setTabOrder(self.limit_spin, self.query_btn)
+        self.setTabOrder(self.query_btn, self.copy_answer_btn)
+        self.setTabOrder(self.copy_answer_btn, self.save_answer_btn)
+        self.setTabOrder(self.save_answer_btn, self.cancel_btn)
 
     def set_command_bridge(self, command_bridge: Any) -> None:
         if self._bridge is command_bridge:
@@ -241,11 +323,12 @@ class InvestigateView(QtWidgets.QWidget):
 
         path_value = self.path_input.text().strip()
         if not path_value:
-            ErrorDialog.show_error(self, "Missing Path", "Select a target path first.")
+            self._set_validation("Select a target path first.", self.path_input)
             return
         if not Path(path_value).exists():
-            ErrorDialog.show_error(self, "Invalid Path", f"Path does not exist: {path_value}")
+            self._set_validation(f"Path does not exist: {path_value}", self.path_input)
             return
+        self._clear_validation()
 
         self._pending_auto_query = None
         if self.auto_query_check.isChecked():
@@ -276,17 +359,17 @@ class InvestigateView(QtWidgets.QWidget):
 
         question = self.question_input.text().strip()
         if not question:
-            ErrorDialog.show_error(self, "Missing Question", "Enter a query question first.")
+            self._set_validation("Enter a query question first.", self.question_input)
             return
 
         session_id = self.session_combo.currentText().strip() or self._current_session_id
         if not session_id:
-            ErrorDialog.show_error(
-                self,
-                "Missing Session",
+            self._set_validation(
                 "Run or open an investigation before querying.",
+                self.session_combo,
             )
             return
+        self._clear_validation()
 
         try:
             self._bridge.query(
@@ -464,3 +547,16 @@ class InvestigateView(QtWidgets.QWidget):
             self._on_run_query()
             return
         self._on_start_investigation()
+
+    def set_hints_enabled(self, enabled: bool) -> None:
+        self._hints_enabled = bool(enabled)
+        self.hint_panel.setVisible(self._hints_enabled)
+
+    def _set_validation(self, message: str, widget: QtWidgets.QWidget | None = None) -> None:
+        mark_invalid(widget, self.validation_label, message)
+
+    def _clear_validation(self, *_args: object) -> None:
+        clear_invalid(
+            (self.path_input, self.question_input, self.session_combo),
+            self.validation_label,
+        )

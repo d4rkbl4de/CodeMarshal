@@ -2,12 +2,11 @@
 
 Truth-preserving investigation tooling for complex codebases.
 
-## Current Status (February 14, 2026)
+## Current Status (February 15, 2026)
 
 - Phases complete: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
-- Full test suite (with PySide6): `186 passed, 2 skipped`
-- Full test suite (without PySide6): `184 passed, 3 skipped`
-- Coverage gate: `95.70%` with GUI extra / `93.99%` without (`fail_under = 90%`)
+- Latest local validation run (`python -m pytest -q`): `213 collected, 211 passed, 2 skipped`
+- Coverage policy: `fail_under = 90%` (run `pytest --cov=. --cov-report=term -q` for current value)
 
 See `ROADMAP.md` for the execution-status roadmap.
 

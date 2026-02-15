@@ -30,13 +30,15 @@ from bridge.commands.investigate import (
     InvestigationType,
 )
 from core.engine import Engine
-from core.runtime import ExecutionMode, Runtime, RuntimeConfiguration
+from core.runtime import ExecutionMode, Runtime, RuntimeConfiguration, create_runtime as create_runtime_func
+
 from inquiry.session.context import QuestionType, SessionContext
 from integrity.adapters.memory_monitor_adapter import create_memory_monitor_adapter
 from lens.navigation.context import FocusType, create_navigation_context
 from lens.navigation.workflow import WorkflowStage
 from lens.views import ViewType
 from storage.investigation_storage import InvestigationStorage
+from storage.atomic import flush_pending_writes, atomic_write_json_compatible
 
 # Type aliases for clarity
 PathStr = str
@@ -206,6 +208,15 @@ This collects observations, analyzes patterns, and creates investigation state.
             action="store_true",
             help="Explicitly confirm if investigation scope is large",
         )
+        
+        # Output format
+        parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format (default: text)",
+        )
 
     def _add_observe_parser(self, subparsers: Any) -> None:
         """Add observe command parser with explicit arguments."""
@@ -304,6 +315,15 @@ Questions must be anchored to specific observations.
 
         parser.add_argument(
             "--limit", type=int, help="Maximum number of results (optional)"
+        )
+
+        # Output format
+        parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format (default: text)",
         )
 
     def _add_export_parser(self, subparsers: Any) -> None:
@@ -1020,21 +1040,22 @@ Commands: list, scan, add
 
         # Call command
         try:
-            config = RuntimeConfiguration(
+            runtime = create_runtime_func(
                 investigation_root=args.path
                 if hasattr(args, "path")
                 and isinstance(args.path, Path)
                 and args.path.is_dir()
                 else Path(".").absolute(),
-                execution_mode=ExecutionMode.CLI,
-                constitution_path=Path(__file__).parent.parent.parent / "Structure.md",
+                execution_mode="CLI",
+                constitution_path=Path(__file__).parent.parent.parent / "constitution.truth.md",
                 code_root=args.path
                 if hasattr(args, "path")
                 and isinstance(args.path, Path)
                 and args.path.is_dir()
                 else Path(".").absolute(),
+                flush_writes_func=flush_pending_writes,
+                atomic_write_func=atomic_write_json_compatible,
             )
-            runtime = Runtime(config=config)
             Engine(
                 runtime._context,
                 runtime._state,
@@ -1088,6 +1109,11 @@ Commands: list, scan, add
                 nav_context=nav_context,
                 existing_sessions={},
             )
+
+            if args.output == "json":
+                import json
+                self._safe_print(json.dumps(raw_result, indent=2, ensure_ascii=False, default=str))
+                return 0
 
             # Wrap in result object for display logic
             from bridge.results import InvestigateResult
@@ -1152,22 +1178,23 @@ Commands: list, scan, add
         # Call command
         try:
             print("1. Creating config...", file=sys.stderr)
-            config = RuntimeConfiguration(
+            runtime = create_runtime_func(
                 investigation_root=args.path
                 if hasattr(args, "path")
                 and isinstance(args.path, Path)
                 and args.path.is_dir()
                 else Path(".").absolute(),
-                execution_mode=ExecutionMode.CLI,
-                constitution_path=Path(__file__).parent.parent.parent / "Structure.md",
+                execution_mode="CLI",
+                constitution_path=Path(__file__).parent.parent.parent / "constitution.truth.md",
                 code_root=args.path
                 if hasattr(args, "path")
                 and isinstance(args.path, Path)
                 and args.path.is_dir()
                 else Path(".").absolute(),
+                flush_writes_func=flush_pending_writes,
+                atomic_write_func=atomic_write_json_compatible,
             )
             print("2. Initializing runtime...", file=sys.stderr)
-            runtime = Runtime(config=config)
             print("3. Creating engine...", file=sys.stderr)
             storage = InvestigationStorage()
             engine = Engine(
@@ -1424,6 +1451,12 @@ Commands: list, scan, add
                 args.question, args.question_type, observations
             )
 
+            if args.output == "json":
+                import json
+                # Assuming _generate_answer can return a dict for json output
+                self._safe_print(json.dumps({"answer": answer}, indent=2, ensure_ascii=False, default=str))
+                return 0
+
             from bridge.results import QueryResult
 
             # Create QueryResult with the generated answer
@@ -1616,7 +1649,7 @@ Commands: list, scan, add
                 and args.path.is_dir()
                 else Path(".").absolute(),
                 execution_mode=ExecutionMode.CLI,
-                constitution_path=Path(__file__).parent.parent.parent / "Structure.md",
+                constitution_path=Path(__file__).parent.parent.parent / "constitution.truth.md",
                 code_root=args.path
                 if hasattr(args, "path")
                 and isinstance(args.path, Path)

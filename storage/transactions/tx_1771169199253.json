@@ -1,0 +1,12 @@
+{
+  "transaction_id": "tx_1771169199253",
+  "paths": [
+    "storage\\sessions\\test-session.session.json",
+    "storage\\observations\\obs_f73cd2f967f281bf.observation.json"
+  ],
+  "status": "committed",
+  "created_at": "2026-02-15T15:26:39.253964+00:00",
+  "metadata": {
+    "session_id": "test-session"
+  }
+}

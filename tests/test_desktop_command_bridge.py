@@ -8,16 +8,16 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 
 from desktop.core.command_bridge import GUICommandBridge
 from desktop.core.exceptions import OperationCancelledError
 
 
-def _ensure_qt_app() -> QtCore.QCoreApplication:
-    app = QtCore.QCoreApplication.instance()
+def _ensure_qt_app() -> QtWidgets.QApplication:
+    app = QtWidgets.QApplication.instance()
     if app is None:
-        app = QtCore.QCoreApplication([])
+        app = QtWidgets.QApplication([])
     return app
 
 
@@ -113,4 +113,3 @@ def test_bridge_cancel_operation_emits_cancelled_signal() -> None:
     loop.exec()
 
     assert received["cancelled"] is True
-

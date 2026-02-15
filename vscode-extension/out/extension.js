@@ -180,6 +180,19 @@ function activate(context) {
     // --- Command Registration ---
     function registerCommands(context) {
         context.subscriptions.push(vscode.commands.registerCommand("codemarshal.investigate", async () => {
+            const scope = await vscode.window.showQuickPick(["file", "module", "package", "project"], { placeHolder: "Select investigation scope" });
+            if (!scope) {
+                return;
+            }
+            const intent = await vscode.window.showQuickPick([
+                "initial_scan",
+                "constitutional_check",
+                "dependency_analysis",
+                "architecture_review",
+            ], { placeHolder: "Select investigation intent" });
+            if (!intent) {
+                return;
+            }
             const activeFile = vscode.window.activeTextEditor?.document
                 .uri.fsPath;
             const target = activeFile
@@ -191,17 +204,37 @@ function activate(context) {
             }
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `CodeMarshal: Investigating ${path.basename(target)}...`,
+                title: `CodeMarshal: Investigating ${path.basename(target)} with scope ${scope} and intent ${intent}...`,
                 cancellable: false,
             }, async () => {
-                await runAndLog([
+                const cliPath = getCliPath();
+                const result = await (0, cli_1.runJsonCommand)(cliPath, [
                     "investigate",
                     target,
-                    "--scope=module",
-                    "--intent=initial_scan",
+                    `--scope=${scope}`,
+                    `--intent=${intent}`,
+                    "--output=json", // Request JSON output
                 ]);
+                if (result.data) {
+                    const doc = await vscode.workspace.openTextDocument({
+                        content: JSON.stringify(result.data, null, 2),
+                        language: "json",
+                    });
+                    await vscode.window.showTextDocument(doc, { preview: false });
+                    vscode.window.showInformationMessage(`CodeMarshal: Investigation '${result.data.investigation_id}' started. Results displayed in new tab.`);
+                }
+                else {
+                    const errorMessage = `CodeMarshal: Investigation failed. ${result.error || result.run.stderr}`;
+                    vscode.window.showErrorMessage(errorMessage);
+                    output.appendLine(errorMessage);
+                }
             });
         }), vscode.commands.registerCommand("codemarshal.observe", async () => {
+            const scope = await vscode.window.showQuickPick(["file", "module", "package", "project"], { placeHolder: "Select observation scope" });
+            if (!scope) {
+                return;
+            }
+            const args = ["observe"];
             const activeFile = vscode.window.activeTextEditor?.document
                 .uri.fsPath;
             const target = activeFile || getWorkspaceRoot();
@@ -209,17 +242,30 @@ function activate(context) {
                 vscode.window.showWarningMessage("CodeMarshal: No target selected for observation.");
                 return;
             }
+            args.push(target);
+            args.push(`--scope=${scope}`);
+            const constitutional = await vscode.window.showQuickPick(["Yes", "No"], { placeHolder: "Include constitutional checks? (--constitutional)" });
+            if (constitutional === "Yes") {
+                args.push("--constitutional");
+            }
+            const includeBinary = await vscode.window.showQuickPick(["Yes", "No"], { placeHolder: "Include binary files? (--include-binary)" });
+            if (includeBinary === "Yes") {
+                args.push("--include-binary");
+            }
+            const followSymlinks = await vscode.window.showQuickPick(["Yes", "No"], { placeHolder: "Follow symlinks? (--follow-symlinks)" });
+            if (followSymlinks === "Yes") {
+                args.push("--follow-symlinks");
+            }
+            const persist = await vscode.window.showQuickPick(["Yes", "No"], { placeHolder: "Persist observations? (--persist)" });
+            if (persist === "Yes") {
+                args.push("--persist");
+            }
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `CodeMarshal: Observing ${path.basename(target)}...`,
+                title: `CodeMarshal: Observing ${path.basename(target)} with scope ${scope}...`,
                 cancellable: false,
             }, async () => {
-                await runAndLog([
-                    "observe",
-                    target,
-                    "--scope=module",
-                    "--constitutional",
-                ]);
+                await runAndLog(args);
             });
         }), vscode.commands.registerCommand("codemarshal.scanPatterns", async () => {
             await scanWorkspace();
@@ -265,18 +311,38 @@ function activate(context) {
             if (!question) {
                 return;
             }
+            // Prompt for question type
+            const questionType = await vscode.window.showQuickPick(["structure", "purpose", "connections", "anomalies", "thinking"], { placeHolder: "Select question type" });
+            if (!questionType) {
+                return;
+            }
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: "CodeMarshal: Running query...",
                 cancellable: false,
             }, async () => {
-                await runAndLog([
+                const cliPath = getCliPath();
+                const result = await (0, cli_1.runJsonCommand)(cliPath, [
                     "query",
                     finalInvestigationId,
                     "--question",
                     question,
-                    "--question-type=connections",
+                    `--question-type=${questionType}`,
+                    "--output=json", // Request JSON output
                 ]);
+                if (result.data) {
+                    const doc = await vscode.workspace.openTextDocument({
+                        content: JSON.stringify(result.data, null, 2),
+                        language: "json",
+                    });
+                    await vscode.window.showTextDocument(doc, { preview: false });
+                    vscode.window.showInformationMessage(`CodeMarshal: Query result for '${question}' displayed in new tab.`);
+                }
+                else {
+                    const errorMessage = `CodeMarshal: Query failed. ${result.error || result.run.stderr}`;
+                    vscode.window.showErrorMessage(errorMessage);
+                    output.appendLine(errorMessage);
+                }
             });
         }), vscode.commands.registerCommand("codemarshal.export", async () => {
             const investigationId = await vscode.window.showQuickPick(["latest", "Enter ID..."], {
@@ -340,6 +406,18 @@ function activate(context) {
                 }
                 vscode.window.showInformationMessage(`CodeMarshal: Displaying ${matches.length} pattern matches for ${path.basename(targetUri.fsPath)} in output channel.`);
             }
+        }), vscode.commands.registerCommand("codemarshal.setCliPath", async () => {
+            const newCliPath = await vscode.window.showInputBox({
+                prompt: "Enter the path to the CodeMarshal CLI executable",
+                value: getCliPath(),
+            });
+            if (newCliPath === undefined) {
+                return; // User cancelled
+            }
+            await vscode.workspace
+                .getConfiguration("codemarshal")
+                .update("cliPath", newCliPath, vscode.ConfigurationTarget.Global);
+            vscode.window.showInformationMessage(`CodeMarshal CLI path updated to: ${newCliPath}`);
         }));
     }
     // --- Event Subscriptions ---

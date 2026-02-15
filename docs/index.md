@@ -1,7 +1,7 @@
 # CodeMarshal Documentation
 
 **Version:** 2.1.1-dev  
-**Last Updated:** February 14, 2026
+**Last Updated:** February 15, 2026
 
 Welcome to the CodeMarshal documentation. This guide helps you navigate all available documentation.
 
@@ -107,15 +107,16 @@ Learn more: [docs/architecture.md](architecture.md)
 | `gui` | Launch desktop GUI | [USER_GUIDE.md#gui](USER_GUIDE.md#gui) |
 | `tui` | Launch terminal UI | [USER_GUIDE.md#tui](USER_GUIDE.md#tui) |
 
+Desktop GUI includes first-run onboarding, accessibility preferences, and in-app shortcut help (`F1`).
+
 ---
 
 ## Current Status
 
 **Version:** 2.1.1-dev  
 **Completed Phases:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  
-**Test Status (with PySide6):** 186 passed, 2 skipped  
-**Test Status (without PySide6):** 184 passed, 3 skipped  
-**Coverage:** 95.70% with GUI extra / 93.99% without
+**Latest Local Validation:** 213 collected, 211 passed, 2 skipped  
+**Coverage Policy:** `fail_under = 90`
 
 See [ROADMAP.md](../ROADMAP.md) for detailed execution status and follow-up milestones.
 
@@ -136,4 +137,4 @@ See [LICENSE](../LICENSE) file for details.
 ---
 
 **Documentation Index Version:** 2.1.1-dev  
-**Last Updated:** February 14, 2026
+**Last Updated:** February 15, 2026

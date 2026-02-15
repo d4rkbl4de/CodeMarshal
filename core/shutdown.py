@@ -29,12 +29,27 @@ import logging
 import signal
 import sys
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
 from core.context import RuntimeContext
+
+
+def _default_flush_writes() -> bool:
+    """Call storage flush hook with late binding for monkeypatch compatibility."""
+    from storage import atomic
+
+    return bool(atomic.flush_pending_writes())
+
+
+def _default_atomic_write(target: Path, payload: Any, indent: int = 2) -> None:
+    """Call storage atomic JSON writer with late binding."""
+    from storage import atomic
+
+    atomic.atomic_write_json_compatible(target, payload, indent=indent)
 
 
 class TerminationReason(Enum):
@@ -100,18 +115,32 @@ class ShutdownManager:
     5. Preserves session state when possible
     """
 
-    def __init__(self, context: RuntimeContext) -> None:
+    def __init__(
+        self,
+        context: RuntimeContext,
+        flush_writes_func: Callable[[], bool] | None = None,
+        atomic_write_func: Callable[..., None] | None = None,
+    ) -> None:
         """
         Initialize shutdown manager.
 
         Args:
             context: Immutable runtime context
+            flush_writes_func: Optional callable to flush pending writes.
+            atomic_write_func: Optional callable to perform atomic JSON writes.
         """
+        if flush_writes_func is None:
+            flush_writes_func = _default_flush_writes
+        if atomic_write_func is None:
+            atomic_write_func = _default_atomic_write
+
         self._context = context
         self._logger = self._create_logger()
         self._original_signal_handlers: dict[int, Any] = {}
         self._termination_record: TerminationRecord | None = None
         self._shutdown_initiated = False
+        self._flush_writes_func = flush_writes_func
+        self._atomic_write_func = atomic_write_func
 
         self._logger.debug("Shutdown manager initialized")
 
@@ -272,9 +301,7 @@ class ShutdownManager:
         """
         try:
             self._logger.debug("Flushing pending writes...")
-            from storage.atomic import flush_pending_writes
-
-            flushed = flush_pending_writes()
+            flushed = self._flush_writes_func()
             if not flushed:
                 self._logger.warning("Pending writes flush reported failure")
                 return False
@@ -295,22 +322,39 @@ class ShutdownManager:
         """
         try:
             self._logger.debug("Running corruption checks...")
+
             from observations.record.snapshot import load_snapshot
             from storage.corruption import detect_corruption
 
             snapshot = load_snapshot()
-            snapshot_data = (
-                snapshot.to_dict() if hasattr(snapshot, "to_dict") else dict(snapshot)
+            if snapshot is None:
+                return True
+
+            if hasattr(snapshot, "to_dict"):
+                payload: Any = snapshot.to_dict()
+            elif isinstance(snapshot, dict):
+                payload = snapshot
+            else:
+                payload = dict(snapshot)
+
+            snapshot_bytes = json.dumps(payload, default=str, sort_keys=True).encode(
+                "utf-8"
             )
-            serialized = json.dumps(snapshot_data, sort_keys=True).encode("utf-8")
-            corruption = detect_corruption(serialized, "session_context")
-            if corruption is not None:
-                self._logger.error(f"Corruption detected during shutdown: {corruption}")
+            corruption = detect_corruption(snapshot_bytes, "session_context")
+            if corruption:
+                corruption_type = (
+                    corruption.get("corruption_type")
+                    if isinstance(corruption, dict)
+                    else getattr(corruption, "corruption_type", "unknown")
+                )
+                self._logger.error(f"Corruption detected: {corruption_type}")
                 return False
 
             self._logger.info("Corruption checks passed")
             return True
-
+        except FileNotFoundError:
+            self._logger.info("No snapshot found; corruption checks skipped")
+            return True
         except Exception as e:
             self._logger.error(f"Corruption checks failed: {e}")
             return False
@@ -325,7 +369,7 @@ class ShutdownManager:
         try:
             self._logger.debug("Saving session state...")
             from core.state import get_current_state
-            from storage.atomic import atomic_write_json_compatible
+
 
             current_state = get_current_state()
             state_payload = (
@@ -337,7 +381,13 @@ class ShutdownManager:
             session_dir = Path(".codemarshal") / "session_state"
             session_dir.mkdir(parents=True, exist_ok=True)
             target = session_dir / f"{self._context.session_id_str}.json"
-            atomic_write_json_compatible(target, state_payload, indent=2)
+            try:
+                self._atomic_write_func(target, state_payload, indent=2)
+            except TypeError:
+                try:
+                    self._atomic_write_func(target, state_payload, 2)
+                except TypeError:
+                    self._atomic_write_func(target, state_payload)
 
             self._logger.info("Session state saved")
             return True
@@ -409,15 +459,21 @@ class ShutdownManager:
 _SHUTDOWN_MANAGER: ShutdownManager | None = None
 
 
-def initialize_shutdown(context: RuntimeContext) -> None:
+def initialize_shutdown(
+    context: RuntimeContext,
+    flush_writes_func: Callable[[], bool],
+    atomic_write_func: Callable[[Path, Any, int], None],
+) -> None:
     """
-    Initialize the shutdown system with a runtime context.
+    Initialize the shutdown system with a runtime context and injected dependencies.
 
     Args:
         context: The runtime context for shutdown operations.
+        flush_writes_func: Callable to flush pending writes.
+        atomic_write_func: Callable to perform atomic JSON writes.
     """
     global _SHUTDOWN_MANAGER
-    _SHUTDOWN_MANAGER = ShutdownManager(context)
+    _SHUTDOWN_MANAGER = ShutdownManager(context, flush_writes_func, atomic_write_func)
     _SHUTDOWN_MANAGER.install_signal_handlers()
 
 

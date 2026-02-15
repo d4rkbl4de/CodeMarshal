@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="140" viewBox="0 0 640 140">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#E7C87A"/>
+      <stop offset="100%" stop-color="#9E7C43"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="640" height="140" fill="#0A0A0B"/>
+  <text
+    x="40"
+    y="88"
+    fill="url(#g)"
+    font-family="Cinzel, serif"
+    font-size="58"
+    letter-spacing="3"
+  >CODEMARSHAL</text>
+</svg>
+

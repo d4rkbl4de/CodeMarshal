@@ -1,0 +1,144 @@
+{
+  "recent_investigations": [
+    {
+      "session_id": "1cd3c18f-7f20-58ec-b823-f11fda1f7415",
+      "name": "1cd3c18f-7f20-58ec-b823-f11fda1f7415",
+      "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.212288+00:00",
+      "created_at": "2026-02-10T14:40:05.948776+00:00"
+    },
+    {
+      "session_id": "e7d9bdc9-9134-5962-b3d2-06f418ea901e",
+      "name": "e7d9bdc9-9134-5962-b3d2-06f418ea901e",
+      "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\core",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.204284+00:00",
+      "created_at": "2026-02-10T15:08:34.309045+00:00"
+    },
+    {
+      "session_id": "verify-session-ba45a4b0",
+      "name": "verify-session-ba45a4b0",
+      "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\core",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.198325+00:00",
+      "created_at": "2026-02-10T21:21:57.915046"
+    },
+    {
+      "session_id": "verify-session-d2beb2c1",
+      "name": "verify-session-d2beb2c1",
+      "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\core",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.194191+00:00",
+      "created_at": "2026-02-10T21:25:22.511143"
+    },
+    {
+      "session_id": "verify-session-f429fb9b",
+      "name": "verify-session-f429fb9b",
+      "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.191193+00:00",
+      "created_at": "2026-02-10T21:32:16.535233"
+    },
+    {
+      "session_id": "16d58230-19e7-4d79-928c-0a58d16c19c5",
+      "name": "16d58230-19e7-4d79-928c-0a58d16c19c5",
+      "path": "_mixed_lang_repo",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.185204+00:00",
+      "created_at": "2026-02-11T14:30:28.107548+00:00"
+    },
+    {
+      "session_id": "8fd13d11-869d-4399-a9bd-a4f5b343815c",
+      "name": "8fd13d11-869d-4399-a9bd-a4f5b343815c",
+      "path": "_mixed_lang_repo",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.164091+00:00",
+      "created_at": "2026-02-11T16:00:43.073618+00:00"
+    },
+    {
+      "session_id": "345d5516-0eac-5b8a-825a-a51bf1d438c6",
+      "name": "345d5516-0eac-5b8a-825a-a51bf1d438c6",
+      "path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\_mixed_lang_repo",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.156077+00:00",
+      "created_at": "2026-02-12T15:31:47.117488+00:00"
+    },
+    {
+      "session_id": "test-integration-session",
+      "name": "test-integration-session",
+      "path": "C:\\Users\\LENOVO\\AppData\\Local\\Temp\\tmpf1kjnlim\\test_project",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.144400+00:00",
+      "created_at": "2026-02-15T14:45:41.144400+00:00"
+    },
+    {
+      "session_id": "test-session",
+      "name": "test-session",
+      "path": "C:\\Users\\LENOVO\\AppData\\Local\\Temp\\tmps03eh2l8\\test_project",
+      "scope": "",
+      "intent": "",
+      "file_count": 0,
+      "modified_at": "2026-02-15T14:45:41.140400+00:00",
+      "created_at": "2026-02-15T14:45:41.140400+00:00"
+    }
+  ],
+  "recent_paths": [
+    "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\bridge",
+    "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\core",
+    "C:\\Users\\LENOVO\\Documents\\CodeMarshal",
+    "C:\\Users\\LENOVO\\Documents\\CodeMarshal\\_mixed_lang_repo",
+    "C:\\Users\\LENOVO\\AppData\\Local\\Temp\\tmpf1kjnlim\\test_project",
+    "C:\\Users\\LENOVO\\AppData\\Local\\Temp\\tmps03eh2l8\\test_project"
+  ],
+  "last_path": "C:\\Users\\LENOVO\\Documents\\CodeMarshal",
+  "settings": {
+    "theme": "dark",
+    "default_export_format": "json",
+    "storage_path": "storage",
+    "auto_run_last_used_options": false
+  },
+  "ui": {
+    "last_view": "home",
+    "window_geometry": null,
+    "window_state": null,
+    "onboarding_completed": false,
+    "onboarding_version": 1,
+    "show_context_hints": true,
+    "accessibility_mode": "standard",
+    "font_scale": 1.0,
+    "visual_theme_variant": "noir_premium",
+    "motion_level": "standard",
+    "sidebar_collapsed": false,
+    "reduced_motion": false,
+    "ui_density": "comfortable",
+    "accent_intensity": "normal"
+  },
+  "dirty": false,
+  "last_saved_at": "2026-02-15T14:45:41.212288+00:00",
+  "last_session_id": "1cd3c18f-7f20-58ec-b823-f11fda1f7415",
+  "recovery": {
+    "pending": false,
+    "session_id": null,
+    "path": null,
+    "timestamp": null
+  }
+}

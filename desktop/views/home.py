@@ -8,6 +8,8 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
+from desktop.widgets import HintPanel, apply_accessible
+
 
 class HomeView(QtWidgets.QWidget):
     """Landing page with project selection and recent investigations."""
@@ -22,6 +24,7 @@ class HomeView(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._action_controls: list[QtWidgets.QWidget] = []
+        self._hints_enabled = True
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -35,21 +38,40 @@ class HomeView(QtWidgets.QWidget):
         layout.addWidget(title, alignment=QtCore.Qt.AlignHCenter)
         layout.addWidget(subtitle, alignment=QtCore.Qt.AlignHCenter)
 
+        self.start_hint = HintPanel(
+            "Start Here",
+            (
+                "1) Choose a project path.\n"
+                "2) Run Investigate to create a session.\n"
+                "3) Ask questions, scan patterns, and export results."
+            ),
+        )
+        self.start_hint.setVisible(True)
+        layout.addWidget(self.start_hint)
+
         path_group = QtWidgets.QGroupBox("Project")
         path_layout = QtWidgets.QHBoxLayout(path_group)
         self.path_input = QtWidgets.QLineEdit()
         self.path_input.setPlaceholderText("Select a file or directory")
-        browse_btn = QtWidgets.QPushButton("Browse")
-        browse_btn.clicked.connect(self._on_browse)
-        use_btn = QtWidgets.QPushButton("Use Path")
-        use_btn.clicked.connect(self._emit_path)
-        self._action_controls.extend([browse_btn, use_btn])
+        apply_accessible(
+            self.path_input,
+            name="Project path input",
+            description="Path to the file or directory to analyze.",
+        )
+        self.browse_btn = QtWidgets.QPushButton("Browse")
+        self.browse_btn.clicked.connect(self._on_browse)
+        self.use_btn = QtWidgets.QPushButton("Use Path")
+        self.use_btn.clicked.connect(self._emit_path)
+        apply_accessible(self.browse_btn, name="Browse project path")
+        apply_accessible(self.use_btn, name="Use project path")
+        self._action_controls.extend([self.browse_btn, self.use_btn])
         path_layout.addWidget(self.path_input, stretch=1)
-        path_layout.addWidget(browse_btn)
-        path_layout.addWidget(use_btn)
+        path_layout.addWidget(self.browse_btn)
+        path_layout.addWidget(self.use_btn)
         layout.addWidget(path_group)
 
         actions = QtWidgets.QHBoxLayout()
+        self.nav_buttons: dict[str, QtWidgets.QPushButton] = {}
         for label, target in [
             ("Observe", "observe"),
             ("Investigate", "investigate"),
@@ -57,9 +79,13 @@ class HomeView(QtWidgets.QWidget):
             ("Export", "export"),
         ]:
             btn = QtWidgets.QPushButton(label)
+            if target == "investigate":
+                btn.setProperty("variant", "primary")
             btn.clicked.connect(lambda _checked=False, name=target: self.navigate_requested.emit(name))
+            apply_accessible(btn, name=f"Open {label} view")
             self._action_controls.append(btn)
             actions.addWidget(btn)
+            self.nav_buttons[target] = btn
         actions.addStretch(1)
         layout.addLayout(actions)
 
@@ -70,13 +96,21 @@ class HomeView(QtWidgets.QWidget):
             ("Investigate Current Path", "quick_investigate"),
             ("Pattern Scan Current Path", "quick_patterns"),
         ]
+        self.quick_buttons: dict[str, QtWidgets.QPushButton] = {}
         for label, action in quick_defs:
             button = QtWidgets.QPushButton(label)
+            button.setToolTip(f"Open {label.lower()} and run immediately.")
             button.clicked.connect(
                 lambda _checked=False, value=action: self.quick_action_requested.emit(value)
             )
+            apply_accessible(
+                button,
+                name=label,
+                description="Open workflow and execute primary action immediately.",
+            )
             self._action_controls.append(button)
             quick_layout.addWidget(button)
+            self.quick_buttons[action] = button
         quick_layout.addStretch(1)
         layout.addWidget(quick_group)
 
@@ -84,12 +118,23 @@ class HomeView(QtWidgets.QWidget):
         paths_layout = QtWidgets.QVBoxLayout(paths_group)
         self.recent_paths = QtWidgets.QListWidget()
         self.recent_paths.itemDoubleClicked.connect(self._open_selected_path)
+        self.recent_paths.itemActivated.connect(self._open_selected_path)
+        apply_accessible(
+            self.recent_paths,
+            name="Recent paths list",
+            description="Previously used project paths. Press Enter to use selected path.",
+        )
         paths_layout.addWidget(self.recent_paths)
+        self.paths_empty = QtWidgets.QLabel("No recent paths yet. Use Browse to pick your first project.")
+        self.paths_empty.setObjectName("subtitle")
+        self.paths_empty.setWordWrap(True)
+        paths_layout.addWidget(self.paths_empty)
         path_buttons = QtWidgets.QHBoxLayout()
-        open_path_btn = QtWidgets.QPushButton("Use Selected Path")
-        open_path_btn.clicked.connect(self._open_selected_path)
-        self._action_controls.append(open_path_btn)
-        path_buttons.addWidget(open_path_btn)
+        self.open_path_btn = QtWidgets.QPushButton("Use Selected Path")
+        self.open_path_btn.clicked.connect(self._open_selected_path)
+        apply_accessible(self.open_path_btn, name="Use selected recent path")
+        self._action_controls.append(self.open_path_btn)
+        path_buttons.addWidget(self.open_path_btn)
         path_buttons.addStretch(1)
         paths_layout.addLayout(path_buttons)
         layout.addWidget(paths_group)
@@ -101,24 +146,49 @@ class HomeView(QtWidgets.QWidget):
         self.recent_table.setRootIsDecorated(False)
         self.recent_table.setAlternatingRowColors(True)
         self.recent_table.itemDoubleClicked.connect(self._open_selected_session)
+        self.recent_table.itemActivated.connect(self._open_selected_session)
+        apply_accessible(
+            self.recent_table,
+            name="Recent investigations table",
+            description="Recent investigation sessions. Press Enter to open selected session.",
+        )
         recent_layout.addWidget(self.recent_table)
+        self.recent_empty = QtWidgets.QLabel(
+            "No recent sessions yet. Start an investigation to populate this list."
+        )
+        self.recent_empty.setObjectName("subtitle")
+        self.recent_empty.setWordWrap(True)
+        recent_layout.addWidget(self.recent_empty)
 
         controls = QtWidgets.QHBoxLayout()
-        open_btn = QtWidgets.QPushButton("Open Selected")
-        open_btn.clicked.connect(self._open_selected_session)
-        self._action_controls.append(open_btn)
-        refresh_btn = QtWidgets.QPushButton("Refresh")
-        refresh_btn.clicked.connect(self.refresh_requested.emit)
-        self._action_controls.append(refresh_btn)
-        resume_btn = QtWidgets.QPushButton("Resume Last Session")
-        resume_btn.clicked.connect(self.resume_last_requested.emit)
-        self._action_controls.append(resume_btn)
-        controls.addWidget(open_btn)
-        controls.addWidget(resume_btn)
-        controls.addWidget(refresh_btn)
+        self.open_btn = QtWidgets.QPushButton("Open Selected")
+        self.open_btn.clicked.connect(self._open_selected_session)
+        self.refresh_btn = QtWidgets.QPushButton("Refresh")
+        self.refresh_btn.clicked.connect(self.refresh_requested.emit)
+        self.resume_btn = QtWidgets.QPushButton("Resume Last Session")
+        self.resume_btn.clicked.connect(self.resume_last_requested.emit)
+        apply_accessible(self.open_btn, name="Open selected investigation")
+        apply_accessible(self.resume_btn, name="Resume last investigation session")
+        apply_accessible(self.refresh_btn, name="Refresh recent investigations")
+        self._action_controls.extend([self.open_btn, self.refresh_btn, self.resume_btn])
+        controls.addWidget(self.open_btn)
+        controls.addWidget(self.resume_btn)
+        controls.addWidget(self.refresh_btn)
         controls.addStretch(1)
         recent_layout.addLayout(controls)
         layout.addWidget(recent_group, stretch=1)
+
+        # Keyboard-first flow.
+        self.setTabOrder(self.path_input, self.browse_btn)
+        self.setTabOrder(self.browse_btn, self.use_btn)
+        self.setTabOrder(self.use_btn, self.nav_buttons["investigate"])
+        self.setTabOrder(self.nav_buttons["investigate"], self.quick_buttons["quick_investigate"])
+        self.setTabOrder(self.quick_buttons["quick_investigate"], self.recent_paths)
+        self.setTabOrder(self.recent_paths, self.open_path_btn)
+        self.setTabOrder(self.open_path_btn, self.recent_table)
+        self.setTabOrder(self.recent_table, self.open_btn)
+        self.setTabOrder(self.open_btn, self.resume_btn)
+        self.setTabOrder(self.resume_btn, self.refresh_btn)
 
     def _on_browse(self) -> None:
         start = self.path_input.text().strip() or str(Path(".").resolve())
@@ -140,7 +210,7 @@ class HomeView(QtWidgets.QWidget):
         if path:
             self.path_selected.emit(path)
 
-    def _open_selected_path(self) -> None:
+    def _open_selected_path(self, *_args: object) -> None:
         item = self.recent_paths.currentItem()
         if item is None:
             return
@@ -149,7 +219,7 @@ class HomeView(QtWidgets.QWidget):
             self.path_input.setText(path)
             self.path_selected.emit(path)
 
-    def _open_selected_session(self) -> None:
+    def _open_selected_session(self, *_args: object) -> None:
         session_id = self.selected_session_id()
         if session_id:
             self.open_investigation_requested.emit(session_id)
@@ -172,6 +242,7 @@ class HomeView(QtWidgets.QWidget):
             if not Path(text).exists():
                 item.setForeground(QtCore.Qt.darkYellow)
             self.recent_paths.addItem(item)
+        self.paths_empty.setVisible(len(paths) == 0)
 
     def set_recent_investigations(self, sessions: list[dict[str, Any]]) -> None:
         self.recent_table.clear()
@@ -192,6 +263,7 @@ class HomeView(QtWidgets.QWidget):
 
         for idx, width in enumerate((180, 180, 460, 150)):
             self.recent_table.setColumnWidth(idx, width)
+        self.recent_empty.setVisible(self.recent_table.topLevelItemCount() == 0)
 
     def _format_timestamp(self, value: Any) -> str:
         if not value:
@@ -208,3 +280,7 @@ class HomeView(QtWidgets.QWidget):
 
     def trigger_primary_action(self) -> None:
         self.quick_action_requested.emit("quick_investigate")
+
+    def set_hints_enabled(self, enabled: bool) -> None:
+        self._hints_enabled = bool(enabled)
+        self.start_hint.setVisible(self._hints_enabled)

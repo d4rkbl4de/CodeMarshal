@@ -1,7 +1,7 @@
 # CodeMarshal User Guide
 
 **Version:** 2.1.1-dev  
-**Last Updated:** February 14, 2026
+**Last Updated:** February 15, 2026
 
 ---
 
@@ -11,11 +11,10 @@ Current delivery status:
 
 - Completed phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
 - Latest validation:
-  - `186 passed, 2 skipped` with PySide6 (`venv\\Scripts\\python -m pytest -q`)
-  - `184 passed, 3 skipped` without PySide6 (`python -m pytest -q`)
-  - `95.70%` coverage with PySide6 / `93.99%` without (`pytest --cov=. --cov-report=term -q`)
+  - `213 collected, 211 passed, 2 skipped` (`python -m pytest -q`)
+  - coverage gate remains `fail_under = 90` (`pytest --cov=. --cov-report=term -q`)
 
-Roadmap details are in `ROADMAP.md`.
+Roadmap details are in [ROADMAP.md](../ROADMAP.md).
 
 ---
 
@@ -286,6 +285,35 @@ python -m pip install -e .[gui]
 ```
 
 If missing, GUI-related checks/tests may be skipped in certain environments.
+
+### GUI first-run onboarding
+
+On first launch, the desktop app opens a short onboarding dialog:
+
+- choose project path
+- choose first action (`Investigate` or `Observe`)
+- enable/disable contextual hints
+
+You can reopen onboarding anytime with `F1` or `Help -> Show Onboarding`.
+Keyboard shortcuts are listed under `Help -> Keyboard Shortcuts`.
+
+### GUI accessibility options
+
+Desktop GUI accessibility settings are available under `View -> Accessibility`:
+
+- theme mode: `Standard` or `High Contrast`
+- font scale: `100%`, `115%`, `130%`
+- reset accessibility defaults in one action
+
+Desktop visual-shell settings are available under `View`:
+
+- `Theme`: `Editorial Noir Premium`, `Editorial Noir Classic`, `Ledger Brass`
+- `Density`: `Comfortable`, `Compact`
+- `Accent`: `Soft`, `Normal`, `Bold`
+- `Motion`: `Full Motion`, `Standard Motion`, `Reduced Motion`, plus `Force Reduced Motion`
+- `Toggle Sidebar` (`Ctrl+B`) and `Reset Visual Defaults`
+
+Preferences are persisted in `storage/gui_state.json`.
 
 ---
 

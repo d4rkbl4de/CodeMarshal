@@ -127,7 +127,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py -v
+          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py tests/test_desktop_onboarding_dialog.py tests/test_desktop_results_viewer.py tests/test_desktop_views_validation.py tests/test_desktop_app_onboarding.py tests/test_desktop_a11y_labels.py tests/test_desktop_keyboard_navigation.py tests/test_desktop_shell_layout.py -v
 
   windows-package:
     name: Windows GUI Package
@@ -148,8 +148,10 @@ jobs:
           pip install -e .[gui,dev]
 
       - name: Run GUI smoke tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py -v
+          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py tests/test_desktop_onboarding_dialog.py tests/test_desktop_results_viewer.py tests/test_desktop_views_validation.py tests/test_desktop_app_onboarding.py tests/test_desktop_a11y_labels.py tests/test_desktop_keyboard_navigation.py tests/test_desktop_shell_layout.py -v
 
       - name: Build Windows executable
         shell: powershell

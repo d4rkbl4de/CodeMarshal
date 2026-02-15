@@ -8,7 +8,14 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
-from desktop.widgets import ErrorDialog, ResultsViewer
+from desktop.widgets import (
+    ErrorDialog,
+    HintPanel,
+    ResultsViewer,
+    apply_accessible,
+    clear_invalid,
+    mark_invalid,
+)
 
 
 class ObserveView(QtWidgets.QWidget):
@@ -25,6 +32,7 @@ class ObserveView(QtWidgets.QWidget):
         super().__init__(parent)
         self._bridge = None
         self._busy = False
+        self._hints_enabled = True
         self._last_request: dict[str, Any] | None = None
         self._build_ui()
         if command_bridge is not None:
@@ -35,14 +43,24 @@ class ObserveView(QtWidgets.QWidget):
         layout.setSpacing(12)
 
         header = QtWidgets.QHBoxLayout()
-        back_btn = QtWidgets.QPushButton("Home")
-        back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
+        self.back_btn = QtWidgets.QPushButton("Home")
+        self.back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
+        apply_accessible(self.back_btn, name="Return to Home view")
         title = QtWidgets.QLabel("Observe")
         title.setObjectName("sectionTitle")
-        header.addWidget(back_btn)
+        header.addWidget(self.back_btn)
         header.addWidget(title)
         header.addStretch(1)
         layout.addLayout(header)
+
+        self.hint_panel = HintPanel(
+            "Observe Quickly",
+            (
+                "Use Observe when you need fast facts without a full investigation.\n"
+                "Fast Scan is best for first pass on new repositories."
+            ),
+        )
+        layout.addWidget(self.hint_panel)
 
         config = QtWidgets.QGroupBox("Observation Configuration")
         form = QtWidgets.QFormLayout(config)
@@ -50,15 +68,27 @@ class ObserveView(QtWidgets.QWidget):
         path_row = QtWidgets.QHBoxLayout()
         self.path_input = QtWidgets.QLineEdit()
         self.path_input.setPlaceholderText("Path to observe")
-        browse_btn = QtWidgets.QPushButton("Browse")
-        browse_btn.clicked.connect(self._on_browse)
+        self.path_input.textChanged.connect(self._clear_path_error)
+        apply_accessible(
+            self.path_input,
+            name="Observe target path",
+            description="File or directory to observe.",
+        )
+        self.browse_btn = QtWidgets.QPushButton("Browse")
+        self.browse_btn.clicked.connect(self._on_browse)
+        apply_accessible(self.browse_btn, name="Browse observe target path")
         path_row.addWidget(self.path_input, stretch=1)
-        path_row.addWidget(browse_btn)
+        path_row.addWidget(self.browse_btn)
         form.addRow("Target Path:", path_row)
 
         self.session_combo = QtWidgets.QComboBox()
         self.session_combo.setEditable(True)
         self.session_combo.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        apply_accessible(
+            self.session_combo,
+            name="Observe session selector",
+            description="Optional session id to append observations to.",
+        )
         form.addRow("Session ID:", self.session_combo)
 
         self.preset_combo = QtWidgets.QComboBox()
@@ -66,6 +96,11 @@ class ObserveView(QtWidgets.QWidget):
             ["Fast Scan", "Dependency Focus", "Full Trace", "Custom"]
         )
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
+        apply_accessible(
+            self.preset_combo,
+            name="Observe preset selector",
+            description="Preset controlling which observation eyes are enabled.",
+        )
         form.addRow("Preset:", self.preset_combo)
 
         eyes_layout = QtWidgets.QGridLayout()
@@ -81,6 +116,7 @@ class ObserveView(QtWidgets.QWidget):
             box = QtWidgets.QCheckBox(label)
             box.setChecked(value != "encoding_sight")
             box.toggled.connect(self._on_eye_toggled)
+            apply_accessible(box, name=f"Enable {label}")
             self._eye_boxes[value] = box
             eyes_layout.addWidget(box, index // 2, index % 2)
         form.addRow("Eyes:", eyes_layout)
@@ -88,24 +124,39 @@ class ObserveView(QtWidgets.QWidget):
 
         actions = QtWidgets.QHBoxLayout()
         self.start_btn = QtWidgets.QPushButton("Run Observation")
+        self.start_btn.setProperty("variant", "primary")
         self.start_btn.clicked.connect(self._on_start)
+        apply_accessible(self.start_btn, name="Run observation")
         self.retry_btn = QtWidgets.QPushButton("Retry Last")
         self.retry_btn.setEnabled(False)
         self.retry_btn.clicked.connect(self._on_retry)
+        apply_accessible(self.retry_btn, name="Retry last observation request")
         self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._on_cancel)
+        apply_accessible(self.cancel_btn, name="Cancel observation operation")
         actions.addWidget(self.start_btn)
         actions.addWidget(self.retry_btn)
         actions.addWidget(self.cancel_btn)
         actions.addStretch(1)
         layout.addLayout(actions)
 
+        self.validation_label = QtWidgets.QLabel("")
+        self.validation_label.setObjectName("validationError")
+        self.validation_label.setWordWrap(True)
+        self.validation_label.setVisible(False)
+        layout.addWidget(self.validation_label)
+
         progress_row = QtWidgets.QHBoxLayout()
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_label = QtWidgets.QLabel("Idle")
+        apply_accessible(
+            self.progress_label,
+            name="Observe progress status",
+            description="Status updates for running observe operation.",
+        )
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
         layout.addLayout(progress_row)
@@ -115,6 +166,15 @@ class ObserveView(QtWidgets.QWidget):
         self.results = ResultsViewer()
         results_layout.addWidget(self.results)
         layout.addWidget(results_group, stretch=1)
+
+        self.setTabOrder(self.path_input, self.browse_btn)
+        self.setTabOrder(self.browse_btn, self.session_combo)
+        self.setTabOrder(self.session_combo, self.preset_combo)
+        first_eye = self._eye_boxes["file_sight"]
+        self.setTabOrder(self.preset_combo, first_eye)
+        self.setTabOrder(first_eye, self.start_btn)
+        self.setTabOrder(self.start_btn, self.retry_btn)
+        self.setTabOrder(self.retry_btn, self.cancel_btn)
 
     def set_command_bridge(self, command_bridge: Any) -> None:
         if self._bridge is command_bridge:
@@ -176,20 +236,22 @@ class ObserveView(QtWidgets.QWidget):
 
         path_value = self.path_input.text().strip()
         if not path_value:
-            ErrorDialog.show_error(self, "Missing Path", "Select a path to observe.")
+            self._show_path_error("Select a path to observe.")
             return
         if not Path(path_value).exists():
-            ErrorDialog.show_error(self, "Invalid Path", f"Path does not exist: {path_value}")
+            self._show_path_error(f"Path does not exist: {path_value}")
             return
+        self._clear_path_error()
 
         eyes = [name for name, box in self._eye_boxes.items() if box.isChecked()]
         if not eyes:
-            ErrorDialog.show_error(
-                self,
-                "No Eyes Selected",
+            mark_invalid(
+                None,
+                self.validation_label,
                 "Select at least one observation eye before running.",
             )
             return
+        self.validation_label.setVisible(False)
 
         session_id = self.session_combo.currentText().strip() or None
         try:
@@ -333,3 +395,15 @@ class ObserveView(QtWidgets.QWidget):
     def trigger_primary_action(self) -> None:
         if self.start_btn.isEnabled():
             self._on_start()
+
+    def set_hints_enabled(self, enabled: bool) -> None:
+        self._hints_enabled = bool(enabled)
+        self.hint_panel.setVisible(self._hints_enabled)
+
+    def _show_path_error(self, message: str) -> None:
+        mark_invalid(self.path_input, self.validation_label, message)
+
+    def _clear_path_error(self, *_args: object) -> None:
+        if self.path_input.property("state") != "error" and not self.validation_label.isVisible():
+            return
+        clear_invalid((self.path_input,), self.validation_label)

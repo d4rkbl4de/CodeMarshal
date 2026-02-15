@@ -84,3 +84,51 @@ def test_auto_run_options_setting(tmp_path) -> None:
     assert manager.get_auto_run_last_used_options() is False
     manager.set_auto_run_last_used_options(True)
     assert manager.get_auto_run_last_used_options() is True
+
+
+def test_onboarding_flags_round_trip(tmp_path) -> None:
+    manager = SessionManager(state_path=tmp_path / "gui_state.json")
+    assert manager.is_onboarding_completed() is False
+    assert manager.get_show_context_hints() is True
+
+    manager.set_onboarding_completed(True)
+    manager.set_show_context_hints(False)
+
+    assert manager.is_onboarding_completed() is True
+    assert manager.get_show_context_hints() is False
+
+
+def test_accessibility_preferences_round_trip(tmp_path) -> None:
+    manager = SessionManager(state_path=tmp_path / "gui_state.json")
+    assert manager.get_accessibility_mode() == "standard"
+    assert manager.get_font_scale() == 1.0
+
+    manager.set_accessibility_mode("high_contrast")
+    manager.set_font_scale(1.3)
+
+    assert manager.get_accessibility_mode() == "high_contrast"
+    assert manager.get_font_scale() == 1.3
+
+
+def test_visual_shell_preferences_round_trip(tmp_path) -> None:
+    manager = SessionManager(state_path=tmp_path / "gui_state.json")
+    assert manager.get_visual_theme_variant() == "noir_premium"
+    assert manager.get_motion_level() == "standard"
+    assert manager.get_sidebar_collapsed() is False
+    assert manager.get_reduced_motion() is False
+    assert manager.get_ui_density() == "comfortable"
+    assert manager.get_accent_intensity() == "normal"
+
+    manager.set_visual_theme_variant("ledger")
+    manager.set_motion_level("full")
+    manager.set_sidebar_collapsed(True)
+    manager.set_reduced_motion(True)
+    manager.set_ui_density("compact")
+    manager.set_accent_intensity("bold")
+
+    assert manager.get_visual_theme_variant() == "ledger"
+    assert manager.get_motion_level() == "reduced"
+    assert manager.get_sidebar_collapsed() is True
+    assert manager.get_reduced_motion() is True
+    assert manager.get_ui_density() == "compact"
+    assert manager.get_accent_intensity() == "bold"
