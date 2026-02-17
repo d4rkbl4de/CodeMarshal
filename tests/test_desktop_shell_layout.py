@@ -106,6 +106,9 @@ def test_shell_navigation_updates_sidebar_and_context(tmp_path, monkeypatch) -> 
         assert window._stack.currentWidget() is window._views["patterns"]
         assert window._sidebar._buttons["patterns"].isChecked()
         assert "Patterns" in window._context_bar.route_title.text()
+        assert (
+            window.findChild(QtWidgets.QWidget, "shellContentGutter") is not None
+        )
     finally:
         window.close()
 
@@ -130,4 +133,3 @@ def test_sidebar_collapse_persists_preference(tmp_path, monkeypatch) -> None:
         assert window._session_manager.get_sidebar_collapsed() is True
     finally:
         window.close()
-

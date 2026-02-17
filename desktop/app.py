@@ -1,4 +1,4 @@
-﻿"""Desktop GUI application entrypoint."""
+"""Desktop GUI application entrypoint."""
 
 from __future__ import annotations
 
@@ -8,9 +8,31 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .core import GUICommandBridge, RuntimeFacade, SessionManager, ViewStateBinder
-from .theme import build_stylesheet
-from .views import ExportView, HomeView, InvestigateView, ObserveView, PatternsView
-from .widgets import ErrorDialog, OnboardingDialog, SidebarNav, TopContextBar
+from .ui.themes import build_stylesheet, list_theme_previews
+from .views import (
+    ExportView,
+    HomeView,
+    InvestigateView,
+    KnowledgeView,
+    ObserveView,
+    PatternsView,
+)
+from .widgets import (
+    DiffViewer,
+    ErrorDialog,
+    OnboardingDialog,
+    SidebarNav,
+    TopContextBar,
+)
+
+# Import real-time features
+try:
+    from observations.eyes.watcher import FileSystemWatcher, WatcherConfig
+    from observations.eyes.diff_sight import DiffSight
+
+    WATCHER_AVAILABLE = True
+except ImportError:
+    WATCHER_AVAILABLE = False
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -21,6 +43,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ("Home", "home"),
         ("Observe", "observe"),
         ("Investigate", "investigate"),
+        ("Knowledge", "knowledge"),
         ("Patterns", "patterns"),
         ("Export", "export"),
     ]
@@ -28,6 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
         "home": ("Home", "Choose a workspace and launch workflows."),
         "observe": ("Observe", "Fast repository signals with selected eyes."),
         "investigate": ("Investigate", "Run and query full investigation sessions."),
+        "knowledge": ("Knowledge", "History, graph context, and recommendations."),
         "patterns": ("Patterns", "Load pattern library and scan targets."),
         "export": ("Export", "Preview and export investigation artifacts."),
     }
@@ -66,8 +90,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self._accent_actions: dict[str, QtGui.QAction] = {}
         self._force_reduced_motion_action: QtGui.QAction | None = None
 
+        # File system watcher for real-time updates
+        self._file_watcher: FileSystemWatcher | None = None
+        self._diff_sight = DiffSight() if WATCHER_AVAILABLE else None
+        self._detected_changes: list = []
+        self._watching_enabled = False
+
         if GUICommandBridge is None:
-            raise RuntimeError("GUICommandBridge unavailable. Ensure PySide6 is installed.")
+            raise RuntimeError(
+                "GUICommandBridge unavailable. Ensure PySide6 is installed."
+            )
         self._bridge = GUICommandBridge(facade=self._runtime_facade)
 
         self._build_shell()
@@ -79,12 +111,14 @@ class MainWindow(QtWidgets.QMainWindow):
             "home": HomeView(),
             "observe": ObserveView(command_bridge=self._bridge),
             "investigate": InvestigateView(command_bridge=self._bridge),
+            "knowledge": KnowledgeView(command_bridge=self._bridge),
             "patterns": PatternsView(command_bridge=self._bridge),
             "export": ExportView(command_bridge=self._bridge),
         }
         for view in self._views.values():
             self._stack.addWidget(view)
             self._view_state.register(view)
+        self._wire_layout_preferences()
 
         self._build_menu()
         self._wire_navigation()
@@ -125,11 +159,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self._context_bar = TopContextBar(parent=content_root)
         content_layout.addWidget(self._context_bar)
 
-        self._stack = QtWidgets.QStackedWidget(content_root)
-        content_layout.addWidget(self._stack, stretch=1)
+        stack_container = QtWidgets.QWidget(content_root)
+        stack_container.setObjectName("shellContentGutter")
+        stack_layout = QtWidgets.QVBoxLayout(stack_container)
+        stack_layout.setContentsMargins(0, 0, 0, 0)
+        stack_layout.setSpacing(0)
+        self._stack = QtWidgets.QStackedWidget(stack_container)
+        stack_layout.addWidget(self._stack)
+        content_layout.addWidget(stack_container, stretch=1)
 
         shell_layout.addWidget(content_root, stretch=1)
         self.setCentralWidget(shell_root)
+
+    def _wire_layout_preferences(self) -> None:
+        for route_name, view in self._views.items():
+            if hasattr(view, "set_layout_splitter_ratio"):
+                ratio = self._session_manager.get_layout_splitter_ratio(route_name)
+                view.set_layout_splitter_ratio(ratio)
+            if hasattr(view, "layout_splitter_ratio_changed"):
+                view.layout_splitter_ratio_changed.connect(
+                    lambda ratio,
+                    name=route_name: self._session_manager.set_layout_splitter_ratio(
+                        name,
+                        ratio,
+                    )
+                )
 
     def _wire_navigation(self) -> None:
         home = self._views["home"]
@@ -140,7 +194,7 @@ class MainWindow(QtWidgets.QMainWindow):
         home.resume_last_requested.connect(self._resume_last_session)
         home.quick_action_requested.connect(self._handle_quick_action)
 
-        for name in ("observe", "investigate", "patterns", "export"):
+        for name in ("observe", "investigate", "knowledge", "patterns", "export"):
             view = self._views[name]
             view.navigate_requested.connect(self._navigate)
             if hasattr(view, "preset_changed"):
@@ -163,8 +217,9 @@ class MainWindow(QtWidgets.QMainWindow):
             ("Ctrl+1", lambda: self._navigate("home")),
             ("Ctrl+2", lambda: self._navigate("observe")),
             ("Ctrl+3", lambda: self._navigate("investigate")),
-            ("Ctrl+4", lambda: self._navigate("patterns")),
-            ("Ctrl+5", lambda: self._navigate("export")),
+            ("Ctrl+4", lambda: self._navigate("knowledge")),
+            ("Ctrl+5", lambda: self._navigate("patterns")),
+            ("Ctrl+6", lambda: self._navigate("export")),
             ("Ctrl+B", self._toggle_sidebar),
             ("Ctrl+Return", self._trigger_primary_action),
             ("Esc", self._bridge.cancel_all),
@@ -223,16 +278,16 @@ class MainWindow(QtWidgets.QMainWindow):
         theme_menu = view_menu.addMenu("&Theme")
         theme_group = QtGui.QActionGroup(self)
         theme_group.setExclusive(True)
-        for label, variant in [
-            ("Editorial Noir Premium", "noir_premium"),
-            ("Editorial Noir Classic", "noir"),
-            ("Ledger Brass", "ledger"),
-        ]:
+        for preview in list_theme_previews():
+            label = str(preview.get("name") or "Theme")
+            variant = str(preview.get("id") or "noir_premium")
             action = QtGui.QAction(label, self)
             action.setCheckable(True)
             action.setChecked(variant == self._visual_theme_variant)
             action.triggered.connect(
-                lambda _checked=False, value=variant: self._set_visual_theme_variant(value)
+                lambda _checked=False, value=variant: self._set_visual_theme_variant(
+                    value
+                )
             )
             theme_group.addAction(action)
             theme_menu.addAction(action)
@@ -373,7 +428,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._current_path = str(resolved)
         self._session_manager.set_last_path(str(resolved))
         self._view_state.set_path(str(resolved))
-        self._views["home"].set_recent_paths(self._session_manager.get_recent_paths(limit=10))
+        self._views["home"].set_recent_paths(
+            self._session_manager.get_recent_paths(limit=10)
+        )
         self._context_bar.set_path(self._current_path)
 
     def _set_current_session(self, session_id: str | None) -> None:
@@ -393,7 +450,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self._session_manager.add_recent_path(value)
         paths = self._session_manager.get_recent_paths(limit=10)
         self._views["home"].set_recent_paths(paths)
-        self._context_bar.set_metrics(recent_paths=len(paths), recent_sessions=len(merged))
+        self._context_bar.set_metrics(
+            recent_paths=len(paths), recent_sessions=len(merged)
+        )
 
     def _apply_settings(self) -> None:
         self._apply_visual_preferences()
@@ -539,7 +598,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def _restore_window_state(self) -> None:
         geometry_hex = self._session_manager.get_window_geometry()
         if geometry_hex:
-            self.restoreGeometry(QtCore.QByteArray.fromHex(geometry_hex.encode("ascii")))
+            self.restoreGeometry(
+                QtCore.QByteArray.fromHex(geometry_hex.encode("ascii"))
+            )
         state_hex = self._session_manager.get_window_state()
         if state_hex:
             self.restoreState(QtCore.QByteArray.fromHex(state_hex.encode("ascii")))
@@ -615,8 +676,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Ctrl+1: Home",
                 "Ctrl+2: Observe",
                 "Ctrl+3: Investigate",
-                "Ctrl+4: Patterns",
-                "Ctrl+5: Export",
+                "Ctrl+4: Knowledge",
+                "Ctrl+5: Patterns",
+                "Ctrl+6: Export",
                 "Ctrl+B: Toggle sidebar",
                 "Ctrl+Enter: Primary action in current view",
                 "Esc: Cancel active operations",
@@ -697,8 +759,26 @@ class MainWindow(QtWidgets.QMainWindow):
             "investigate": "Investigate",
             "observe": "Observe",
             "query": "Query",
+            "history": "History",
+            "graph": "Graph",
+            "recommendations": "Recommendations",
             "pattern_list": "Pattern List",
             "pattern_scan": "Pattern Scan",
+            "pattern_search": "Marketplace Search",
+            "pattern_apply": "Pattern Apply",
+            "pattern_create": "Template Create",
+            "pattern_share": "Pattern Share",
+            "collaboration_unlock": "Collaboration Unlock",
+            "team_create": "Team Create",
+            "team_add": "Team Add",
+            "team_list": "Team List",
+            "share_create": "Share Create",
+            "share_list": "Share List",
+            "share_revoke": "Share Revoke",
+            "share_resolve": "Share Resolve",
+            "comment_add": "Comment Add",
+            "comment_list": "Comment List",
+            "comment_resolve": "Comment Resolve",
             "export_preview": "Export Preview",
             "export": "Export",
         }
@@ -731,7 +811,9 @@ class MainWindow(QtWidgets.QMainWindow):
         data = payload if isinstance(payload, dict) else {}
 
         if operation == "investigate":
-            session_id = str(data.get("investigation_id") or data.get("session_id") or "")
+            session_id = str(
+                data.get("investigation_id") or data.get("session_id") or ""
+            )
             if session_id:
                 self._set_current_session(session_id)
         else:
@@ -780,6 +862,159 @@ class MainWindow(QtWidgets.QMainWindow):
         if not busy and self._context_bar.busy_chip.text() == "Idle":
             self._context_bar.set_operation("Idle", "idle")
             self._sidebar.set_status("Ready")
+
+    def _start_file_watching(self, path: Path | None = None) -> None:
+        """Start watching the file system for changes."""
+        if not WATCHER_AVAILABLE:
+            self.statusBar().showMessage(
+                "File watching not available - watchdog not installed", 4000
+            )
+            return
+
+        watch_path = path or self._current_path
+        if not watch_path:
+            self.statusBar().showMessage("No path set for watching", 3000)
+            return
+
+        # Stop existing watcher
+        if self._file_watcher:
+            self._file_watcher.stop()
+            self._file_watcher = None
+
+        try:
+            watch_path_obj = Path(watch_path)
+            if not watch_path_obj.exists():
+                self.statusBar().showMessage(f"Path does not exist: {watch_path}", 3000)
+                return
+
+            config = WatcherConfig(recursive=True)
+            self._file_watcher = FileSystemWatcher(
+                watch_path_obj, config, on_change=self._on_file_changed
+            )
+            self._file_watcher.start()
+            self._watching_enabled = True
+            self.statusBar().showMessage(f"Started watching: {watch_path}", 4000)
+            self._context_bar.set_operation("Watching", "running")
+        except Exception as e:
+            self.statusBar().showMessage(f"Failed to start watching: {e}", 4000)
+
+    def _stop_file_watching(self) -> None:
+        """Stop watching the file system."""
+        if self._file_watcher:
+            self._file_watcher.stop()
+            self._file_watcher = None
+        self._watching_enabled = False
+        self.statusBar().showMessage("Stopped file watching", 3000)
+        self._context_bar.set_operation("Idle", "idle")
+
+    def _on_file_changed(self, change) -> None:
+        """Handle file change events."""
+        self._detected_changes.append(change)
+
+        # Update status bar with brief notification
+        change_type_str = {
+            change.change_type.CREATED: "created",
+            change.change_type.MODIFIED: "modified",
+            change.change_type.DELETED: "deleted",
+            change.change_type.MOVED: "moved",
+        }.get(change.change_type, "changed")
+
+        self.statusBar().showMessage(
+            f"File {change_type_str}: {change.path.name}", 3000
+        )
+
+        # If in observe view, refresh it
+        if self._current_route == "observe":
+            if hasattr(self._views["observe"], "refresh_if_auto"):
+                self._views["observe"].refresh_if_auto()
+
+    def _show_diff_dialog(self, file_path: Path | None = None) -> None:
+        """Show diff viewer dialog."""
+        if not self._diff_sight:
+            QtWidgets.QMessageBox.information(
+                self, "Diff Viewer", "Diff functionality not available."
+            )
+            return
+        target_path = file_path or (
+            Path(self._current_path) if self._current_path else None
+        )
+        viewer = DiffViewer(parent=self)
+        if target_path is None:
+            viewer.set_unified_diff("Select a file to view differences.")
+        else:
+            if target_path.exists() and target_path.is_file():
+                placeholder = (
+                    f"--- {target_path}\n"
+                    f"+++ {target_path}\n"
+                    "@@ -1,1 +1,1 @@\n"
+                    f" {target_path.name}"
+                )
+                viewer.set_unified_diff(placeholder, file_path=target_path)
+            else:
+                viewer.set_unified_diff(f"Path not found: {target_path}", file_path=target_path)
+        viewer.exec()
+
+    def _show_status_panel(self) -> None:
+        """Show investigation status panel."""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Investigation Status")
+        dialog.resize(600, 400)
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        # Status information
+        info_text = f"""
+<b>Investigation Status</b><br>
+<br>
+<b>Current Path:</b> {self._current_path or "Not set"}<br>
+<b>Session ID:</b> {self._current_session_id or "None"}<br>
+<b>Watching Enabled:</b> {"Yes" if self._watching_enabled else "No"}<br>
+<b>Detected Changes:</b> {len(self._detected_changes)}<br>
+        """
+
+        label = QtWidgets.QLabel(info_text)
+        label.setTextFormat(QtCore.Qt.RichText)
+        layout.addWidget(label)
+
+        # Recent changes list
+        if self._detected_changes:
+            changes_label = QtWidgets.QLabel("<b>Recent Changes:</b>")
+            layout.addWidget(changes_label)
+
+            changes_list = QtWidgets.QListWidget()
+            for change in self._detected_changes[-10:]:  # Last 10 changes
+                item_text = f"[{change.change_type.name}] {change.path.name}"
+                changes_list.addItem(item_text)
+            layout.addWidget(changes_list)
+
+        # Buttons
+        button_layout = QtWidgets.QHBoxLayout()
+
+        if not self._watching_enabled:
+            start_watch_btn = QtWidgets.QPushButton("Start Watching")
+            start_watch_btn.clicked.connect(
+                lambda: (self._start_file_watching(), dialog.accept())
+            )
+            button_layout.addWidget(start_watch_btn)
+        else:
+            stop_watch_btn = QtWidgets.QPushButton("Stop Watching")
+            stop_watch_btn.clicked.connect(
+                lambda: (self._stop_file_watching(), dialog.accept())
+            )
+            button_layout.addWidget(stop_watch_btn)
+
+        view_diff_btn = QtWidgets.QPushButton("View Diff")
+        view_diff_btn.clicked.connect(
+            lambda: (self._show_diff_dialog(), dialog.accept())
+        )
+        button_layout.addWidget(view_diff_btn)
+
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+
+        layout.addLayout(button_layout)
+        dialog.exec()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         bridge_busy = bool(getattr(self._bridge, "is_busy", False))

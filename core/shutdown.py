@@ -202,18 +202,17 @@ class ShutdownManager:
         )
         self._logger.info(f"Received signal {signum}, initiating graceful shutdown")
 
-        try:
-            self.shutdown(
-                reason=reason,
-                severity=TerminationSeverity.WARNING,
-                error_message=f"Signal {signum} received",
-            )
-        finally:
-            # Restore original handler and re-raise signal
-            original_handler = self._original_signal_handlers.get(signum)
-            if original_handler and callable(original_handler):
-                signal.signal(signum, original_handler)
-                signal.raise_signal(signum)
+        self.shutdown(
+            reason=reason,
+            severity=TerminationSeverity.WARNING,
+            error_message=f"Signal {signum} received",
+        )
+
+        # Restore original handler and re-raise signal
+        original_handler = self._original_signal_handlers.get(signum)
+        if original_handler and callable(original_handler):
+            signal.signal(signum, original_handler)
+            signal.raise_signal(signum)
 
     def shutdown(
         self,
@@ -369,7 +368,6 @@ class ShutdownManager:
         try:
             self._logger.debug("Saving session state...")
             from core.state import get_current_state
-
 
             current_state = get_current_state()
             state_payload = (

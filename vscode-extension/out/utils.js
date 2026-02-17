@@ -34,9 +34,20 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizeFsPath = normalizeFsPath;
+exports.debounce = debounce;
 const path = __importStar(require("path"));
 function normalizeFsPath(p) {
     const resolved = path.resolve(p);
     return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function debounce(func, waitFor) {
+    let timeout = null;
+    return (...args) => {
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => func(...args), waitFor);
+    };
 }
 //# sourceMappingURL=utils.js.map

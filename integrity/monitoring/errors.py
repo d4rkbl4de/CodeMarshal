@@ -842,7 +842,7 @@ def check_constitutional_errors(context: RuntimeContext) -> list[dict[str, Any]]
         issues.append(
             {
                 "severity": "CRITICAL",
-                "type": "CONSTITUTIONAL_VIOLATION",
+                "type": "CONSTITUTION_VIOLATION",
                 "error_id": error.error_id,
                 "message": error.message,
                 "module": error.module,

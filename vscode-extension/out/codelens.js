@@ -48,16 +48,32 @@ class CodeMarshalCodeLensProvider {
     provideCodeLenses(document) {
         const key = (0, utils_1.normalizeFsPath)(document.uri.fsPath);
         const matches = this.matchStore.get(key) || [];
-        const title = matches.length
-            ? `CodeMarshal: ${matches.length} pattern matches`
-            : "CodeMarshal: no pattern matches";
-        const range = new vscode.Range(0, 0, 0, 0);
-        const command = {
-            title,
-            command: "codemarshal.showPatternsForFile",
-            arguments: [document.uri],
-        };
-        return [new vscode.CodeLens(range, command)];
+        if (matches.length === 0) {
+            return [];
+        }
+        const codeLenses = [];
+        matches.forEach((match) => {
+            const lineIndex = Math.max(0, (match.line || 1) - 1);
+            const range = new vscode.Range(lineIndex, 0, lineIndex, 9999);
+            const severity = match.severity?.toLowerCase();
+            const color = severity === "critical" ? "#f48771" : severity === "warning" ? "#cca700" : "#75beff";
+            const codeLens = new vscode.CodeLens(range, {
+                title: `${match.pattern_name || match.pattern_id || "Pattern"}${match.line ? ` (${match.line})` : ""}`,
+                command: "codemarshal.goToPattern",
+                arguments: [
+                    {
+                        uri: document.uri,
+                        line: lineIndex,
+                        match: match,
+                        patternName: match.pattern_name || match.pattern_id || "Pattern",
+                        message: match.message,
+                    },
+                ],
+                tooltip: `${match.pattern_name || match.pattern_id || "Pattern"}\n${match.message || "No message"}\nLine: ${match.line || "N/A"}\nSeverity: ${severity || "info"}`,
+            });
+            codeLenses.push(codeLens);
+        });
+        return codeLenses;
     }
 }
 exports.CodeMarshalCodeLensProvider = CodeMarshalCodeLensProvider;

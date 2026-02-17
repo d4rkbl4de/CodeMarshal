@@ -132,3 +132,32 @@ def test_visual_shell_preferences_round_trip(tmp_path) -> None:
     assert manager.get_reduced_motion() is True
     assert manager.get_ui_density() == "compact"
     assert manager.get_accent_intensity() == "bold"
+
+
+def test_layout_splitter_ratios_round_trip(tmp_path) -> None:
+    manager = SessionManager(state_path=tmp_path / "gui_state.json")
+    assert manager.get_layout_splitter_ratio("observe") == 0.42
+
+    manager.set_layout_splitter_ratio("observe", 0.63)
+    manager.set_layout_splitter_ratio("investigate", 0.37)
+
+    assert manager.get_layout_splitter_ratio("observe") == 0.63
+    assert manager.get_layout_splitter_ratio("investigate") == 0.37
+
+
+def test_phase7_ui_preferences_round_trip(tmp_path) -> None:
+    manager = SessionManager(state_path=tmp_path / "gui_state.json")
+    assert manager.get_theme_family() == "dark"
+    assert manager.get_history_sidebar_visible() is True
+    assert manager.get_comments_panel_collapsed() is False
+    assert manager.get_knowledge_canvas_filters() == {}
+
+    manager.set_theme_family("light")
+    manager.set_history_sidebar_visible(False)
+    manager.set_comments_panel_collapsed(True)
+    manager.set_knowledge_canvas_filters({"edge_type": "imports", "query": "runtime"})
+
+    assert manager.get_theme_family() == "light"
+    assert manager.get_history_sidebar_visible() is False
+    assert manager.get_comments_panel_collapsed() is True
+    assert manager.get_knowledge_canvas_filters()["edge_type"] == "imports"

@@ -11,13 +11,17 @@ import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from patterns.loader import (
     PatternDefinition,
     PatternLoader,
     PatternMatch,
+    PatternManager,
     PatternScanner,
 )
+from patterns.marketplace import PatternMarketplace
+from patterns.templates import PatternTemplateRegistry
 
 
 @dataclass(frozen=True)
@@ -188,6 +192,191 @@ class PatternEngine:
                 )
 
         return sorted(anomalies, key=lambda a: abs(a.z_score), reverse=True)
+
+    def search_marketplace_patterns(
+        self,
+        query: str,
+        *,
+        tags: list[str] | None = None,
+        severity: str | None = None,
+        language: str | None = None,
+        limit: int = 20,
+        storage_root: Path | str = Path("storage"),
+    ) -> list[dict[str, Any]]:
+        """Search local marketplace entries."""
+        marketplace = PatternMarketplace(storage_root=storage_root)
+        result = marketplace.search(
+            query=query,
+            tags=tags,
+            severity=severity,
+            language=language,
+            limit=limit,
+        )
+        return [
+            {
+                "pattern_id": item.pattern_id,
+                "name": item.name,
+                "description": item.description,
+                "severity": item.severity,
+                "tags": item.tags,
+                "languages": item.languages,
+                "version": item.version,
+                "source": item.source,
+                "installed": item.installed,
+                "rating": {
+                    "average_rating": item.rating.average_rating,
+                    "total_reviews": item.rating.total_reviews,
+                },
+            }
+            for item in result.results
+        ]
+
+    def apply_pattern(
+        self,
+        pattern_ref: str,
+        target_path: Path,
+        *,
+        glob: str = "*",
+        max_files: int = 10000,
+        storage_root: Path | str = Path("storage"),
+    ) -> dict[str, Any]:
+        """Install or resolve one pattern and run scan on target path."""
+        marketplace = PatternMarketplace(storage_root=storage_root)
+        install_result = marketplace.install(pattern_ref)
+        if not install_result.get("success", False):
+            return {
+                "success": False,
+                "error": str(install_result.get("error") or "Pattern install failed"),
+            }
+
+        selected_pattern_id = str(install_result.get("pattern_id") or pattern_ref)
+        scanner = PatternScanner(
+            max_workers=self.max_workers,
+            context_lines=self.context_lines,
+        )
+        patterns = [
+            item
+            for item in self.loader.load_all_patterns()
+            if item.id.strip().lower() == selected_pattern_id.strip().lower()
+        ]
+        if not patterns:
+            return {
+                "success": False,
+                "error": f"Pattern not available after install: {selected_pattern_id}",
+            }
+
+        result = scanner.scan(
+            target_path,
+            patterns,
+            glob=glob,
+            max_files=max_files,
+        )
+        return {
+            "success": result.success,
+            "pattern_id": selected_pattern_id,
+            "installed": bool(install_result.get("installed", False)),
+            "patterns_scanned": result.patterns_scanned,
+            "files_scanned": result.files_scanned,
+            "matches_found": len(result.matches),
+            "scan_time_ms": result.scan_time_ms,
+            "matches": [
+                {
+                    "pattern_id": match.pattern_id,
+                    "pattern_name": match.pattern_name,
+                    "file": str(match.file_path),
+                    "line": match.line_number,
+                    "content": match.line_content,
+                    "matched": match.matched_text,
+                    "severity": match.severity,
+                    "message": match.message,
+                    "description": match.description,
+                    "tags": match.tags,
+                    "context_before": match.context_before,
+                    "context_after": match.context_after,
+                }
+                for match in result.matches
+            ],
+            "errors": result.errors,
+        }
+
+    def compare_patterns(self, left_id: str, right_id: str) -> dict[str, Any]:
+        """Compare two patterns and return notable differences."""
+        lookup = {
+            item.id.strip().lower(): item for item in self.loader.load_all_patterns()
+        }
+        left = lookup.get(left_id.strip().lower())
+        right = lookup.get(right_id.strip().lower())
+        if left is None or right is None:
+            missing = []
+            if left is None:
+                missing.append(left_id)
+            if right is None:
+                missing.append(right_id)
+            return {
+                "success": False,
+                "error": f"Pattern not found: {', '.join(missing)}",
+            }
+
+        return {
+            "success": True,
+            "left": {
+                "id": left.id,
+                "name": left.name,
+                "severity": left.severity,
+                "tags": left.tags,
+                "languages": left.languages,
+                "pattern": left.pattern,
+            },
+            "right": {
+                "id": right.id,
+                "name": right.name,
+                "severity": right.severity,
+                "tags": right.tags,
+                "languages": right.languages,
+                "pattern": right.pattern,
+            },
+            "diff": {
+                "severity_changed": left.severity != right.severity,
+                "regex_changed": left.pattern != right.pattern,
+                "tags_added": [tag for tag in right.tags if tag not in left.tags],
+                "tags_removed": [tag for tag in left.tags if tag not in right.tags],
+                "languages_added": [
+                    lang for lang in right.languages if lang not in left.languages
+                ],
+                "languages_removed": [
+                    lang for lang in left.languages if lang not in right.languages
+                ],
+            },
+        }
+
+    def customize_from_template(
+        self,
+        template_id: str,
+        values: dict[str, str],
+        *,
+        pattern_id: str | None = None,
+        name: str | None = None,
+        description: str = "",
+        severity: str | None = None,
+        tags: list[str] | None = None,
+        languages: list[str] | None = None,
+        install: bool = False,
+    ) -> PatternDefinition:
+        """Render a pattern from template and optionally install it."""
+        registry = PatternTemplateRegistry()
+        rendered = registry.render_pattern(
+            template_id=template_id,
+            values=values,
+            pattern_id=pattern_id,
+            name=name,
+            description=description or None,
+            severity=severity,
+            tags=tags,
+            languages=languages,
+        )
+        if install:
+            PatternManager().add_custom_pattern(rendered.pattern)
+        return rendered.pattern
 
     def suggest_fix(self, match: PatternMatch) -> FixSuggestion | None:
         """Suggest automated fixes for a pattern match."""

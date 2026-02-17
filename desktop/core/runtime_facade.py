@@ -29,7 +29,25 @@ from bridge.commands import (
     execute_observation,
     execute_pattern_list,
     execute_pattern_scan,
+    execute_pattern_search,
+    execute_pattern_apply,
+    execute_pattern_create,
+    execute_pattern_share,
+    execute_team_unlock,
+    execute_team_create,
+    execute_team_add,
+    execute_team_list,
+    execute_share_create,
+    execute_share_list,
+    execute_share_revoke,
+    execute_share_resolve,
+    execute_comment_add,
+    execute_comment_list,
+    execute_comment_resolve,
     execute_query,
+    execute_graph,
+    execute_history,
+    execute_recommendations,
 )
 from core.runtime import ExecutionMode, Runtime, RuntimeConfiguration
 from inquiry.answers import (
@@ -49,6 +67,7 @@ from lens.navigation.context import (
 )
 from lens.navigation.workflow import WorkflowStage
 from lens.views import ViewType
+from knowledge import KnowledgeBase
 from observations.interface import MinimalObservationInterface
 from storage.investigation_storage import InvestigationStorage
 
@@ -62,6 +81,7 @@ class RuntimeFacade:
         self._storage_root = Path(storage_root)
         self._storage_root.mkdir(parents=True, exist_ok=True)
         self._storage = InvestigationStorage(base_path=self._storage_root)
+        self._knowledge = KnowledgeBase(base_path=self._storage_root / "knowledge")
 
         self._runtime: Runtime | None = None
         self._session_context: SessionContext | None = None
@@ -72,6 +92,8 @@ class RuntimeFacade:
 
         self._latest_observations: list[dict[str, Any]] = []
         self._latest_pattern_scan: dict[str, Any] | None = None
+        self._collaboration_workspace_id: str = "default"
+        self._collaboration_passphrase: str | None = None
 
         self._lock = threading.RLock()
 
@@ -296,6 +318,33 @@ class RuntimeFacade:
             session[field] = items
             self._storage.save_session(session)
 
+    def _record_knowledge_event(
+        self,
+        *,
+        session_id: str,
+        event_type: str,
+        question: str | None = None,
+        question_type: str | None = None,
+        path: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        observations: list[dict[str, Any]] | None = None,
+        pattern_matches: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Best-effort knowledge event tracking for desktop workflows."""
+        self._knowledge.record_event(
+            session_id,
+            event_type,
+            question=question,
+            path=path,
+            metadata=metadata or {},
+        )
+        if observations:
+            self._knowledge.ingest_observations(session_id, observations)
+        if question:
+            self._knowledge.ingest_query(session_id, question, question_type or "structure")
+        if pattern_matches:
+            self._knowledge.ingest_pattern_matches(session_id, pattern_matches)
+
     def load_observations_for_session(self, session_id: str) -> list[dict[str, Any]]:
         session = self._storage.load_session_metadata(session_id)
         if not session:
@@ -410,6 +459,18 @@ class RuntimeFacade:
             }
         )
 
+        self._record_knowledge_event(
+            session_id=investigation_id,
+            event_type="investigate",
+            path=str(target_path),
+            metadata={
+                "scope": selected_scope.value,
+                "intent": intent,
+                "status": str(result.get("status") or ""),
+                "observation_count": int(result.get("observation_count") or 0),
+            },
+        )
+
         self._emit_progress(progress_callback, 4, 4, "Investigation completed")
         return result
 
@@ -494,6 +555,18 @@ class RuntimeFacade:
 
         if observation_id and observation_id != "unknown":
             self._append_session_reference(active_session_id, "observation_ids", observation_id)
+
+        self._record_knowledge_event(
+            session_id=active_session_id,
+            event_type="observe",
+            path=str(target_path),
+            metadata={
+                "eye_types": sorted([item.value for item in selected_types]),
+                "observation_id": observation_id,
+                "observations_count": len(self._latest_observations),
+            },
+            observations=self._latest_observations,
+        )
 
         self._emit_progress(progress_callback, 4, 4, "Observation completed")
 
@@ -594,6 +667,19 @@ class RuntimeFacade:
         query_id = str(command_result.get("query_id") or f"query_{uuid.uuid4().hex[:8]}")
         self._append_session_reference(active_session_id, "question_ids", query_id)
 
+        self._record_knowledge_event(
+            session_id=active_session_id,
+            event_type="query",
+            question=question,
+            question_type=question_type,
+            metadata={
+                "focus": focus or "",
+                "limit": max(int(limit), 1),
+                "query_id": query_id,
+                "observations_used": len(observations),
+            },
+        )
+
         self._emit_progress(progress_callback, 3, 3, "Query completed")
         return {
             "query_id": query_id,
@@ -662,9 +748,544 @@ class RuntimeFacade:
                 f"pattern_scan_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
             )
             self._append_session_reference(active_session_id, "pattern_ids", pattern_ref)
+            self._record_knowledge_event(
+                session_id=active_session_id,
+                event_type="pattern_scan",
+                path=str(target_path),
+                metadata={
+                    "category": category or "",
+                    "glob": glob,
+                    "files_scanned": int(scan_result.files_scanned),
+                    "matches_found": int(scan_result.matches_found),
+                },
+                pattern_matches=[
+                    item
+                    for item in payload.get("matches", [])
+                    if isinstance(item, dict)
+                ],
+            )
 
         self._emit_progress(progress_callback, 3, 3, "Pattern scan completed")
         return payload
+
+    def run_pattern_search(
+        self,
+        query: str = "",
+        tags: list[str] | None = None,
+        severity: str | None = None,
+        language: str | None = None,
+        limit: int = 20,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Search local pattern marketplace."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Searching marketplace")
+
+        result = execute_pattern_search(
+            query=query,
+            tags=tags,
+            severity=severity,
+            language=language,
+            limit=max(int(limit), 0),
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Marketplace search ready")
+        return asdict(result)
+
+    def run_pattern_apply(
+        self,
+        pattern_ref: str,
+        path: Path | str,
+        glob: str = "*",
+        max_files: int = 10000,
+        session_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Install/apply a pattern and scan target files."""
+        target_path = Path(path).resolve()
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 3, "Applying pattern")
+
+        result = execute_pattern_apply(
+            pattern_ref=pattern_ref,
+            path=target_path,
+            glob=glob,
+            max_files=max_files,
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 3, "Collecting apply results")
+
+        payload = asdict(result)
+        active_session_id = self.resolve_session_id(session_id)
+        if active_session_id and result.success:
+            self._current_investigation_id = active_session_id
+            self._record_knowledge_event(
+                session_id=active_session_id,
+                event_type="pattern_apply",
+                path=str(target_path),
+                metadata={
+                    "pattern_id": result.pattern_id,
+                    "glob": glob,
+                    "files_scanned": int(result.files_scanned),
+                    "matches_found": int(result.matches_found),
+                    "installed": bool(result.installed),
+                },
+                pattern_matches=[
+                    item
+                    for item in payload.get("matches", [])
+                    if isinstance(item, dict)
+                ],
+            )
+
+        self._emit_progress(progress_callback, 3, 3, "Pattern apply completed")
+        return payload
+
+    def run_pattern_create(
+        self,
+        template_id: str,
+        values: dict[str, str] | None = None,
+        pattern_id: str | None = None,
+        name: str | None = None,
+        description: str = "",
+        severity: str | None = None,
+        tags: list[str] | None = None,
+        languages: list[str] | None = None,
+        dry_run: bool = False,
+        output_path: Path | str | None = None,
+        session_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Create a local custom pattern from template."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Creating pattern from template")
+
+        result = execute_pattern_create(
+            template_id=template_id,
+            values=values or {},
+            pattern_id=pattern_id,
+            name=name,
+            description=description,
+            severity=severity,
+            tags=tags,
+            languages=languages,
+            dry_run=bool(dry_run),
+            output_path=output_path,
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Pattern template processing completed")
+
+        payload = asdict(result)
+        active_session_id = self.resolve_session_id(session_id)
+        if active_session_id and result.success:
+            self._current_investigation_id = active_session_id
+            self._record_knowledge_event(
+                session_id=active_session_id,
+                event_type="pattern_create",
+                metadata={
+                    "template_id": result.template_id,
+                    "pattern_id": result.pattern_id,
+                    "dry_run": bool(result.dry_run),
+                    "created": bool(result.created),
+                    "installed": bool(result.installed),
+                },
+            )
+        return payload
+
+    def run_pattern_share(
+        self,
+        pattern_id: str,
+        bundle_out: Path | str | None = None,
+        include_examples: bool = False,
+        session_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Share a pattern as bundle file."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Creating pattern bundle")
+
+        result = execute_pattern_share(
+            pattern_id=pattern_id,
+            bundle_out=bundle_out,
+            include_examples=bool(include_examples),
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Pattern bundle ready")
+
+        payload = asdict(result)
+        active_session_id = self.resolve_session_id(session_id)
+        if active_session_id and result.success:
+            self._current_investigation_id = active_session_id
+            self._record_knowledge_event(
+                session_id=active_session_id,
+                event_type="pattern_share",
+                path=result.path,
+                metadata={
+                    "pattern_id": result.pattern_id,
+                    "package_id": result.package_id,
+                    "version": result.version,
+                },
+            )
+        return payload
+
+    def run_collaboration_unlock(
+        self,
+        workspace_id: str,
+        passphrase: str,
+        initialize: bool = False,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Unlock or initialize collaboration workspace key."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Unlocking collaboration workspace")
+
+        result = execute_team_unlock(
+            workspace_id=workspace_id,
+            passphrase=passphrase,
+            initialize=bool(initialize),
+            storage_root=self._storage_root,
+        )
+        if not result.get("success", False):
+            raise ValueError(str(result.get("error") or "Collaboration unlock failed"))
+
+        self._collaboration_workspace_id = workspace_id
+        self._collaboration_passphrase = passphrase
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Collaboration workspace ready")
+        return result
+
+    def run_team_create(
+        self,
+        name: str,
+        owner_user_id: str,
+        owner_name: str,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Create collaboration team."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Creating team")
+        return execute_team_create(
+            name=name,
+            owner_user_id=owner_user_id,
+            owner_name=owner_name,
+            storage_root=self._storage_root,
+        )
+
+    def run_team_add(
+        self,
+        team_id: str,
+        user_id: str,
+        display_name: str,
+        role: str,
+        added_by: str,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Add team member."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Adding team member")
+        return execute_team_add(
+            team_id=team_id,
+            user_id=user_id,
+            display_name=display_name,
+            role=role,
+            added_by=added_by,
+            storage_root=self._storage_root,
+        )
+
+    def run_team_list(
+        self,
+        limit: int = 100,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """List teams."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Loading teams")
+        return execute_team_list(
+            limit=max(int(limit), 0),
+            storage_root=self._storage_root,
+        )
+
+    def run_share_create(
+        self,
+        session_id: str,
+        created_by: str,
+        targets: list[dict[str, str]],
+        title: str = "",
+        summary: str = "",
+        passphrase: str | None = None,
+        workspace_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Create encrypted collaboration share."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Creating encrypted share")
+        effective_workspace = workspace_id or self._collaboration_workspace_id
+        effective_passphrase = passphrase or self._collaboration_passphrase
+        if not effective_passphrase:
+            raise ValueError("Collaboration workspace is locked")
+        result = execute_share_create(
+            session_id=session_id,
+            created_by=created_by,
+            targets=targets,
+            title=title,
+            summary=summary,
+            workspace_id=effective_workspace,
+            passphrase=effective_passphrase,
+            storage_root=self._storage_root,
+        )
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Share ready")
+        return result
+
+    def run_share_list(
+        self,
+        session_id: str | None = None,
+        team_id: str | None = None,
+        limit: int = 100,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """List collaboration shares."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Loading shares")
+        return execute_share_list(
+            session_id=session_id,
+            team_id=team_id,
+            limit=max(int(limit), 0),
+            storage_root=self._storage_root,
+        )
+
+    def run_share_revoke(
+        self,
+        share_id: str,
+        revoked_by: str,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Revoke one share."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Revoking share")
+        return execute_share_revoke(
+            share_id=share_id,
+            revoked_by=revoked_by,
+            storage_root=self._storage_root,
+        )
+
+    def run_share_resolve(
+        self,
+        share_id: str,
+        accessor_id: str,
+        passphrase: str | None = None,
+        workspace_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Resolve decrypted payload for one share."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Decrypting share payload")
+        effective_workspace = workspace_id or self._collaboration_workspace_id
+        effective_passphrase = passphrase or self._collaboration_passphrase
+        if not effective_passphrase:
+            raise ValueError("Collaboration workspace is locked")
+        result = execute_share_resolve(
+            share_id=share_id,
+            accessor_id=accessor_id,
+            workspace_id=effective_workspace,
+            passphrase=effective_passphrase,
+            storage_root=self._storage_root,
+        )
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Share payload ready")
+        return result
+
+    def run_comment_add(
+        self,
+        share_id: str,
+        author_id: str,
+        author_name: str,
+        body: str,
+        parent_comment_id: str | None = None,
+        passphrase: str | None = None,
+        workspace_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Add encrypted comment."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Adding comment")
+        effective_workspace = workspace_id or self._collaboration_workspace_id
+        effective_passphrase = passphrase or self._collaboration_passphrase
+        if not effective_passphrase:
+            raise ValueError("Collaboration workspace is locked")
+        return execute_comment_add(
+            share_id=share_id,
+            author_id=author_id,
+            author_name=author_name,
+            body=body,
+            parent_comment_id=parent_comment_id,
+            workspace_id=effective_workspace,
+            passphrase=effective_passphrase,
+            storage_root=self._storage_root,
+        )
+
+    def run_comment_list(
+        self,
+        share_id: str,
+        thread_root_id: str | None = None,
+        limit: int = 200,
+        passphrase: str | None = None,
+        workspace_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """List decrypted comments."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Loading comments")
+        effective_workspace = workspace_id or self._collaboration_workspace_id
+        effective_passphrase = passphrase or self._collaboration_passphrase
+        if not effective_passphrase:
+            raise ValueError("Collaboration workspace is locked")
+        return execute_comment_list(
+            share_id=share_id,
+            thread_root_id=thread_root_id,
+            limit=max(int(limit), 0),
+            workspace_id=effective_workspace,
+            passphrase=effective_passphrase,
+            storage_root=self._storage_root,
+        )
+
+    def run_comment_resolve(
+        self,
+        comment_id: str,
+        resolver_id: str,
+        passphrase: str | None = None,
+        workspace_id: str | None = None,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Resolve comment."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 1, "Resolving comment")
+        effective_workspace = workspace_id or self._collaboration_workspace_id
+        effective_passphrase = passphrase or self._collaboration_passphrase
+        if not effective_passphrase:
+            raise ValueError("Collaboration workspace is locked")
+        return execute_comment_resolve(
+            comment_id=comment_id,
+            resolver_id=resolver_id,
+            workspace_id=effective_workspace,
+            passphrase=effective_passphrase,
+            storage_root=self._storage_root,
+        )
+
+    def run_history(
+        self,
+        session_id: str | None = None,
+        query: str | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
+        event_type: str | None = None,
+        limit: int = 100,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Run history query operation."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Loading history")
+
+        resolved = self.resolve_session_id(session_id)
+        result = execute_history(
+            session_id=resolved,
+            query=query,
+            from_date=from_date,
+            to_date=to_date,
+            event_type=event_type,
+            limit=max(int(limit), 0),
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "History ready")
+        if resolved:
+            self._current_investigation_id = resolved
+        return result
+
+    def run_graph(
+        self,
+        session_id: str | None = None,
+        focus: str | None = None,
+        depth: int = 2,
+        edge_type: str | None = None,
+        limit: int = 200,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Run graph query operation."""
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Loading graph")
+
+        resolved = self.resolve_session_id(session_id)
+        result = execute_graph(
+            session_id=resolved,
+            focus=focus,
+            depth=max(int(depth), 1),
+            edge_type=edge_type,
+            limit=max(int(limit), 0),
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Graph ready")
+        if resolved:
+            self._current_investigation_id = resolved
+        return result
+
+    def run_recommendations(
+        self,
+        session_id: str | None = None,
+        limit: int = 10,
+        category: str | None = None,
+        refresh: bool = False,
+        progress_callback: Any = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Run recommendation generation operation."""
+        resolved = self.resolve_session_id(session_id)
+        if not resolved:
+            raise ValueError("No investigation session available")
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 1, 2, "Generating recommendations")
+
+        result = execute_recommendations(
+            session_id=resolved,
+            limit=max(int(limit), 0),
+            category=category,
+            refresh=bool(refresh),
+            storage_root=self._storage_root,
+        )
+
+        self._check_cancel(cancel_event)
+        self._emit_progress(progress_callback, 2, 2, "Recommendations ready")
+        self._current_investigation_id = resolved
+        return result
 
     def _export_format(self, name: str) -> ExportFormat:
         mapping = {
@@ -984,6 +1605,17 @@ class RuntimeFacade:
             output_file.write_bytes(content)
         else:
             output_file.write_text(content, encoding="utf-8")
+
+        self._record_knowledge_event(
+            session_id=resolved_session,
+            event_type="export",
+            path=str(output_file),
+            metadata={
+                "format": format_name,
+                "include_notes": bool(include_notes),
+                "include_patterns": bool(include_patterns),
+            },
+        )
 
         self._emit_progress(progress_callback, 4, 4, "Export complete")
         return {

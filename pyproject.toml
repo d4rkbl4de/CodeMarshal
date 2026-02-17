@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codemarshal"
-version = "2.1.0"
+version = "2.2.0rc1"
 description = "Truth-preserving cognitive investigation environment for code"
 readme = "README.truth.md"
 license = "MIT"
@@ -12,7 +12,7 @@ authors = [
     {name = "CodeMarshal Team"}
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.11",
@@ -30,6 +30,7 @@ dependencies = [
     "psutil>=5.9.0,<6.0.0",
     "typing-extensions>=4.8.0",
     "PyYAML>=6.0",
+    "cryptography>=43.0.0",
 ]
 
 [project.optional-dependencies]
@@ -84,6 +85,7 @@ include = [
     "integrity*",
     "desktop*",
     "knowledge*",
+    "collaboration*",
 ]
 exclude = [
     "tests*",

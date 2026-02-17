@@ -9,9 +9,12 @@ from typing import Any
 from PySide6 import QtCore, QtWidgets
 
 from desktop.widgets import (
+    ActionStrip,
     ErrorDialog,
     HintPanel,
+    PageScaffold,
     ResultsViewer,
+    SectionHeader,
     apply_accessible,
     clear_invalid,
     mark_invalid,
@@ -23,6 +26,7 @@ class ObserveView(QtWidgets.QWidget):
 
     navigate_requested = QtCore.Signal(str)
     preset_changed = QtCore.Signal(str)
+    layout_splitter_ratio_changed = QtCore.Signal(float)
 
     def __init__(
         self,
@@ -40,18 +44,23 @@ class ObserveView(QtWidgets.QWidget):
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        header = QtWidgets.QHBoxLayout()
-        self.back_btn = QtWidgets.QPushButton("Home")
-        self.back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
-        apply_accessible(self.back_btn, name="Return to Home view")
-        title = QtWidgets.QLabel("Observe")
-        title.setObjectName("sectionTitle")
-        header.addWidget(self.back_btn)
-        header.addWidget(title)
-        header.addStretch(1)
-        layout.addLayout(header)
+        self.page_scaffold = PageScaffold(default_ratio=0.44, narrow_breakpoint=1320)
+        self.page_scaffold.splitter_ratio_changed.connect(
+            self.layout_splitter_ratio_changed.emit
+        )
+        layout.addWidget(self.page_scaffold)
+
+        header = SectionHeader(
+            "Observe",
+            "Fast repository signals with selected observation eyes.",
+        )
+        self.page_scaffold.set_header_widget(header)
+
+        form_layout = self.page_scaffold.form_layout
+        results_layout = self.page_scaffold.results_layout
 
         self.hint_panel = HintPanel(
             "Observe Quickly",
@@ -60,7 +69,7 @@ class ObserveView(QtWidgets.QWidget):
                 "Fast Scan is best for first pass on new repositories."
             ),
         )
-        layout.addWidget(self.hint_panel)
+        form_layout.addWidget(self.hint_panel)
 
         config = QtWidgets.QGroupBox("Observation Configuration")
         form = QtWidgets.QFormLayout(config)
@@ -120,32 +129,13 @@ class ObserveView(QtWidgets.QWidget):
             self._eye_boxes[value] = box
             eyes_layout.addWidget(box, index // 2, index % 2)
         form.addRow("Eyes:", eyes_layout)
-        layout.addWidget(config)
-
-        actions = QtWidgets.QHBoxLayout()
-        self.start_btn = QtWidgets.QPushButton("Run Observation")
-        self.start_btn.setProperty("variant", "primary")
-        self.start_btn.clicked.connect(self._on_start)
-        apply_accessible(self.start_btn, name="Run observation")
-        self.retry_btn = QtWidgets.QPushButton("Retry Last")
-        self.retry_btn.setEnabled(False)
-        self.retry_btn.clicked.connect(self._on_retry)
-        apply_accessible(self.retry_btn, name="Retry last observation request")
-        self.cancel_btn = QtWidgets.QPushButton("Cancel")
-        self.cancel_btn.setEnabled(False)
-        self.cancel_btn.clicked.connect(self._on_cancel)
-        apply_accessible(self.cancel_btn, name="Cancel observation operation")
-        actions.addWidget(self.start_btn)
-        actions.addWidget(self.retry_btn)
-        actions.addWidget(self.cancel_btn)
-        actions.addStretch(1)
-        layout.addLayout(actions)
+        form_layout.addWidget(config)
 
         self.validation_label = QtWidgets.QLabel("")
         self.validation_label.setObjectName("validationError")
         self.validation_label.setWordWrap(True)
         self.validation_label.setVisible(False)
-        layout.addWidget(self.validation_label)
+        form_layout.addWidget(self.validation_label)
 
         progress_row = QtWidgets.QHBoxLayout()
         self.progress_bar = QtWidgets.QProgressBar()
@@ -159,13 +149,34 @@ class ObserveView(QtWidgets.QWidget):
         )
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
-        layout.addLayout(progress_row)
+        form_layout.addLayout(progress_row)
 
-        results_group = QtWidgets.QGroupBox("Observation Results")
-        results_layout = QtWidgets.QVBoxLayout(results_group)
+        self.action_strip = ActionStrip()
+        self.action_strip.setProperty("sticky", True)
+        self.start_btn = self.action_strip.add_button(
+            "Run Observation",
+            self._on_start,
+            primary=True,
+        )
+        self.retry_btn = self.action_strip.add_button("Retry Last", self._on_retry)
+        self.retry_btn.setEnabled(False)
+        self.cancel_btn = self.action_strip.add_button("Cancel", self._on_cancel)
+        self.cancel_btn.setEnabled(False)
+        apply_accessible(self.start_btn, name="Run observation")
+        apply_accessible(self.retry_btn, name="Retry last observation request")
+        apply_accessible(self.cancel_btn, name="Cancel observation operation")
+        self.action_strip.add_stretch(1)
+        form_layout.addStretch(1)
+        form_layout.addWidget(self.action_strip)
+
+        results_header = SectionHeader(
+            "Observation Results",
+            "Summary and raw output from the latest observation run.",
+        )
+        results_layout.addWidget(results_header)
+
         self.results = ResultsViewer()
-        results_layout.addWidget(self.results)
-        layout.addWidget(results_group, stretch=1)
+        results_layout.addWidget(self.results, stretch=1)
 
         self.setTabOrder(self.path_input, self.browse_btn)
         self.setTabOrder(self.browse_btn, self.session_combo)
@@ -175,6 +186,9 @@ class ObserveView(QtWidgets.QWidget):
         self.setTabOrder(first_eye, self.start_btn)
         self.setTabOrder(self.start_btn, self.retry_btn)
         self.setTabOrder(self.retry_btn, self.cancel_btn)
+
+    def set_layout_splitter_ratio(self, ratio: float) -> None:
+        self.page_scaffold.set_splitter_ratio(ratio)
 
     def set_command_bridge(self, command_bridge: Any) -> None:
         if self._bridge is command_bridge:
@@ -357,6 +371,7 @@ class ObserveView(QtWidgets.QWidget):
             json.dumps(summary, indent=2, default=str),
             json.dumps(data, indent=2, default=str),
         )
+        self.results.set_metadata("Latest operation: Observe")
         session_id = str(data.get("session_id") or "")
         if session_id:
             self.session_combo.setCurrentText(session_id)

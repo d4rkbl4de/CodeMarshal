@@ -4,24 +4,27 @@ bridge.commands.pattern - Pattern detection CLI command
 This module provides the pattern command for running custom pattern detectors.
 
 Command:
-- pattern: List, add, and run pattern detectors
+- pattern: List, add, search, apply, create, and share pattern detectors
 """
 
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from patterns.collector import PatternCollector
 from patterns.loader import (
     PatternDefinition,
     PatternLoader,
     PatternManager,
     PatternScanner,
 )
+from patterns.marketplace import PatternMarketplace
+from patterns.templates import PatternTemplateRegistry
 
 
 @dataclass
@@ -56,6 +59,67 @@ class PatternAddResult:
 
     success: bool
     pattern_id: str = ""
+    message: str = ""
+    error: str | None = None
+
+
+@dataclass
+class PatternSearchCommandResult:
+    """Result of marketplace pattern search."""
+
+    success: bool
+    total_count: int
+    patterns: list[dict[str, Any]] = field(default_factory=list)
+    message: str = ""
+    error: str | None = None
+
+
+@dataclass
+class PatternApplyResult:
+    """Result of applying one marketplace pattern and scanning target files."""
+
+    success: bool
+    pattern_id: str = ""
+    installed: bool = False
+    patterns_scanned: int = 0
+    files_scanned: int = 0
+    matches_found: int = 0
+    matches: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    scan_time_ms: float = 0.0
+    message: str = ""
+    error: str | None = None
+
+
+@dataclass
+class PatternCreateResult:
+    """Result of creating a pattern from a template."""
+
+    success: bool
+    template_id: str = ""
+    pattern_id: str = ""
+    created: bool = False
+    installed: bool = False
+    dry_run: bool = False
+    submission_id: str = ""
+    validation_errors: list[str] = field(default_factory=list)
+    validation_warnings: list[str] = field(default_factory=list)
+    output_path: str | None = None
+    pattern: dict[str, Any] | None = None
+    message: str = ""
+    error: str | None = None
+
+
+@dataclass
+class PatternShareResult:
+    """Result of sharing a pattern as a local bundle."""
+
+    success: bool
+    pattern_id: str = ""
+    package_id: str = ""
+    path: str = ""
+    version: str = ""
+    created_at: str = ""
     message: str = ""
     error: str | None = None
 
@@ -281,6 +345,258 @@ class PatternAddCommand:
             return PatternAddResult(success=False, error=f"Error adding pattern: {e}")
 
 
+class PatternSearchCommand:
+    """Search local marketplace patterns."""
+
+    def execute(
+        self,
+        query: str = "",
+        tags: list[str] | None = None,
+        severity: str | None = None,
+        language: str | None = None,
+        limit: int = 20,
+        storage_root: Path | str = Path("storage"),
+    ) -> PatternSearchCommandResult:
+        """Execute marketplace search."""
+        try:
+            marketplace = PatternMarketplace(storage_root=storage_root)
+            result = marketplace.search(
+                query=query,
+                tags=tags,
+                severity=severity,
+                language=language,
+                limit=max(int(limit), 0),
+            )
+            payload = [asdict(item) for item in result.results]
+            return PatternSearchCommandResult(
+                success=result.success,
+                total_count=result.total_count,
+                patterns=payload,
+                message=result.message,
+                error=result.error,
+            )
+        except Exception as e:
+            return PatternSearchCommandResult(
+                success=False,
+                total_count=0,
+                patterns=[],
+                error=f"Marketplace search failed: {e}",
+            )
+
+
+class PatternApplyCommand:
+    """Install/apply a marketplace pattern then scan target path."""
+
+    def execute(
+        self,
+        pattern_ref: str,
+        path: Path,
+        glob: str = "*",
+        max_files: int = 10000,
+        storage_root: Path | str = Path("storage"),
+    ) -> PatternApplyResult:
+        """Execute apply command."""
+        try:
+            marketplace = PatternMarketplace(storage_root=storage_root)
+            install_result = marketplace.install(pattern_ref=pattern_ref)
+            if not install_result.get("success", False):
+                return PatternApplyResult(
+                    success=False,
+                    error=str(install_result.get("error") or "Install failed"),
+                )
+
+            selected_pattern_id = str(install_result.get("pattern_id") or pattern_ref)
+            scan_result = PatternScanCommand().execute(
+                path=path,
+                patterns=[selected_pattern_id],
+                glob=glob,
+                max_files=max_files,
+            )
+            if not scan_result.success:
+                return PatternApplyResult(
+                    success=False,
+                    pattern_id=selected_pattern_id,
+                    installed=bool(install_result.get("installed", False)),
+                    patterns_scanned=scan_result.patterns_scanned,
+                    files_scanned=scan_result.files_scanned,
+                    matches_found=scan_result.matches_found,
+                    matches=scan_result.matches,
+                    errors=scan_result.errors,
+                    scan_time_ms=scan_result.scan_time_ms,
+                    message=scan_result.message,
+                    error=scan_result.error,
+                )
+
+            return PatternApplyResult(
+                success=True,
+                pattern_id=selected_pattern_id,
+                installed=bool(install_result.get("installed", False)),
+                patterns_scanned=scan_result.patterns_scanned,
+                files_scanned=scan_result.files_scanned,
+                matches_found=scan_result.matches_found,
+                matches=scan_result.matches,
+                errors=scan_result.errors,
+                scan_time_ms=scan_result.scan_time_ms,
+                message=str(install_result.get("message") or "Pattern applied"),
+            )
+        except Exception as e:
+            return PatternApplyResult(success=False, error=f"Apply failed: {e}")
+
+
+class PatternCreateCommand:
+    """Create a custom pattern from a template."""
+
+    def execute(
+        self,
+        template_id: str,
+        values: dict[str, str] | None = None,
+        *,
+        pattern_id: str | None = None,
+        name: str | None = None,
+        description: str = "",
+        severity: str | None = None,
+        tags: list[str] | None = None,
+        languages: list[str] | None = None,
+        dry_run: bool = False,
+        output_path: Path | str | None = None,
+        submitter: str = "local",
+        source: str = "template",
+        notes: str = "",
+        storage_root: Path | str = Path("storage"),
+    ) -> PatternCreateResult:
+        """Execute create command."""
+        try:
+            registry = PatternTemplateRegistry()
+            rendered = registry.render_pattern(
+                template_id=template_id,
+                values=values or {},
+                pattern_id=pattern_id,
+                name=name,
+                description=description or None,
+                severity=severity,
+                tags=tags,
+                languages=languages,
+            )
+            collector = PatternCollector(storage_root=storage_root)
+            submission, report = collector.submit_local(
+                rendered.pattern,
+                submitter=submitter,
+                source=source,
+                notes=notes,
+            )
+            if not report.valid:
+                return PatternCreateResult(
+                    success=False,
+                    template_id=rendered.template_id,
+                    pattern_id=rendered.pattern.id,
+                    dry_run=dry_run,
+                    created=False,
+                    installed=False,
+                    submission_id=submission.submission_id,
+                    validation_errors=report.errors,
+                    validation_warnings=report.warnings,
+                    pattern=asdict(rendered.pattern),
+                    error="Validation failed",
+                )
+
+            if dry_run:
+                return PatternCreateResult(
+                    success=True,
+                    template_id=rendered.template_id,
+                    pattern_id=rendered.pattern.id,
+                    dry_run=True,
+                    created=False,
+                    installed=False,
+                    submission_id=submission.submission_id,
+                    validation_warnings=report.warnings,
+                    pattern=asdict(rendered.pattern),
+                    message="Dry-run successful; pattern not installed",
+                )
+
+            manager = PatternManager()
+            installed = manager.add_custom_pattern(rendered.pattern)
+            if not installed:
+                return PatternCreateResult(
+                    success=False,
+                    template_id=rendered.template_id,
+                    pattern_id=rendered.pattern.id,
+                    dry_run=False,
+                    created=False,
+                    installed=False,
+                    submission_id=submission.submission_id,
+                    pattern=asdict(rendered.pattern),
+                    error="Failed to install generated pattern",
+                )
+
+            collector.curate(
+                submission,
+                approve=True,
+                reason="Auto-approved local template creation",
+                labels=["auto", "local"],
+            )
+
+            output_file: str | None = None
+            if output_path is not None:
+                marketplace = PatternMarketplace(storage_root=storage_root)
+                package = marketplace.share(
+                    rendered.pattern.id,
+                    bundle_out=output_path,
+                    include_examples=False,
+                )
+                output_file = package.path
+
+            return PatternCreateResult(
+                success=True,
+                template_id=rendered.template_id,
+                pattern_id=rendered.pattern.id,
+                created=True,
+                installed=True,
+                dry_run=False,
+                submission_id=submission.submission_id,
+                validation_warnings=report.warnings,
+                output_path=output_file,
+                pattern=asdict(rendered.pattern),
+                message="Pattern created successfully",
+            )
+        except Exception as e:
+            return PatternCreateResult(
+                success=False,
+                error=f"Create failed: {e}",
+            )
+
+
+class PatternShareCommand:
+    """Share a pattern as a local package bundle."""
+
+    def execute(
+        self,
+        pattern_id: str,
+        *,
+        bundle_out: Path | str | None = None,
+        include_examples: bool = False,
+        storage_root: Path | str = Path("storage"),
+    ) -> PatternShareResult:
+        """Execute share command."""
+        try:
+            marketplace = PatternMarketplace(storage_root=storage_root)
+            package = marketplace.share(
+                pattern_id=pattern_id,
+                bundle_out=bundle_out,
+                include_examples=include_examples,
+            )
+            return PatternShareResult(
+                success=True,
+                pattern_id=package.pattern_id,
+                package_id=package.package_id,
+                path=package.path,
+                version=package.version,
+                created_at=package.created_at,
+                message="Pattern bundle created",
+            )
+        except Exception as e:
+            return PatternShareResult(success=False, error=f"Share failed: {e}")
+
+
 # Convenience functions
 def execute_pattern_list(
     category: str | None = None,
@@ -322,4 +638,96 @@ def execute_pattern_add(
     cmd = PatternAddCommand()
     return cmd.execute(
         pattern_id, name, pattern, severity, description, message, tags, languages
+    )
+
+
+def execute_pattern_search(
+    query: str = "",
+    tags: list[str] | None = None,
+    severity: str | None = None,
+    language: str | None = None,
+    limit: int = 20,
+    storage_root: Path | str = Path("storage"),
+) -> PatternSearchCommandResult:
+    """Convenience function for pattern marketplace search."""
+    cmd = PatternSearchCommand()
+    return cmd.execute(
+        query=query,
+        tags=tags,
+        severity=severity,
+        language=language,
+        limit=limit,
+        storage_root=storage_root,
+    )
+
+
+def execute_pattern_apply(
+    pattern_ref: str,
+    path: Path,
+    glob: str = "*",
+    max_files: int = 10000,
+    storage_root: Path | str = Path("storage"),
+) -> PatternApplyResult:
+    """Convenience function for applying and scanning one pattern."""
+    cmd = PatternApplyCommand()
+    return cmd.execute(
+        pattern_ref=pattern_ref,
+        path=path,
+        glob=glob,
+        max_files=max_files,
+        storage_root=storage_root,
+    )
+
+
+def execute_pattern_create(
+    template_id: str,
+    values: dict[str, str] | None = None,
+    *,
+    pattern_id: str | None = None,
+    name: str | None = None,
+    description: str = "",
+    severity: str | None = None,
+    tags: list[str] | None = None,
+    languages: list[str] | None = None,
+    dry_run: bool = False,
+    output_path: Path | str | None = None,
+    submitter: str = "local",
+    source: str = "template",
+    notes: str = "",
+    storage_root: Path | str = Path("storage"),
+) -> PatternCreateResult:
+    """Convenience function for creating a pattern from template."""
+    cmd = PatternCreateCommand()
+    return cmd.execute(
+        template_id=template_id,
+        values=values,
+        pattern_id=pattern_id,
+        name=name,
+        description=description,
+        severity=severity,
+        tags=tags,
+        languages=languages,
+        dry_run=dry_run,
+        output_path=output_path,
+        submitter=submitter,
+        source=source,
+        notes=notes,
+        storage_root=storage_root,
+    )
+
+
+def execute_pattern_share(
+    pattern_id: str,
+    *,
+    bundle_out: Path | str | None = None,
+    include_examples: bool = False,
+    storage_root: Path | str = Path("storage"),
+) -> PatternShareResult:
+    """Convenience function for sharing a local pattern bundle."""
+    cmd = PatternShareCommand()
+    return cmd.execute(
+        pattern_id=pattern_id,
+        bundle_out=bundle_out,
+        include_examples=include_examples,
+        storage_root=storage_root,
     )

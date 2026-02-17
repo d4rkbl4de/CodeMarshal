@@ -1,7 +1,7 @@
 # CodeMarshal Documentation
 
-**Version:** 2.1.1-dev  
-**Last Updated:** February 15, 2026
+**Version:** 2.2.0-rc1  
+**Last Updated:** February 16, 2026
 
 Welcome to the CodeMarshal documentation. This guide helps you navigate all available documentation.
 
@@ -26,8 +26,10 @@ New to CodeMarshal? Start here:
 | [README.md](../README.md) | Project overview, quick start, basic usage | Everyone |
 | [ROADMAP.md](../ROADMAP.md) | Execution status, milestones, phase tracking | Contributors, Project Managers |
 | [CHANGELOG.md](../CHANGELOG.md) | Version history, what's new, migration guides | Users, Developers |
+| [docs/RELEASE_CHECKLIST_v2.2.0-rc1.md](RELEASE_CHECKLIST_v2.2.0-rc1.md) | RC gate results and release hardening checklist | Maintainers, Release Engineers |
 | [docs/USER_GUIDE.md](USER_GUIDE.md) | Complete command reference and tutorials | Users |
 | [docs/FEATURES.md](FEATURES.md) | Feature matrix and capability overview | Users, Evaluators |
+| [docs/collaboration.md](collaboration.md) | Team, share, and encrypted comment workflows | Users, Developers |
 
 ### Architecture & Design
 
@@ -103,6 +105,9 @@ Learn more: [docs/architecture.md](architecture.md)
 | `query` | Ask questions about investigations | [USER_GUIDE.md#query](USER_GUIDE.md#query) |
 | `search` | Search code with regex | [USER_GUIDE.md#search](USER_GUIDE.md#search) |
 | `pattern` | Pattern detection and management | [USER_GUIDE.md#pattern](USER_GUIDE.md#pattern) |
+| `team` | Workspace unlock and team management | [USER_GUIDE.md#collaboration-commands-team-share-comment](USER_GUIDE.md#collaboration-commands-team-share-comment) |
+| `share` | Encrypted artifact sharing | [USER_GUIDE.md#collaboration-commands-team-share-comment](USER_GUIDE.md#collaboration-commands-team-share-comment) |
+| `comment` | Encrypted threaded comments | [USER_GUIDE.md#collaboration-commands-team-share-comment](USER_GUIDE.md#collaboration-commands-team-share-comment) |
 | `export` | Export results to various formats | [USER_GUIDE.md#export](USER_GUIDE.md#export) |
 | `gui` | Launch desktop GUI | [USER_GUIDE.md#gui](USER_GUIDE.md#gui) |
 | `tui` | Launch terminal UI | [USER_GUIDE.md#tui](USER_GUIDE.md#tui) |
@@ -113,9 +118,9 @@ Desktop GUI includes first-run onboarding, accessibility preferences, and in-app
 
 ## Current Status
 
-**Version:** 2.1.1-dev  
+**Version:** 2.2.0-rc1  
 **Completed Phases:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  
-**Latest Local Validation:** 213 collected, 211 passed, 2 skipped  
+**Latest Local Validation:** 274 collected, 274 passed, 0 failed  
 **Coverage Policy:** `fail_under = 90`
 
 See [ROADMAP.md](../ROADMAP.md) for detailed execution status and follow-up milestones.
@@ -136,5 +141,5 @@ See [LICENSE](../LICENSE) file for details.
 
 ---
 
-**Documentation Index Version:** 2.1.1-dev  
-**Last Updated:** February 15, 2026
+**Documentation Index Version:** 2.2.0-rc1  
+**Last Updated:** February 16, 2026

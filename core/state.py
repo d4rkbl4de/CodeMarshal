@@ -15,7 +15,7 @@ from __future__ import annotations
 import datetime
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from core.context import RuntimeContext, get_runtime_context
 
@@ -162,6 +162,9 @@ class InvestigationState:
         """Check if transition between phases is legal."""
         return (from_phase, to_phase) in cls._LEGAL_TRANSITIONS
 
+    # Maximum transitions to keep in history (prevents memory exhaustion)
+    MAX_TRANSITION_HISTORY: ClassVar[int] = 1000
+
     def __init__(self, context: RuntimeContext) -> None:
         """
         Initialize state machine with bootstrapped phase.
@@ -172,6 +175,10 @@ class InvestigationState:
         self._context = context
         self._current_phase: InvestigationPhase = InvestigationPhase.BOOTSTRAPPED
         self._transition_history: list[StateTransition] = []
+
+        # Memory-efficient query result storage
+        self._query_result_cache: dict[str, Any] = {}
+        self._max_cache_entries: int = 100
 
         # Note: No transition recorded for initial state since it's not a transition
 
@@ -309,7 +316,7 @@ class InvestigationState:
     def _record_transition(
         self, to_phase: InvestigationPhase, reason: str | None
     ) -> None:
-        """Record a transition in history."""
+        """Record a transition in history with memory limit."""
         transition = StateTransition(
             from_phase=self._current_phase,
             to_phase=to_phase,
@@ -322,6 +329,13 @@ class InvestigationState:
             raise RuntimeError(f"Attempted to record illegal transition: {transition}")
 
         self._transition_history.append(transition)
+
+        # Memory optimization: limit history size to prevent exhaustion
+        if len(self._transition_history) > self.MAX_TRANSITION_HISTORY:
+            # Keep first 100 and last 900 entries (preserve initial state and recent activity)
+            self._transition_history = (
+                self._transition_history[:100] + self._transition_history[-900:]
+            )
 
     def __repr__(self) -> str:
         """Machine-readable representation."""

@@ -416,63 +416,86 @@ class Runtime:
 
         return sha256.hexdigest()
 
-    def _calculate_directory_hash(self, directory: Path) -> str:
+    def _calculate_directory_hash(self, directory: Path, max_files: int = 10000) -> str:
         """
         Calculate deterministic hash of directory structure and file contents.
 
+        Uses streaming to handle large codebases without loading all file paths
+        into memory at once. Processes files in sorted order for determinism.
+
         Constitutional Basis: Article 13 (Deterministic Operation)
+
+        Args:
+            directory: Directory to hash
+            max_files: Maximum number of files to process (prevents memory exhaustion)
+
+        Returns:
+            Hex digest of directory hash
         """
         sha256 = hashlib.sha256()
+        file_count = 0
 
-        # Sort files for deterministic hashing
-        files = []
-        for f in directory.rglob("*"):
-            if not f.is_file():
-                continue
+        # Use os.walk for memory-efficient traversal instead of rglob
+        # which would collect all paths into memory
+        for root, dirs, files in os.walk(directory):
+            # Skip pycache and hidden directories
+            dirs[:] = [d for d in dirs if d != "__pycache__" and not d.startswith(".")]
 
-            # Skip pycache and hidden files
-            parts = f.parts
-            if any(p == "__pycache__" or p.startswith(".") for p in parts):
-                continue
+            root_path = Path(root)
 
-            files.append(f)
+            # Sort files in current directory for determinism
+            files.sort()
 
-        files.sort(key=lambda x: str(x.relative_to(directory)))
+            for name in files:
+                if file_count >= max_files:
+                    # Add sentinel to indicate truncation
+                    sha256.update(b"__TRUNCATED__")
+                    break
 
-        for filepath in files:
-            try:
-                # Add relative path to hash
-                rel_path = str(filepath.relative_to(directory))
-                sha256.update(rel_path.encode("utf-8"))
+                filepath = root_path / name
 
-                # Add file size
-                stat = filepath.stat()
-                sha256.update(str(stat.st_size).encode("utf-8"))
+                # Skip hidden files
+                if name.startswith("."):
+                    continue
 
-                # Add modification time (for versioning)
-                mtime = int(stat.st_mtime)
-                sha256.update(str(mtime).encode("utf-8"))
-            except (FileNotFoundError, PermissionError):
-                # Skip files that disappear or are inaccessible
-                continue
+                try:
+                    # Add relative path to hash
+                    rel_path = str(filepath.relative_to(directory))
+                    sha256.update(rel_path.encode("utf-8"))
+
+                    # Add file size
+                    stat = filepath.stat()
+                    sha256.update(str(stat.st_size).encode("utf-8"))
+
+                    # Add modification time (for versioning)
+                    mtime = int(stat.st_mtime)
+                    sha256.update(str(mtime).encode("utf-8"))
+
+                    file_count += 1
+
+                except (FileNotFoundError, PermissionError):
+                    # Skip files that disappear or are inaccessible
+                    continue
+
+            if file_count >= max_files:
+                break
 
         return sha256.hexdigest()
 
-    def _generate_session_id(self) -> str:
+    def _generate_session_id(self) -> uuid.UUID:
         """Generate deterministic session ID based on configuration."""
         import uuid
 
         if self._config.session_id_override:
-            return self._config.session_id_override
+            return uuid.UUID(self._config.session_id_override)
 
         # Create deterministic UUID from configuration
         base_string = (
-            f"{self._config.investigation_root}"
-            f"{self._config.execution_mode.name}"
+            f"{self._config.investigation_root}{self._config.execution_mode.name}"
         )
 
         namespace = uuid.uuid5(uuid.NAMESPACE_DNS, "codemarshal.internal")
-        return str(uuid.uuid5(namespace, base_string))
+        return uuid.uuid5(namespace, base_string)
 
     def _register_layer_interfaces(self) -> None:
         """Register layer interfaces with the engine (dependency injection)."""
@@ -596,7 +619,7 @@ class Runtime:
                 exit_code = 1
 
             # Step 4: Normal shutdown
-            shutdown(reason=TerminationReason.NORMAL_COMPLETION, exit_code=exit_code)
+            shutdown(reason=TerminationReason.NORMAL, exit_code=exit_code)
 
         except Exception as e:
             # Convert any execution exception to proper shutdown
@@ -649,17 +672,18 @@ class Runtime:
 
         except Exception as e:
             self._handle_execution_error(e)
+            raise
 
-    def _handle_execution_error(self, error: Exception) -> NoReturn:
+    def _handle_execution_error(self, error: Exception) -> None:
         """Handle execution error and initiate proper shutdown."""
         self._logger.critical(f"Execution error: {error}", exc_info=True)
 
         # Determine termination reason
         if isinstance(error, ConstitutionValidationError):
-            reason = TerminationReason.CONSTITUTIONAL_VIOLATION
+            reason = TerminationReason.CONSTITUTION_VIOLATION
             exit_code = 2
         else:
-            reason = TerminationReason.SYSTEM_ERROR
+            reason = TerminationReason.SYSTEM_FAILURE
             exit_code = 1
 
         # Get error info for shutdown
@@ -670,7 +694,7 @@ class Runtime:
             try:
                 terminal_phase = (
                     InvestigationPhase.TERMINATED_VIOLATION
-                    if reason == TerminationReason.CONSTITUTIONAL_VIOLATION
+                    if reason == TerminationReason.CONSTITUTION_VIOLATION
                     else InvestigationPhase.TERMINATED_ERROR
                 )
                 self._state.force_transition(
@@ -712,7 +736,7 @@ class Runtime:
         return {
             "session_id": session_id,
             "status": "resumed",
-            "resumed_at": datetime.now(datetime.UTC).isoformat(),
+            "resumed_at": datetime.datetime.now(datetime.UTC).isoformat(),
         }
 
     def fork_investigation(
@@ -734,7 +758,7 @@ class Runtime:
             "status": "forked",
             "source_session_id": source_session_id,
             "target_path": target_path,
-            "forked_at": datetime.now(datetime.UTC).isoformat(),
+            "forked_at": datetime.datetime.now(datetime.UTC).isoformat(),
         }
 
     @property
@@ -762,7 +786,11 @@ def create_runtime(
     constitution_path: Path | None = None,
     code_root: Path | None = None,
     flush_writes_func: Callable[[], bool] | None = None,
-    atomic_write_func: Callable[[Path, Any, int], None] | None = None,
+    atomic_write_func: Callable[
+        [Path, Any, dict[str, Any] | list[Any] | str | int | float | bool | None, int],
+        None,
+    ]
+    | None = None,
     **kwargs,
 ) -> Runtime:
     """
@@ -822,10 +850,14 @@ def create_runtime(
     config.validate()
 
     # Create and return runtime
+    # Extract flush_writes_func and atomic_write_func from kwargs if not provided
+    flush_func = kwargs.pop("flush_writes_func", flush_writes_func)
+    atomic_func = kwargs.pop("atomic_write_func", atomic_write_func)
+
     return Runtime(
         config,
-        flush_writes_func=flush_writes_func,
-        atomic_write_func=atomic_write_func,
+        flush_writes_func=flush_func,
+        atomic_write_func=atomic_func,
     )
 
 
@@ -864,13 +896,15 @@ def execute_witness_command(investigation_path: Path) -> dict[str, Any]:
 
         if isinstance(e, ConstitutionValidationError):
             shutdown(
-                TerminationReason.CONSTITUTIONAL_VIOLATION,
+                TerminationReason.CONSTITUTION_VIOLATION,
                 exit_code=2,
                 error_info=(e, traceback.format_exc()),
             )
         else:
             shutdown(
-                TerminationReason.SYSTEM_ERROR,
+                TerminationReason.SYSTEM_FAILURE,
                 exit_code=1,
                 error_info=(e, traceback.format_exc()),
             )
+        # This line is unreachable due to sys.exit() in shutdown(), but satisfies type checker
+        return {}  # type: ignore[return-value]

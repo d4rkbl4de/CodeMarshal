@@ -5,6 +5,53 @@ All notable changes to CodeMarshal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0-rc1] - 2026-02-16
+
+### Summary
+
+Release candidate for v2.2.0 with roadmap phases 1-7 implemented and release-hardening updates applied.
+
+**Test Status:** 274 passed, 0 failed  
+**Validation Command:** `python -m pytest -q`
+
+### Added
+
+- Real-time investigation foundations:
+  - file watcher and diff sight modules
+  - CLI watch/diff/status command surface
+- Semantic search stack:
+  - semantic sight and embedding storage
+  - semantic search command paths in CLI/TUI integrations
+- Knowledge base stack:
+  - history, graph, and recommendations modules
+  - knowledge storage and CLI command handlers
+- Pattern marketplace + template workflows:
+  - marketplace, collector, and template modules
+  - CLI pattern search/apply/create/share command flows
+- Collaboration stack:
+  - encrypted sharing, team, and threaded comments modules
+  - collaboration storage and collaboration CLI command flows
+- Desktop GUI phase-7 widgets:
+  - diff viewer, templates panel, marketplace panel
+  - knowledge canvas, history sidebar, comments panel
+
+### Fixed
+
+- Optional dependency resilience for semantic import paths when numpy/semantic stack is unavailable.
+- Windows test reliability issues caused by host temp-directory ACL behavior.
+- Windows atomic rename transient lock behavior via retry-safe atomic replace.
+
+### Changed
+
+- Core package metadata advanced to `2.2.0rc1`.
+- Documentation status synchronized for release-candidate validation baseline.
+- Release-candidate artifact hygiene improved with additional runtime/test-path ignore rules.
+
+### Known Limitations
+
+1. **PDF Export:** still depends on WeasyPrint native rendering libraries or containerized Linux runtime.
+2. **Semantic quality/performance metrics:** benchmark targets remain environment-dependent and should be validated on representative repositories before final GA.
+
 ## [2.1.1] - 2026-02-14
 
 ### Summary

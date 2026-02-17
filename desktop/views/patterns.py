@@ -8,10 +8,17 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
+from patterns.templates import PatternTemplateRegistry
+
 from desktop.widgets import (
+    ActionStrip,
     ErrorDialog,
     HintPanel,
+    MarketplacePanel,
+    PageScaffold,
     ResultsViewer,
+    SectionHeader,
+    TemplatesPanel,
     apply_accessible,
     clear_invalid,
     mark_invalid,
@@ -22,6 +29,7 @@ class PatternsView(QtWidgets.QWidget):
     """Browse pattern library and run scans."""
 
     navigate_requested = QtCore.Signal(str)
+    layout_splitter_ratio_changed = QtCore.Signal(float)
 
     def __init__(
         self,
@@ -37,20 +45,33 @@ class PatternsView(QtWidgets.QWidget):
         if command_bridge is not None:
             self.set_command_bridge(command_bridge)
 
+    def _template_ids(self) -> list[str]:
+        try:
+            registry = PatternTemplateRegistry()
+            items = [template.id for template in registry.list_templates()]
+            return items or ["security.keyword_assignment"]
+        except Exception:
+            return ["security.keyword_assignment"]
+
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        header = QtWidgets.QHBoxLayout()
-        self.back_btn = QtWidgets.QPushButton("Home")
-        self.back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
-        apply_accessible(self.back_btn, name="Return to Home view")
-        title = QtWidgets.QLabel("Patterns")
-        title.setObjectName("sectionTitle")
-        header.addWidget(self.back_btn)
-        header.addWidget(title)
-        header.addStretch(1)
-        layout.addLayout(header)
+        self.page_scaffold = PageScaffold(default_ratio=0.56, narrow_breakpoint=1360)
+        self.page_scaffold.splitter_ratio_changed.connect(
+            self.layout_splitter_ratio_changed.emit
+        )
+        layout.addWidget(self.page_scaffold)
+
+        header = SectionHeader(
+            "Patterns",
+            "Load pattern libraries and run targeted scans.",
+        )
+        self.page_scaffold.set_header_widget(header)
+
+        form_layout = self.page_scaffold.form_layout
+        results_layout = self.page_scaffold.results_layout
 
         self.hint_panel = HintPanel(
             "Pattern Scan Guidance",
@@ -59,7 +80,7 @@ class PatternsView(QtWidgets.QWidget):
                 "Use smaller glob scopes on large repositories for faster scans."
             ),
         )
-        layout.addWidget(self.hint_panel)
+        form_layout.addWidget(self.hint_panel)
 
         library_group = QtWidgets.QGroupBox("Pattern Library")
         library_layout = QtWidgets.QVBoxLayout(library_group)
@@ -118,7 +139,7 @@ class PatternsView(QtWidgets.QWidget):
             description="List of patterns available for scanning.",
         )
         library_layout.addWidget(self.pattern_table)
-        layout.addWidget(library_group, stretch=1)
+        form_layout.addWidget(library_group, stretch=1)
 
         scan_group = QtWidgets.QGroupBox("Scan Configuration")
         scan_form = QtWidgets.QFormLayout(scan_group)
@@ -162,28 +183,47 @@ class PatternsView(QtWidgets.QWidget):
             description="Disabled until VCS diff integration is available.",
         )
         scan_form.addRow("", self.changed_files_only)
-        layout.addWidget(scan_group)
+        form_layout.addWidget(scan_group)
 
-        actions = QtWidgets.QHBoxLayout()
-        self.scan_btn = QtWidgets.QPushButton("Run Pattern Scan")
-        self.scan_btn.setProperty("variant", "primary")
-        self.scan_btn.clicked.connect(self._on_run_scan)
-        apply_accessible(self.scan_btn, name="Run pattern scan")
-        self.cancel_btn = QtWidgets.QPushButton("Cancel")
-        self.cancel_btn.setEnabled(False)
-        self.cancel_btn.clicked.connect(self._on_cancel)
-        apply_accessible(self.cancel_btn, name="Cancel pattern operation")
-        actions.addWidget(self.scan_btn)
-        actions.addWidget(self.cancel_btn)
-        actions.addStretch(1)
-        layout.addLayout(actions)
+        marketplace_group = QtWidgets.QGroupBox("Marketplace & Templates")
+        marketplace_layout = QtWidgets.QVBoxLayout(marketplace_group)
+        marketplace_layout.setContentsMargins(8, 8, 8, 8)
+        marketplace_layout.setSpacing(8)
+
+        self.marketplace_panel = MarketplacePanel()
+        self.templates_panel = TemplatesPanel(template_ids=self._template_ids())
+        self.marketplace_panel.search_marketplace_btn.clicked.connect(self._on_search_marketplace)
+        self.marketplace_panel.apply_pattern_btn.clicked.connect(self._on_apply_pattern)
+        self.marketplace_panel.share_pattern_btn.clicked.connect(self._on_share_pattern)
+        self.templates_panel.create_pattern_btn.clicked.connect(self._on_create_pattern)
+
+        marketplace_layout.addWidget(self.marketplace_panel)
+        marketplace_layout.addWidget(self.templates_panel)
+
+        # Backward-compatible attribute aliases expected by existing tests.
+        self.marketplace_query_input = self.marketplace_panel.marketplace_query_input
+        self.marketplace_tag_input = self.marketplace_panel.marketplace_tag_input
+        self.search_marketplace_btn = self.marketplace_panel.search_marketplace_btn
+        self.apply_pattern_input = self.marketplace_panel.apply_pattern_input
+        self.apply_pattern_btn = self.marketplace_panel.apply_pattern_btn
+        self.share_pattern_input = self.marketplace_panel.share_pattern_input
+        self.share_bundle_output_input = self.marketplace_panel.share_bundle_output_input
+        self.share_pattern_btn = self.marketplace_panel.share_pattern_btn
+        self.template_combo = self.templates_panel.template_combo
+        self.template_values_input = self.templates_panel.template_values_input
+        self.create_pattern_btn = self.templates_panel.create_pattern_btn
+        self.create_pattern_id_input = self.templates_panel.create_pattern_id_input
+        self.create_bundle_output_input = self.templates_panel.create_bundle_output_input
+        self.create_dry_run_checkbox = self.templates_panel.create_dry_run_checkbox
+
+        form_layout.addWidget(marketplace_group)
 
         self.validation_label = QtWidgets.QLabel("")
         self.validation_label.setObjectName("validationError")
         self.validation_label.setWordWrap(True)
         self.validation_label.setVisible(False)
         apply_accessible(self.validation_label, name="Pattern validation message")
-        layout.addWidget(self.validation_label)
+        form_layout.addWidget(self.validation_label)
 
         progress_row = QtWidgets.QHBoxLayout()
         self.progress_bar = QtWidgets.QProgressBar()
@@ -193,18 +233,35 @@ class PatternsView(QtWidgets.QWidget):
         apply_accessible(self.progress_label, name="Pattern progress status")
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
-        layout.addLayout(progress_row)
+        form_layout.addLayout(progress_row)
+
+        self.action_strip = ActionStrip()
+        self.action_strip.setProperty("sticky", True)
+        self.scan_btn = self.action_strip.add_button(
+            "Run Pattern Scan",
+            self._on_run_scan,
+            primary=True,
+        )
+        self.cancel_btn = self.action_strip.add_button("Cancel", self._on_cancel)
+        self.cancel_btn.setEnabled(False)
+        apply_accessible(self.scan_btn, name="Run pattern scan")
+        apply_accessible(self.cancel_btn, name="Cancel pattern operation")
+        self.action_strip.add_stretch(1)
+        form_layout.addWidget(self.action_strip)
+
+        results_header = SectionHeader(
+            "Scan Results",
+            "Summary and detailed matches for the latest scan.",
+        )
+        results_layout.addWidget(results_header)
 
         self.summary_label = QtWidgets.QLabel("No scan results yet.")
         self.summary_label.setObjectName("subtitle")
         apply_accessible(self.summary_label, name="Pattern scan summary")
-        layout.addWidget(self.summary_label)
+        results_layout.addWidget(self.summary_label)
 
-        results_group = QtWidgets.QGroupBox("Scan Results")
-        results_layout = QtWidgets.QVBoxLayout(results_group)
         self.results = ResultsViewer()
-        results_layout.addWidget(self.results)
-        layout.addWidget(results_group, stretch=1)
+        results_layout.addWidget(self.results, stretch=1)
 
         self.setTabOrder(self.category_combo, self.severity_filter)
         self.setTabOrder(self.severity_filter, self.show_disabled)
@@ -215,8 +272,25 @@ class PatternsView(QtWidgets.QWidget):
         self.setTabOrder(self.browse_btn, self.session_combo)
         self.setTabOrder(self.session_combo, self.glob_input)
         self.setTabOrder(self.glob_input, self.max_files_spin)
-        self.setTabOrder(self.max_files_spin, self.scan_btn)
+        self.setTabOrder(self.max_files_spin, self.marketplace_query_input)
+        self.setTabOrder(self.marketplace_query_input, self.marketplace_tag_input)
+        self.setTabOrder(self.marketplace_tag_input, self.search_marketplace_btn)
+        self.setTabOrder(self.search_marketplace_btn, self.apply_pattern_input)
+        self.setTabOrder(self.apply_pattern_input, self.apply_pattern_btn)
+        self.setTabOrder(self.apply_pattern_btn, self.template_combo)
+        self.setTabOrder(self.template_combo, self.template_values_input)
+        self.setTabOrder(self.template_values_input, self.create_pattern_btn)
+        self.setTabOrder(self.create_pattern_btn, self.create_pattern_id_input)
+        self.setTabOrder(self.create_pattern_id_input, self.create_bundle_output_input)
+        self.setTabOrder(self.create_bundle_output_input, self.create_dry_run_checkbox)
+        self.setTabOrder(self.create_dry_run_checkbox, self.share_pattern_input)
+        self.setTabOrder(self.share_pattern_input, self.share_bundle_output_input)
+        self.setTabOrder(self.share_bundle_output_input, self.share_pattern_btn)
+        self.setTabOrder(self.share_pattern_btn, self.scan_btn)
         self.setTabOrder(self.scan_btn, self.cancel_btn)
+
+    def set_layout_splitter_ratio(self, ratio: float) -> None:
+        self.page_scaffold.set_splitter_ratio(ratio)
 
     def set_command_bridge(self, command_bridge: Any) -> None:
         if self._bridge is command_bridge:
@@ -306,6 +380,147 @@ class PatternsView(QtWidgets.QWidget):
                 suggestion="Wait for completion or cancel the active scan.",
             )
 
+    def _on_search_marketplace(self) -> None:
+        if self._bridge is None:
+            ErrorDialog.show_error(self, "Unavailable", "Command bridge is not initialized.")
+            return
+
+        query_value = self.marketplace_query_input.text().strip()
+        tag_text = self.marketplace_tag_input.text().strip()
+        tags = [
+            item.strip()
+            for item in tag_text.replace(";", ",").split(",")
+            if item.strip()
+        ]
+        severity_value = self.severity_filter.currentText().strip().lower()
+        try:
+            self._bridge.pattern_search(
+                query=query_value,
+                tags=tags or None,
+                severity=None if severity_value == "all" else severity_value,
+                limit=50,
+            )
+        except RuntimeError as exc:
+            ErrorDialog.show_error(
+                self,
+                "Marketplace Search Already Running",
+                str(exc),
+            )
+
+    def _on_apply_pattern(self) -> None:
+        if self._bridge is None:
+            ErrorDialog.show_error(self, "Unavailable", "Command bridge is not initialized.")
+            return
+
+        pattern_ref = self.apply_pattern_input.text().strip()
+        if not pattern_ref:
+            self._set_validation("Provide a pattern ID or bundle path.", self.apply_pattern_input)
+            return
+
+        path_value = self.path_input.text().strip()
+        if not path_value:
+            self._set_validation("Select a path to scan.", self.path_input)
+            return
+        if not Path(path_value).exists():
+            self._set_validation(f"Path does not exist: {path_value}", self.path_input)
+            return
+        self._clear_validation()
+
+        session_id = self.session_combo.currentText().strip() or self._current_session_id
+        try:
+            self._bridge.pattern_apply(
+                pattern_ref=pattern_ref,
+                path=path_value,
+                glob=self.glob_input.text().strip() or "*",
+                max_files=int(self.max_files_spin.value()),
+                session_id=session_id,
+            )
+        except RuntimeError as exc:
+            ErrorDialog.show_error(
+                self,
+                "Pattern Apply Already Running",
+                str(exc),
+            )
+
+    def _on_create_pattern(self) -> None:
+        if self._bridge is None:
+            ErrorDialog.show_error(self, "Unavailable", "Command bridge is not initialized.")
+            return
+
+        template_id = self.template_combo.currentText().strip()
+        if not template_id:
+            self._set_validation("Select a template to create a pattern.", self.template_combo)
+            return
+
+        values_text = self.template_values_input.text().strip()
+        values: dict[str, str] = {}
+        if values_text:
+            for token in values_text.split(","):
+                pair = token.strip()
+                if not pair:
+                    continue
+                if "=" not in pair:
+                    self._set_validation(
+                        f"Invalid template value '{pair}'. Use key=value pairs.",
+                        self.template_values_input,
+                    )
+                    return
+                key, value = pair.split("=", 1)
+                normalized_key = key.strip()
+                if not normalized_key:
+                    self._set_validation(
+                        f"Invalid template value '{pair}'. Key cannot be empty.",
+                        self.template_values_input,
+                    )
+                    return
+                values[normalized_key] = value.strip()
+        self._clear_validation()
+
+        output_path = self.create_bundle_output_input.text().strip() or None
+        session_id = self.session_combo.currentText().strip() or self._current_session_id
+        try:
+            self._bridge.pattern_create(
+                template_id=template_id,
+                values=values,
+                pattern_id=self.create_pattern_id_input.text().strip() or None,
+                dry_run=self.create_dry_run_checkbox.isChecked(),
+                output_path=output_path,
+                session_id=session_id,
+            )
+        except RuntimeError as exc:
+            ErrorDialog.show_error(
+                self,
+                "Pattern Create Already Running",
+                str(exc),
+            )
+
+    def _on_share_pattern(self) -> None:
+        if self._bridge is None:
+            ErrorDialog.show_error(self, "Unavailable", "Command bridge is not initialized.")
+            return
+
+        pattern_id = self.share_pattern_input.text().strip()
+        if not pattern_id:
+            self._set_validation("Provide a pattern ID to share.", self.share_pattern_input)
+            return
+        self._clear_validation()
+
+        session_id = self.session_combo.currentText().strip() or self._current_session_id
+        bundle_out = self.share_bundle_output_input.text().strip() or None
+        try:
+            self._bridge.pattern_share(
+                pattern_id=pattern_id,
+                bundle_out=bundle_out,
+                include_examples=False,
+                session_id=session_id,
+            )
+        except RuntimeError as exc:
+            ErrorDialog.show_error(
+                self,
+                "Pattern Share Already Running",
+                str(exc),
+            )
+
     def _selected_pattern_ids(self) -> list[str]:
         selected: list[str] = []
         for row in range(self.pattern_table.rowCount()):
@@ -317,17 +532,35 @@ class PatternsView(QtWidgets.QWidget):
                     selected.append(pattern_id)
         return selected
 
+    @staticmethod
+    def _pattern_operations() -> set[str]:
+        return {
+            "pattern_list",
+            "pattern_scan",
+            "pattern_search",
+            "pattern_apply",
+            "pattern_create",
+            "pattern_share",
+        }
+
+    def _set_action_buttons_enabled(self, enabled: bool) -> None:
+        self.scan_btn.setEnabled(enabled)
+        self.load_btn.setEnabled(enabled)
+        self.search_marketplace_btn.setEnabled(enabled)
+        self.apply_pattern_btn.setEnabled(enabled)
+        self.create_pattern_btn.setEnabled(enabled)
+        self.share_pattern_btn.setEnabled(enabled)
+
     def _on_cancel(self) -> None:
         if self._bridge is not None:
-            self._bridge.cancel_operation("pattern_list")
-            self._bridge.cancel_operation("pattern_scan")
+            for operation in self._pattern_operations():
+                self._bridge.cancel_operation(operation)
 
     def _on_operation_started(self, operation: str) -> None:
-        if operation not in {"pattern_list", "pattern_scan"}:
+        if operation not in self._pattern_operations():
             return
         self.cancel_btn.setEnabled(True)
-        if operation == "pattern_scan":
-            self.scan_btn.setEnabled(False)
+        self._set_action_buttons_enabled(False)
         self.progress_bar.setValue(0)
         self.progress_label.setText(f"{operation} started")
 
@@ -338,16 +571,16 @@ class PatternsView(QtWidgets.QWidget):
         total: int,
         message: str,
     ) -> None:
-        if operation not in {"pattern_list", "pattern_scan"}:
+        if operation not in self._pattern_operations():
             return
         value = int((current / max(total, 1)) * 100)
         self.progress_bar.setValue(max(0, min(100, value)))
         self.progress_label.setText(message or f"{operation}: {current}/{total}")
 
     def _on_operation_finished(self, operation: str, payload: object) -> None:
-        if operation not in {"pattern_list", "pattern_scan"}:
+        if operation not in self._pattern_operations():
             return
-        self.scan_btn.setEnabled(True)
+        self._set_action_buttons_enabled(True)
         self.cancel_btn.setEnabled(False)
         self.progress_bar.setValue(100)
 
@@ -359,34 +592,103 @@ class PatternsView(QtWidgets.QWidget):
                 f"Loaded {len(data.get('patterns', []))} patterns.",
                 json.dumps(data, indent=2, default=str),
             )
+            self.results.set_metadata("Latest operation: Pattern List")
             return
 
-        self.progress_label.setText("Pattern scan completed")
-        self._last_scan_result = data
-        summary = {
-            "patterns_scanned": data.get("patterns_scanned"),
-            "files_scanned": data.get("files_scanned"),
-            "matches_found": data.get("matches_found"),
-            "scan_time_ms": data.get("scan_time_ms"),
-            "errors": data.get("errors", []),
-            "matches_preview": data.get("matches", [])[:100],
-        }
-        self.summary_label.setText(
-            f"Matches: {int(data.get('matches_found') or 0)} | "
-            f"Files: {int(data.get('files_scanned') or 0)}"
-        )
-        self.results.set_sections(
-            json.dumps(
-                {
-                    "patterns_scanned": summary["patterns_scanned"],
-                    "files_scanned": summary["files_scanned"],
-                    "matches_found": summary["matches_found"],
-                },
-                indent=2,
-                default=str,
-            ),
-            json.dumps(summary, indent=2, default=str),
-        )
+        if operation in {"pattern_scan", "pattern_apply"}:
+            self.progress_label.setText(
+                "Pattern apply completed" if operation == "pattern_apply" else "Pattern scan completed"
+            )
+            self._last_scan_result = data
+            summary = {
+                "pattern_id": data.get("pattern_id"),
+                "installed": data.get("installed"),
+                "patterns_scanned": data.get("patterns_scanned"),
+                "files_scanned": data.get("files_scanned"),
+                "matches_found": data.get("matches_found"),
+                "scan_time_ms": data.get("scan_time_ms"),
+                "errors": data.get("errors", []),
+                "matches_preview": data.get("matches", [])[:100],
+            }
+            self.summary_label.setText(
+                f"Matches: {int(data.get('matches_found') or 0)} | "
+                f"Files: {int(data.get('files_scanned') or 0)}"
+            )
+            self.results.set_sections(
+                json.dumps(
+                    {
+                        "pattern_id": summary["pattern_id"],
+                        "installed": summary["installed"],
+                        "patterns_scanned": summary["patterns_scanned"],
+                        "files_scanned": summary["files_scanned"],
+                        "matches_found": summary["matches_found"],
+                    },
+                    indent=2,
+                    default=str,
+                ),
+                json.dumps(summary, indent=2, default=str),
+            )
+            self.results.set_metadata(
+                "Latest operation: Pattern Apply" if operation == "pattern_apply" else "Latest operation: Pattern Scan"
+            )
+            return
+
+        if operation == "pattern_search":
+            self.progress_label.setText("Marketplace search completed")
+            patterns = data.get("patterns", [])
+            self.summary_label.setText(f"Marketplace results: {len(patterns)}")
+            self.results.set_sections(
+                json.dumps(
+                    {"total_count": data.get("total_count"), "query": self.marketplace_query_input.text().strip()},
+                    indent=2,
+                    default=str,
+                ),
+                json.dumps({"patterns": patterns[:100]}, indent=2, default=str),
+            )
+            self.results.set_metadata("Latest operation: Pattern Marketplace Search")
+            return
+
+        if operation == "pattern_create":
+            self.progress_label.setText("Pattern creation completed")
+            self.summary_label.setText(
+                f"Template create: {str(data.get('pattern_id') or 'unknown')}"
+            )
+            self.results.set_sections(
+                json.dumps(
+                    {
+                        "template_id": data.get("template_id"),
+                        "pattern_id": data.get("pattern_id"),
+                        "created": data.get("created"),
+                        "installed": data.get("installed"),
+                        "dry_run": data.get("dry_run"),
+                    },
+                    indent=2,
+                    default=str,
+                ),
+                json.dumps(data, indent=2, default=str),
+            )
+            self.results.set_metadata("Latest operation: Pattern Template Create")
+            return
+
+        if operation == "pattern_share":
+            self.progress_label.setText("Pattern share bundle completed")
+            self.summary_label.setText(
+                f"Shared pattern: {str(data.get('pattern_id') or 'unknown')}"
+            )
+            self.results.set_sections(
+                json.dumps(
+                    {
+                        "pattern_id": data.get("pattern_id"),
+                        "package_id": data.get("package_id"),
+                        "path": data.get("path"),
+                        "version": data.get("version"),
+                    },
+                    indent=2,
+                    default=str,
+                ),
+                json.dumps(data, indent=2, default=str),
+            )
+            self.results.set_metadata("Latest operation: Pattern Share")
 
     def _populate_pattern_table(self, patterns: list[dict[str, Any]]) -> None:
         self.pattern_table.setRowCount(0)
@@ -424,16 +726,16 @@ class PatternsView(QtWidgets.QWidget):
         message: str,
         _details: str,
     ) -> None:
-        if operation not in {"pattern_list", "pattern_scan"}:
+        if operation not in self._pattern_operations():
             return
-        self.scan_btn.setEnabled(True)
+        self._set_action_buttons_enabled(True)
         self.cancel_btn.setEnabled(False)
         self.progress_label.setText(f"Failed: {error_type} - {message}")
 
     def _on_operation_cancelled(self, operation: str) -> None:
-        if operation not in {"pattern_list", "pattern_scan"}:
+        if operation not in self._pattern_operations():
             return
-        self.scan_btn.setEnabled(True)
+        self._set_action_buttons_enabled(True)
         self.cancel_btn.setEnabled(False)
         self.progress_bar.setValue(0)
         self.progress_label.setText(f"{operation} cancelled")
@@ -469,10 +771,7 @@ class PatternsView(QtWidgets.QWidget):
             self.pattern_table.setRowHidden(row, hidden)
 
     def set_busy(self, is_busy: bool) -> None:
-        if is_busy:
-            self.scan_btn.setEnabled(False)
-        else:
-            self.scan_btn.setEnabled(True)
+        self._set_action_buttons_enabled(not is_busy)
 
     def trigger_primary_action(self) -> None:
         if self.scan_btn.isEnabled():
@@ -486,4 +785,16 @@ class PatternsView(QtWidgets.QWidget):
         mark_invalid(widget, self.validation_label, message)
 
     def _clear_validation(self, *_args: object) -> None:
-        clear_invalid((self.path_input,), self.validation_label)
+        clear_invalid(
+            (
+                self.path_input,
+                self.apply_pattern_input,
+                self.template_combo,
+                self.template_values_input,
+                self.create_pattern_id_input,
+                self.create_bundle_output_input,
+                self.share_pattern_input,
+                self.share_bundle_output_input,
+            ),
+            self.validation_label,
+        )

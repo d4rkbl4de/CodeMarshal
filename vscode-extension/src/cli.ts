@@ -39,6 +39,12 @@ export interface JsonResult<T> {
   run: RunResult;
 }
 
+export interface RetryOptions {
+  maxRetries?: number;
+  delay?: number;
+  onRetry?: (attempt: number, error: Error) => void;
+}
+
 function extractJsonPayload(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -55,79 +61,147 @@ function extractJsonPayload(text: string): string | null {
   return null;
 }
 
-async function handleCliNotFoundError(cliPath: string) {
+async function handleCliNotFoundError(cliPath: string): Promise<void> {
   const item = await vscode.window.showErrorMessage(
     `CodeMarshal: CLI not found at '${cliPath}'. Please check your 'codemarshal.cliPath' setting.`,
     "Go to Settings",
+    "Try Reinstalling",
   );
   if (item === "Go to Settings") {
     await vscode.commands.executeCommand(
       "workbench.action.openSettings",
-      "@ext:codemarshal-inc.codemarshal codemarshal.cliPath",
+      "@ext:codemarshal.codemarshal codemarshal.cliPath",
     );
+  } else if (item === "Try Reinstalling") {
+    await vscode.env.openExternal(vscode.Uri.parse("https://github.com/codemarshal/cli"));
   }
 }
 
-export function runCodemarshal(
+async function handleExecutionError(
+  errorMessage: string,
+  exitCode: number,
+): Promise<void> {
+  const retryActions = ["Retry", "View Output", "Ignore"];
+  const item = await vscode.window.showWarningMessage(
+    `CodeMarshal command failed (exit code: ${exitCode}).`,
+    ...retryActions,
+  );
+
+  if (item === "Retry") {
+    return;
+  } else if (item === "View Output") {
+    const outputChannel = vscode.window.createOutputChannel("CodeMarshal");
+    outputChannel.show(true);
+    outputChannel.appendLine(errorMessage);
+    return;
+  } else if (item === "Ignore") {
+    return;
+  }
+}
+
+export async function runCodemarshal(
   cliPath: string,
   args: string[],
   cwd?: string,
+  options?: RetryOptions,
 ): Promise<RunResult> {
-  return new Promise(async (resolve) => {
+  const maxRetries = options?.maxRetries || 1;
+  const delay = options?.delay || 1000;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await fs.promises.stat(cliPath);
     } catch (err) {
       if ((err as any).code === "ENOENT") {
         await handleCliNotFoundError(cliPath);
-        return resolve({ stdout: "", stderr: `CLI not found at ${cliPath}`, exitCode: 1 });
+        return {
+          stdout: "",
+          stderr: `CLI not found at ${cliPath}`,
+          exitCode: 1,
+        };
       }
     }
 
-    const proc = spawn(cliPath, args, {
-      cwd,
-      shell: false,
-      windowsHide: true,
-    });
-    let stdout = "";
-    let stderr = "";
+    return new Promise((resolve) => {
+      const proc = spawn(cliPath, args, {
+        cwd,
+        shell: false,
+        windowsHide: true,
+      });
+      let stdout = "";
+      let stderr = "";
 
-    proc.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    proc.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    proc.on("close", (code) => {
-      resolve({
-        stdout,
-        stderr,
-        exitCode: typeof code === "number" ? code : 1,
+      proc.stdout.on("data", (chunk) => {
+        stdout += chunk.toString();
+      });
+      proc.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+      proc.on("close", (code) => {
+        const exitCode = typeof code === "number" ? code : 1;
+        if (exitCode !== 0) {
+          const errorMessage = `Command exited with code ${exitCode}. Stderr: ${stderr}`;
+          if (attempt < maxRetries) {
+            options?.onRetry?.(attempt, new Error(errorMessage));
+          } else {
+            handleExecutionError(errorMessage, exitCode);
+          }
+        }
+        resolve({
+          stdout,
+          stderr,
+          exitCode,
+        });
+      });
+      proc.on("error", (err) => {
+        if (attempt < maxRetries) {
+          options?.onRetry?.(attempt, err);
+        } else {
+          handleExecutionError(String(err), 1);
+        }
+        resolve({
+          stdout: "",
+          stderr: String(err),
+          exitCode: 1,
+        });
       });
     });
-    proc.on("error", (err) => {
-      resolve({
-        stdout: "",
-        stderr: String(err),
-        exitCode: 1,
-      });
-    });
-  });
+  }
+
+  throw new Error(`Max retries (${maxRetries}) exceeded`);
 }
 
 export async function runJsonCommand<T>(
   cliPath: string,
   args: string[],
   cwd?: string,
+  options?: RetryOptions,
 ): Promise<JsonResult<T>> {
-  const run = await runCodemarshal(cliPath, args, cwd);
+  const run = await runCodemarshal(cliPath, args, cwd, options);
   const payload = extractJsonPayload(run.stdout);
+
   if (!payload) {
+    const error = run.stderr || "No JSON payload detected";
+    const tryAction = await vscode.window.showWarningMessage(
+      `Failed to parse JSON output: ${error}. Try raw output?`,
+      "Try Raw Output",
+      "Dismiss",
+    );
+    if (tryAction === "Try Raw Output") {
+      const outputChannel = vscode.window.createOutputChannel("CodeMarshal");
+      outputChannel.show(true);
+      outputChannel.appendLine("Raw output:");
+      outputChannel.appendLine(run.stdout);
+      outputChannel.appendLine("Stderr:");
+      outputChannel.appendLine(run.stderr);
+    }
     return {
       data: null,
-      error: run.stderr || "No JSON payload detected",
+      error,
       run,
     };
   }
+
   try {
     return {
       data: JSON.parse(payload) as T,
@@ -135,10 +209,42 @@ export async function runJsonCommand<T>(
       run,
     };
   } catch (err) {
+    const tryAction = await vscode.window.showWarningMessage(
+      `Failed to parse JSON: ${String(err)}. Try raw output?`,
+      "Try Raw Output",
+      "Dismiss",
+    );
+    if (tryAction === "Try Raw Output") {
+      const outputChannel = vscode.window.createOutputChannel("CodeMarshal");
+      outputChannel.show(true);
+      outputChannel.appendLine("Raw output:");
+      outputChannel.appendLine(run.stdout);
+      outputChannel.appendLine("Stderr:");
+      outputChannel.appendLine(run.stderr);
+    }
     return {
       data: null,
       error: String(err),
       run,
     };
   }
+}
+
+export async function runJsonCommandSafe<T>(
+  cliPath: string,
+  args: string[],
+  cwd?: string,
+  options?: RetryOptions,
+): Promise<JsonResult<T>> {
+  const result = await runJsonCommand<T>(cliPath, args, cwd, options);
+  const parsedData = result.data;
+  if (parsedData === null) {
+    return result;
+  }
+  const safeData = parsedData as T & { error: string };
+  return {
+    data: safeData,
+    error: null,
+    run: result.run,
+  };
 }

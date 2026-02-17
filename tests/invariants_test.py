@@ -169,8 +169,7 @@ class TestSystemIntegrityInvariant:
         if skipped:
             details = "\n".join(f"- {name}: {reason}" for name, reason in skipped)
             warnings.warn(
-                "Skipped modules due to missing optional dependencies:\n"
-                f"{details}"
+                f"Skipped modules due to missing optional dependencies:\n{details}"
             )
 
         if failures:
@@ -229,15 +228,12 @@ class TestConstitutionalCompliance:
 
     def test_constitutional_articles_documented(self):
         """Constitution documentation contains a complete article set."""
-        structure_doc = (
-            Path(__file__).resolve().parents[1] / "docs" / "Structure.md"
-        )
+        structure_doc = Path(__file__).resolve().parents[1] / "docs" / "Structure.md"
         assert structure_doc.exists(), "Missing docs/Structure.md"
 
         content = structure_doc.read_text(encoding="utf-8")
         article_numbers = {
-            int(match)
-            for match in re.findall(r"Article\s+([0-9]+)\s*:", content)
+            int(match) for match in re.findall(r"Article\s+([0-9]+)\s*:", content)
         }
 
         # Current documented constitution has 21 operational articles.
@@ -250,17 +246,207 @@ class TestConstitutionalCompliance:
         assert True  # Placeholder
 
 
-@pytest.mark.skip(reason="Run manually for architectural review")
 class TestArchitectureInvariants:
-    """High-level architecture invariants."""
+    """High-level architecture invariants - run automatically."""
 
     def test_layer_separation(self):
-        """Bridge, Core, Observations layers are properly separated."""
-        # Bridge should not depend on Observations directly
-        # Core coordinates but doesn't implement observation logic
-        assert True  # Placeholder
+        """Bridge, Core, Observations layers are properly separated.
+
+        Layer Rules (per roadmap architecture):
+        - observations: Base layer - only depends on itself
+        - core: Depends on observations, provides coordination
+        - bridge: Top layer - can access all lower layers (core, observations, inquiry, lens, integrity)
+        - integrity: Cross-cutting, can be used by core and bridge
+        """
+        import ast
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parents[1]
+
+        # Define layer rules per the actual architecture
+        layer_rules = {
+            "observations": {
+                # Observations is the base layer - should not import from higher layers
+                "forbidden": {"bridge", "lens", "inquiry", "desktop"},
+                # integrity is allowed for monitoring/validation
+                "allowed_exceptions": {"core", "integrity"},
+            },
+            "core": {
+                # Core coordinates - can use observations and integrity
+                "forbidden": {"bridge", "lens", "inquiry", "desktop"},
+                "allowed_exceptions": {"observations", "integrity"},
+            },
+            "bridge": {
+                # Bridge is the interface layer - can access all
+                "forbidden": set(),
+                "allowed_exceptions": set(),
+            },
+        }
+
+        violations = []
+        allowed_exceptions_used = []
+
+        for layer_name, rules in layer_rules.items():
+            layer_path = project_root / layer_name
+            if not layer_path.exists():
+                continue
+
+            for py_file in layer_path.rglob("*.py"):
+                # Skip test files and __init__.py (they often need cross-layer imports)
+                if py_file.name.startswith("test_") or py_file.name == "__init__.py":
+                    continue
+
+                # Skip invariant test files (they test cross-layer functionality)
+                if "invariants" in str(py_file):
+                    continue
+
+                try:
+                    content = py_file.read_text(encoding="utf-8")
+                    tree = ast.parse(content)
+                except (SyntaxError, UnicodeDecodeError):
+                    continue
+
+                for node in ast.walk(tree):
+                    imported_module = None
+
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            imported_module = alias.name.split(".")[0]
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module:
+                            imported_module = node.module.split(".")[0]
+
+                    if imported_module and imported_module in rules["forbidden"]:
+                        rel_path = py_file.relative_to(project_root)
+                        violations.append(
+                            f"{rel_path}: imports forbidden module '{imported_module}' "
+                            f"(layer '{layer_name}' cannot depend on '{imported_module}')"
+                        )
+                    elif imported_module and imported_module in rules.get(
+                        "allowed_exceptions", set()
+                    ):
+                        rel_path = py_file.relative_to(project_root)
+                        allowed_exceptions_used.append(
+                            f"{rel_path}: uses allowed exception '{imported_module}'"
+                        )
+
+        if violations:
+            violation_list = "\n".join(f"  - {v}" for v in violations[:20])
+            if len(violations) > 20:
+                violation_list += f"\n  ... and {len(violations) - 20} more violations"
+            pytest.fail(f"Layer separation violations found:\n{violation_list}")
+
+        # Log allowed exceptions for visibility
+        if allowed_exceptions_used:
+            import warnings
+
+            details = "\n".join(f"  - {v}" for v in allowed_exceptions_used[:10])
+            if len(allowed_exceptions_used) > 10:
+                details += f"\n  ... and {len(allowed_exceptions_used) - 10} more"
+            warnings.warn(f"Layer separation: using allowed exceptions:\n{details}")
 
     def test_no_layer_violations(self):
-        """No improper dependencies between layers."""
-        # TODO: Use dependency checker
-        assert True  # Placeholder
+        """No circular dependencies between core architectural layers.
+
+        NOTE: The current architecture has a documented bidirectional dependency:
+        - core imports observations (base layer)
+        - observations/interface.py imports core (for interface implementation)
+
+        This is a pragmatic pattern for interface/protocol implementations.
+        """
+        import ast
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parents[1]
+
+        # Build dependency graph for core architectural layers
+        dependencies = {
+            "core": set(),
+            "observations": set(),
+            "bridge": set(),
+        }
+
+        layers = list(dependencies.keys())
+
+        for layer_name in layers:
+            layer_path = project_root / layer_name
+            if not layer_path.exists():
+                continue
+
+            for py_file in layer_path.rglob("*.py"):
+                # Skip test files
+                if py_file.name.startswith("test_"):
+                    continue
+
+                # Skip invariant test files (they test cross-layer functionality)
+                if "invariants" in str(py_file):
+                    continue
+
+                try:
+                    content = py_file.read_text(encoding="utf-8")
+                    tree = ast.parse(content)
+                except (SyntaxError, UnicodeDecodeError):
+                    continue
+
+                for node in ast.walk(tree):
+                    imported_module = None
+
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            imported_module = alias.name.split(".")[0]
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module:
+                            imported_module = node.module.split(".")[0]
+
+                    if imported_module and imported_module in layers:
+                        if imported_module != layer_name:
+                            dependencies[layer_name].add(imported_module)
+
+        # Check for circular dependencies using DFS
+        # NOTE: We exclude the core <-> observations cycle as it's a documented pattern
+        def find_cycle(node, visited, rec_stack, path):
+            visited.add(node)
+            rec_stack.add(node)
+            path.append(node)
+
+            for neighbor in dependencies.get(node, set()):
+                if neighbor not in visited:
+                    cycle = find_cycle(neighbor, visited, rec_stack, path)
+                    if cycle:
+                        return cycle
+                elif neighbor in rec_stack:
+                    # Found cycle
+                    cycle_start = path.index(neighbor)
+                    cycle_path = path[cycle_start:] + [neighbor]
+
+                    # Check if this is the documented core <-> observations cycle
+                    unique_layers = set(cycle_path)
+                    if unique_layers == {"core", "observations"}:
+                        # This is the documented exception - skip it
+                        continue
+
+                    return cycle_path
+
+            path.pop()
+            rec_stack.remove(node)
+            return None
+
+        visited = set()
+        for layer in layers:
+            if layer not in visited:
+                cycle = find_cycle(layer, visited, set(), [])
+                if cycle:
+                    cycle_str = " -> ".join(cycle)
+                    pytest.fail(f"Circular dependency detected: {cycle_str}")
+
+        # Verify architectural dependency direction (lower layers should not depend on higher)
+        # The only documented exception is observations/interface.py importing from core
+        if "bridge" in dependencies.get("core", set()):
+            pytest.fail(
+                "Architecture violation: core layer should not depend on bridge"
+            )
+
+        if "bridge" in dependencies.get("observations", set()):
+            pytest.fail(
+                "Architecture violation: observations layer should not depend on bridge"
+            )

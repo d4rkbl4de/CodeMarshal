@@ -73,12 +73,20 @@ from .observe import (
     observe_imports,
 )
 from .pattern import (
+    PatternApplyResult,
     PatternAddResult,
+    PatternCreateResult,
     PatternListResult,
     PatternScanCommandResult,
+    PatternSearchCommandResult,
+    PatternShareResult,
+    execute_pattern_apply,
     execute_pattern_add,
+    execute_pattern_create,
     execute_pattern_list,
+    execute_pattern_search,
     execute_pattern_scan,
+    execute_pattern_share,
 )
 from .query import (
     PatternName,
@@ -100,6 +108,42 @@ from .search import (
 from .test_cmd import (
     TestResult,
     execute_test,
+)
+from .watch import (
+    execute_diff,
+    execute_status,
+    execute_watch,
+)
+from .team import (
+    execute_team_add,
+    execute_team_create,
+    execute_team_list,
+    execute_team_unlock,
+)
+from .share import (
+    execute_share_create,
+    execute_share_list,
+    execute_share_resolve,
+    execute_share_revoke,
+)
+from .comment import (
+    execute_comment_add,
+    execute_comment_list,
+    execute_comment_resolve,
+)
+from .history import (
+    execute_history,
+)
+from .graph import (
+    execute_graph,
+)
+from .recommendations import (
+    execute_recommendations,
+)
+from .search_semantic import (
+    execute_hybrid_search,
+    execute_index,
+    execute_semantic_search,
 )
 
 
@@ -507,9 +551,41 @@ __all__ = [
     "execute_pattern_list",
     "execute_pattern_scan",
     "execute_pattern_add",
+    "execute_pattern_search",
+    "execute_pattern_apply",
+    "execute_pattern_create",
+    "execute_pattern_share",
     "PatternListResult",
     "PatternScanCommandResult",
     "PatternAddResult",
+    "PatternSearchCommandResult",
+    "PatternApplyResult",
+    "PatternCreateResult",
+    "PatternShareResult",
+    # Watch/Diff commands
+    "execute_watch",
+    "execute_diff",
+    "execute_status",
+    # Collaboration commands
+    "execute_team_unlock",
+    "execute_team_create",
+    "execute_team_add",
+    "execute_team_list",
+    "execute_share_create",
+    "execute_share_list",
+    "execute_share_revoke",
+    "execute_share_resolve",
+    "execute_comment_add",
+    "execute_comment_list",
+    "execute_comment_resolve",
+    # Knowledge commands
+    "execute_history",
+    "execute_graph",
+    "execute_recommendations",
+    # Semantic search commands
+    "execute_semantic_search",
+    "execute_hybrid_search",
+    "execute_index",
     # Utility functions
     "get_command",
     "get_request_type",

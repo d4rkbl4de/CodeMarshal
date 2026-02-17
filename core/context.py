@@ -307,7 +307,9 @@ class RuntimeContext:
         try:
             resolved.relative_to(self.resolved_investigation_root)
         except ValueError:
-            raise ValueError(f"Path escapes investigation root: {relative_path}") from None
+            raise ValueError(
+                f"Path escapes investigation root: {relative_path}"
+            ) from None
 
         return resolved
 
@@ -546,12 +548,11 @@ def set_runtime_context(context: RuntimeContext) -> None:
 def get_runtime_context() -> RuntimeContext:
     """Get the global runtime context, creating a safe default if missing."""
     global _RUNTIME_CONTEXT
-    if _RUNTIME_CONTEXT is None:
-        default_hash = hashlib.sha256(b"").hexdigest()
-        _RUNTIME_CONTEXT = RuntimeContext(
-            investigation_root=Path.cwd(),
-            constitution_hash=default_hash,
-            code_version_hash=default_hash,
-            execution_mode="CLI",
-        )
+    default_hash = hashlib.sha256(b"").hexdigest()
+    _RUNTIME_CONTEXT = RuntimeContext(
+        investigation_root=Path.cwd(),
+        constitution_hash=default_hash,
+        code_version_hash=default_hash,
+        execution_mode="CLI",
+    )
     return _RUNTIME_CONTEXT

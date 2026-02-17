@@ -56,7 +56,11 @@ storage/patterns/
 storage/questions/
 storage/sessions/
 storage/snapshots/
+storage/.backups/
+storage/transactions/
+storage/knowledge_runtime/
 .codemarshal/witness/snapshots/
+.codemarshal/audit_logs/recovery/
 deployment_logs/*.log
 *.log
 *.prof
@@ -92,3 +96,6 @@ coverage.xml
 .pytest_tmp/
 storage/pytest_tmp/
 tmp_local/
+.test_tmp/
+.tools/
+jetbrains-plugin/.gradle/

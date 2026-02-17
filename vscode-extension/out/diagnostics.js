@@ -50,8 +50,22 @@ class DiagnosticsManager {
     constructor(collection) {
         this.collection = collection;
     }
-    updateForFile(uri, matches) {
-        const diagnostics = matches.map((match) => {
+    updateForFile(uri, matches, options) {
+        const showWarnings = options?.showWarnings ?? true;
+        const showInfo = options?.showInfo ?? true;
+        const quickFixes = options?.quickFixes ?? false;
+        const diagnostics = matches
+            .filter((match) => {
+            const severity = match.severity?.toLowerCase();
+            if (severity === "critical")
+                return true;
+            if (severity === "warning" && showWarnings)
+                return true;
+            if (severity === "info" && showInfo)
+                return true;
+            return false;
+        })
+            .map((match) => {
             const lineIndex = Math.max(0, (match.line || 1) - 1);
             const start = new vscode.Position(lineIndex, 0);
             const end = new vscode.Position(lineIndex, Math.max(1, (match.matched || "").length));

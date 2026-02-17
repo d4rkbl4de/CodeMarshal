@@ -8,7 +8,7 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
-from desktop.widgets import HintPanel, apply_accessible
+from desktop.widgets import HintPanel, PageScaffold, SectionHeader, apply_accessible
 
 
 class HomeView(QtWidgets.QWidget):
@@ -20,6 +20,7 @@ class HomeView(QtWidgets.QWidget):
     refresh_requested = QtCore.Signal()
     resume_last_requested = QtCore.Signal()
     quick_action_requested = QtCore.Signal(str)
+    layout_splitter_ratio_changed = QtCore.Signal(float)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -29,14 +30,23 @@ class HomeView(QtWidgets.QWidget):
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setSpacing(14)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        title = QtWidgets.QLabel("CodeMarshal")
-        title.setObjectName("title")
-        subtitle = QtWidgets.QLabel("Desktop Investigation Workspace")
-        subtitle.setObjectName("subtitle")
-        layout.addWidget(title, alignment=QtCore.Qt.AlignHCenter)
-        layout.addWidget(subtitle, alignment=QtCore.Qt.AlignHCenter)
+        self.page_scaffold = PageScaffold(default_ratio=0.46, narrow_breakpoint=1280)
+        self.page_scaffold.splitter_ratio_changed.connect(
+            self.layout_splitter_ratio_changed.emit
+        )
+        layout.addWidget(self.page_scaffold)
+
+        header = SectionHeader(
+            "CodeMarshal",
+            "Desktop Investigation Workspace",
+        )
+        self.page_scaffold.set_header_widget(header)
+
+        form_layout = self.page_scaffold.form_layout
+        results_layout = self.page_scaffold.results_layout
 
         self.start_hint = HintPanel(
             "Start Here",
@@ -47,7 +57,7 @@ class HomeView(QtWidgets.QWidget):
             ),
         )
         self.start_hint.setVisible(True)
-        layout.addWidget(self.start_hint)
+        form_layout.addWidget(self.start_hint)
 
         path_group = QtWidgets.QGroupBox("Project")
         path_layout = QtWidgets.QHBoxLayout(path_group)
@@ -68,36 +78,43 @@ class HomeView(QtWidgets.QWidget):
         path_layout.addWidget(self.path_input, stretch=1)
         path_layout.addWidget(self.browse_btn)
         path_layout.addWidget(self.use_btn)
-        layout.addWidget(path_group)
+        form_layout.addWidget(path_group)
 
-        actions = QtWidgets.QHBoxLayout()
+        workflow_group = QtWidgets.QGroupBox("Workflows")
+        workflow_layout = QtWidgets.QGridLayout(workflow_group)
+        workflow_layout.setHorizontalSpacing(8)
+        workflow_layout.setVerticalSpacing(8)
         self.nav_buttons: dict[str, QtWidgets.QPushButton] = {}
-        for label, target in [
-            ("Observe", "observe"),
-            ("Investigate", "investigate"),
-            ("Patterns", "patterns"),
-            ("Export", "export"),
-        ]:
+        for index, (label, target) in enumerate(
+            [
+                ("Observe", "observe"),
+                ("Investigate", "investigate"),
+                ("Knowledge", "knowledge"),
+                ("Patterns", "patterns"),
+                ("Export", "export"),
+            ]
+        ):
             btn = QtWidgets.QPushButton(label)
             if target == "investigate":
                 btn.setProperty("variant", "primary")
             btn.clicked.connect(lambda _checked=False, name=target: self.navigate_requested.emit(name))
             apply_accessible(btn, name=f"Open {label} view")
             self._action_controls.append(btn)
-            actions.addWidget(btn)
+            workflow_layout.addWidget(btn, index // 2, index % 2)
             self.nav_buttons[target] = btn
-        actions.addStretch(1)
-        layout.addLayout(actions)
+        form_layout.addWidget(workflow_group)
 
         quick_group = QtWidgets.QGroupBox("Quick Start")
-        quick_layout = QtWidgets.QHBoxLayout(quick_group)
+        quick_layout = QtWidgets.QGridLayout(quick_group)
+        quick_layout.setHorizontalSpacing(8)
+        quick_layout.setVerticalSpacing(8)
         quick_defs = [
             ("Observe Current Path", "quick_observe"),
             ("Investigate Current Path", "quick_investigate"),
             ("Pattern Scan Current Path", "quick_patterns"),
         ]
         self.quick_buttons: dict[str, QtWidgets.QPushButton] = {}
-        for label, action in quick_defs:
+        for index, (label, action) in enumerate(quick_defs):
             button = QtWidgets.QPushButton(label)
             button.setToolTip(f"Open {label.lower()} and run immediately.")
             button.clicked.connect(
@@ -109,10 +126,10 @@ class HomeView(QtWidgets.QWidget):
                 description="Open workflow and execute primary action immediately.",
             )
             self._action_controls.append(button)
-            quick_layout.addWidget(button)
+            quick_layout.addWidget(button, index, 0)
             self.quick_buttons[action] = button
-        quick_layout.addStretch(1)
-        layout.addWidget(quick_group)
+        form_layout.addWidget(quick_group)
+        form_layout.addStretch(1)
 
         paths_group = QtWidgets.QGroupBox("Recent Paths")
         paths_layout = QtWidgets.QVBoxLayout(paths_group)
@@ -137,7 +154,7 @@ class HomeView(QtWidgets.QWidget):
         path_buttons.addWidget(self.open_path_btn)
         path_buttons.addStretch(1)
         paths_layout.addLayout(path_buttons)
-        layout.addWidget(paths_group)
+        results_layout.addWidget(paths_group)
 
         recent_group = QtWidgets.QGroupBox("Recent Investigations")
         recent_layout = QtWidgets.QVBoxLayout(recent_group)
@@ -176,7 +193,7 @@ class HomeView(QtWidgets.QWidget):
         controls.addWidget(self.refresh_btn)
         controls.addStretch(1)
         recent_layout.addLayout(controls)
-        layout.addWidget(recent_group, stretch=1)
+        results_layout.addWidget(recent_group, stretch=1)
 
         # Keyboard-first flow.
         self.setTabOrder(self.path_input, self.browse_btn)
@@ -189,6 +206,9 @@ class HomeView(QtWidgets.QWidget):
         self.setTabOrder(self.recent_table, self.open_btn)
         self.setTabOrder(self.open_btn, self.resume_btn)
         self.setTabOrder(self.resume_btn, self.refresh_btn)
+
+    def set_layout_splitter_ratio(self, ratio: float) -> None:
+        self.page_scaffold.set_splitter_ratio(ratio)
 
     def _on_browse(self) -> None:
         start = self.path_input.text().strip() or str(Path(".").resolve())

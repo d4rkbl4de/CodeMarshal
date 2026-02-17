@@ -1,7 +1,7 @@
 # CodeMarshal User Guide
 
-**Version:** 2.1.1-dev  
-**Last Updated:** February 15, 2026
+**Version:** 2.2.0-rc1  
+**Last Updated:** February 16, 2026
 
 ---
 
@@ -11,7 +11,7 @@ Current delivery status:
 
 - Completed phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
 - Latest validation:
-  - `213 collected, 211 passed, 2 skipped` (`python -m pytest -q`)
+  - `274 collected, 274 passed, 0 failed` (project `.venv`, `python -m pytest -q`)
   - coverage gate remains `fail_under = 90` (`pytest --cov=. --cov-report=term -q`)
 
 Roadmap details are in [ROADMAP.md](../ROADMAP.md).
@@ -153,13 +153,20 @@ codemarshal search "from .* import" . -o json --json-file imports.json
 
 ### `pattern`
 
-Pattern detection and custom pattern management.
+Pattern detection, marketplace workflows, and custom pattern management.
 
 ```bash
-codemarshal pattern list [--category {security,performance,style}] [--show-disabled] [--output {table,json}]
-codemarshal pattern scan [path] [--pattern ID] [--category {security,performance,style}] [--glob PATTERN] [--output {table,json}] [--max-files N]
+codemarshal pattern list [--category {security,performance,style,architecture}] [--show-disabled] [--output {table,json}]
+codemarshal pattern scan [path] [--pattern ID] [--category {security,performance,style,architecture}] [--glob PATTERN] [--output {table,json}] [--max-files N]
 codemarshal pattern add --id ID --name NAME --pattern REGEX [--severity {critical,warning,info}] [--description TEXT] [--message TEXT] [--tags TAG] [--languages LANG]
+codemarshal pattern search [QUERY] [--tag TAG] [--severity {critical,warning,info}] [--language LANG] [--limit N] [--output {table,json}]
+codemarshal pattern apply PATTERN_REF [path] [--glob PATTERN] [--max-files N] [--output {table,json}]
+codemarshal pattern create --template TEMPLATE_ID [--set key=value] [--dry-run] [--output BUNDLE_PATH] [--json]
+codemarshal pattern share PATTERN_ID [--bundle-out PATH] [--include-examples] [--output {table,json}]
 ```
+
+`codemarshal patterns ...` is supported as an alias for `codemarshal pattern ...`.
+`codemarshal pattern ...` is deprecated and now prints a migration warning.
 
 ### `export`
 
@@ -195,6 +202,43 @@ Launch the terminal UI.
 
 ```bash
 codemarshal tui [--path PATH]
+```
+
+### Collaboration commands (`team`, `share`, `comment`)
+
+Collaboration data is local and encrypted. Set a passphrase in an environment variable, then unlock a workspace key once per shell session.
+
+```bash
+# PowerShell
+$env:CM_PASS="strong-passphrase"
+# bash/zsh
+export CM_PASS=strong-passphrase
+codemarshal team unlock --workspace-id default --passphrase-env CM_PASS --initialize
+```
+
+Create and manage teams:
+
+```bash
+codemarshal team create "Alpha Team" --owner-id owner_1 --owner-name "Owner One"
+codemarshal team add <team_id> user_2 --name "User Two" --role member --by owner_1
+codemarshal team list
+```
+
+Share investigation artifacts:
+
+```bash
+codemarshal share create <session_id> --by owner_1 --target-team <team_id> --permission read --passphrase-env CM_PASS
+codemarshal share list --session-id <session_id>
+codemarshal share resolve <share_id> --accessor <team_id> --passphrase-env CM_PASS
+codemarshal share revoke <share_id> --by owner_1
+```
+
+Threaded comments:
+
+```bash
+codemarshal comment add <share_id> --by owner_1 --name "Owner One" --body "Please review import boundaries." --passphrase-env CM_PASS
+codemarshal comment list <share_id> --passphrase-env CM_PASS
+codemarshal comment resolve <comment_id> --by owner_1 --passphrase-env CM_PASS
 ```
 
 ### Maintenance and system commands
@@ -307,11 +351,17 @@ Desktop GUI accessibility settings are available under `View -> Accessibility`:
 
 Desktop visual-shell settings are available under `View`:
 
-- `Theme`: `Editorial Noir Premium`, `Editorial Noir Classic`, `Ledger Brass`
+- `Theme`: `Editorial Noir Premium`, `Editorial Noir Classic`, `Ledger Brass`, `Linen Daylight`, `Harbor Light`
 - `Density`: `Comfortable`, `Compact`
 - `Accent`: `Soft`, `Normal`, `Bold`
 - `Motion`: `Full Motion`, `Standard Motion`, `Reduced Motion`, plus `Force Reduced Motion`
 - `Toggle Sidebar` (`Ctrl+B`) and `Reset Visual Defaults`
+
+Desktop phase-7 panels:
+
+- `Patterns` route includes `Marketplace` and `Template Builder` panels.
+- `Knowledge` route includes `History Timeline`, `Knowledge Canvas`, and `Comments` panels.
+- Diff interactions use the dedicated `Diff Viewer` dialog with fold/unfold section controls.
 
 Preferences are persisted in `storage/gui_state.json`.
 
@@ -364,6 +414,7 @@ Expected gate:
 - **[docs/FEATURES.md](FEATURES.md)** - Complete feature matrix and capabilities
 - **[docs/API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Programmatic API reference
 - **[docs/architecture.md](architecture.md)** - System architecture and layers
+- **[docs/collaboration.md](collaboration.md)** - Collaboration encryption and command workflows
 - **[docs/INTEGRATION_EXAMPLES.md](INTEGRATION_EXAMPLES.md)** - CI/CD and editor integration
 - **[docs/index.md](index.md)** - Documentation navigation guide
 - **[README.truth.md](README.truth.md)** - Truth-preservation philosophy

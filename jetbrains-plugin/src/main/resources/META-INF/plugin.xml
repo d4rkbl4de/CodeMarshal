@@ -2,7 +2,8 @@
     <id>codemarshal</id>
     <name>CodeMarshal</name>
     <vendor email="support@codemarshal.local" url="https://codemarshal.local">CodeMarshal</vendor>
-    <description>CodeMarshal IDE integration</description>
+    <description>CodeMarshal IDE integration for JetBrains products</description>
+    <version>2.2.0-rc1</version>
 
     <depends>com.intellij.modules.platform</depends>
 
@@ -10,21 +11,79 @@
         <toolWindow
             id="CodeMarshal"
             factoryClass="codemarshal.CodeMarshalToolWindowFactory"
-            anchor="right"/>
+            anchor="right"
+            icon="AllIcons.Actions.Execute"/>
+        <configurable instance="codemarshal.CodeMarshalSettingsConfigurable" id="codemarshalSettings"/>
     </extensions>
 
     <actions>
-        <action id="CodeMarshalInvestigate"
-                class="codemarshal.CodeMarshalInvestigateAction"
-                text="CodeMarshal: Investigate"
-                description="Run CodeMarshal investigate">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action id="CodeMarshalPatternScan"
-                class="codemarshal.CodeMarshalPatternScanAction"
-                text="CodeMarshal: Scan Patterns"
-                description="Run CodeMarshal pattern scan">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
+        <group id="CodeMarshalGroup" text="CodeMarshal" popup="true">
+            <separator/>
+            <action id="CodeMarshalInvestigate"
+                    class="codemarshal.CodeMarshalInvestigateAction"
+                    text="Investigate"
+                    description="Run CodeMarshal investigation on current scope">
+                <add-to-group group-id="ToolsMenu" anchor="last"/>
+            </action>
+            <action id="CodeMarshalObserve"
+                    class="codemarshal.CodeMarshalObserveAction"
+                    text="Observe"
+                    description="Run CodeMarshal observation on current scope">
+                <add-to-group group-id="ToolsMenu" anchor="last"/>
+            </action>
+            <action id="CodeMarshalQuery"
+                    class="codemarshal.CodeMarshalQueryAction"
+                    text="Query"
+                    description="Ask a question about the code">
+                <add-to-group group-id="ToolsMenu" anchor="last"/>
+            </action>
+            <action id="CodeMarshalListPatterns"
+                    class="codemarshal.CodeMarshalListPatternsAction"
+                    text="List Patterns"
+                    description="List all available patterns">
+                <add-to-group group-id="ToolsMenu" anchor="last"/>
+            </action>
+            <separator/>
+            <action id="CodeMarshalPatternScan"
+                    class="codemarshal.CodeMarshalPatternScanAction"
+                    text="Scan Patterns"
+                    description="Scan current file for patterns">
+                <add-to-group group-id="ToolsMenu" anchor="last"/>
+            </action>
+            <separator/>
+            <action id="CodeMarshalSettings"
+                    class="codemarshal.CodeMarshalSettingsAction"
+                    text="Settings"
+                    description="Open CodeMarshal settings">
+                <add-to-group group-id="ToolsMenu" anchor="last"/>
+            </action>
+        </group>
+
+        <group id="CodeMarshalFileGroup" text="CodeMarshal" popup="true" icon="AllIcons.Actions.Execute">
+            <separator/>
+            <action id="CodeMarshalScanCurrentFile"
+                    class="codemarshal.CodeMarshalPatternScanAction"
+                    text="Scan Current File"
+                    description="Scan the currently open file for patterns">
+                <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+                <add-to-group group-id="NavigationPopupMenu" anchor="last"/>
+            </action>
+            <separator/>
+            <action id="CodeMarshalInvestigateCurrentScope"
+                    class="codemarshal.CodeMarshalInvestigateAction"
+                    text="Investigate Current Scope"
+                    description="Run investigation on current scope">
+                <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+                <add-to-group group-id="NavigationPopupMenu" anchor="last"/>
+            </action>
+            <separator/>
+            <action id="CodeMarshalObserveCurrentScope"
+                    class="codemarshal.CodeMarshalObserveAction"
+                    text="Observe Current Scope"
+                    description="Run observation on current scope">
+                <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+                <add-to-group group-id="NavigationPopupMenu" anchor="last"/>
+            </action>
+        </group>
     </actions>
 </idea-plugin>

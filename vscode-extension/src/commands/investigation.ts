@@ -8,12 +8,16 @@ import {
   RunResult,
 } from "../cli";
 import { InvestigationResultViewer } from "../webview/InvestigationResultViewer";
+import { HistoryManager } from "../historyManager";
+import { HistoryTreeDataProvider } from "../historyTreeDataProvider";
 
 // This function will be called from activate() in extension.ts
 // It's responsible for registering all commands related to investigations.
 export function registerInvestigationCommands(
   context: vscode.ExtensionContext,
   outputChannel: vscode.OutputChannel,
+  historyManager: HistoryManager,
+  historyDataProvider: HistoryTreeDataProvider,
 ): void {
   // Helper function defined inside to capture the outputChannel
   async function runAndLog(
@@ -114,6 +118,13 @@ export function registerInvestigationCommands(
             ]);
 
             if (result.data) {
+              await historyManager.add({
+                id: result.data.investigation_id,
+                scope,
+                intent,
+                target,
+              });
+              historyDataProvider.refresh();
               InvestigationResultViewer.createOrShow(context.extensionUri, result.data);
               vscode.window.showInformationMessage(
                 `CodeMarshal: Investigation '${result.data.investigation_id}' started.`,

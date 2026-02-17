@@ -15,9 +15,10 @@ class ResultsViewer(QtWidgets.QWidget):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setObjectName("resultsViewer")
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(8)
 
         controls = QtWidgets.QHBoxLayout()
         self.copy_summary_btn = QtWidgets.QPushButton("Copy Summary")
@@ -35,8 +36,16 @@ class ResultsViewer(QtWidgets.QWidget):
         controls.addStretch(1)
         layout.addLayout(controls)
 
+        self.meta_label = QtWidgets.QLabel("")
+        self.meta_label.setObjectName("resultsMetaLabel")
+        self.meta_label.setVisible(False)
+        self.meta_label.setWordWrap(True)
+        layout.addWidget(self.meta_label)
+
         self._tabs = QtWidgets.QTabWidget(self)
+        self._tabs.setObjectName("resultsTabs")
         self._summary = QtWidgets.QPlainTextEdit(self)
+        self._summary.setObjectName("resultsSummary")
         self._summary.setReadOnly(True)
         self._summary.setLineWrapMode(QtWidgets.QPlainTextEdit.WidgetWidth)
         apply_accessible(
@@ -45,6 +54,7 @@ class ResultsViewer(QtWidgets.QWidget):
             description="Human-readable summary of operation output.",
         )
         self._raw = QtWidgets.QPlainTextEdit(self)
+        self._raw.setObjectName("resultsRaw")
         self._raw.setReadOnly(True)
         self._raw.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         apply_accessible(
@@ -60,6 +70,7 @@ class ResultsViewer(QtWidgets.QWidget):
     def clear(self) -> None:
         self._summary.clear()
         self._raw.clear()
+        self.set_metadata("")
 
     def set_text(self, text: str) -> None:
         self.set_sections(text, text)
@@ -85,6 +96,11 @@ class ResultsViewer(QtWidgets.QWidget):
 
     def show_raw(self) -> None:
         self._tabs.setCurrentWidget(self._raw)
+
+    def set_metadata(self, text: str | None) -> None:
+        value = str(text or "").strip()
+        self.meta_label.setText(value)
+        self.meta_label.setVisible(bool(value))
 
     def _copy_summary(self) -> None:
         QtWidgets.QApplication.clipboard().setText(self._summary.toPlainText())

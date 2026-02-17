@@ -13,8 +13,8 @@ class SidebarNav(QtWidgets.QFrame):
     route_selected = QtCore.Signal(str)
     collapsed_changed = QtCore.Signal(bool)
 
-    EXPANDED_WIDTH = 252
-    COLLAPSED_WIDTH = 86
+    EXPANDED_WIDTH = 264
+    COLLAPSED_WIDTH = 90
 
     def __init__(
         self,
@@ -39,8 +39,8 @@ class SidebarNav(QtWidgets.QFrame):
 
     def _build_ui(self, routes: list[tuple[str, str]]) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(14, 16, 14, 16)
+        layout.setSpacing(12)
 
         self.brand_title = QtWidgets.QLabel("CodeMarshal")
         self.brand_title.setObjectName("sidebarBrandTitle")
@@ -57,7 +57,7 @@ class SidebarNav(QtWidgets.QFrame):
         self.route_container = QtWidgets.QWidget()
         self.route_layout = QtWidgets.QVBoxLayout(self.route_container)
         self.route_layout.setContentsMargins(0, 0, 0, 0)
-        self.route_layout.setSpacing(6)
+        self.route_layout.setSpacing(8)
         layout.addWidget(self.route_container)
 
         self.button_group = QtWidgets.QButtonGroup(self)
@@ -69,6 +69,7 @@ class SidebarNav(QtWidgets.QFrame):
             button.setCheckable(True)
             button.setAutoExclusive(True)
             button.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+            button.setMinimumHeight(40)
             button.clicked.connect(
                 lambda _checked=False, value=route: self.route_selected.emit(value)
             )
@@ -84,7 +85,7 @@ class SidebarNav(QtWidgets.QFrame):
 
         self._indicator = QtWidgets.QFrame(self.route_container)
         self._indicator.setObjectName("sidebarRouteIndicator")
-        self._indicator.resize(4, 28)
+        self._indicator.resize(5, 30)
         self._indicator.hide()
 
         layout.addStretch(1)

@@ -110,7 +110,7 @@ EXAMPLES:
         # Subcommands
         subparsers = parser.add_subparsers(
             dest="command",
-            required=True,
+            required=False,
             title="commands",
             description="Available commands (one required)",
         )
@@ -156,6 +156,16 @@ EXAMPLES:
 
         # pattern command
         self._add_pattern_parser(subparsers)
+
+        # knowledge commands
+        self._add_history_parser(subparsers)
+        self._add_graph_parser(subparsers)
+        self._add_recommendations_parser(subparsers)
+
+        # collaboration commands
+        self._add_team_parser(subparsers)
+        self._add_share_parser(subparsers)
+        self._add_comment_parser(subparsers)
 
         return parser
 
@@ -829,10 +839,11 @@ Supports regex patterns, file filtering, and context display.
         """Add pattern command parser."""
         parser = subparsers.add_parser(
             "pattern",
+            aliases=["patterns"],
             help="Pattern detection and management",
             description="""
-Detect code patterns using built-in and custom pattern detectors.
-Commands: list, scan, add
+Detect, manage, and share code patterns using built-in and custom detectors.
+Commands: list, scan, add, search, apply, create, share
             """,
             formatter_class=argparse.RawDescriptionHelpFormatter,
         )
@@ -851,7 +862,7 @@ Commands: list, scan, add
             "--category",
             "-c",
             type=str,
-            choices=["security", "performance", "style"],
+            choices=["security", "performance", "style", "architecture"],
             default=None,
             help="Filter by category",
         )
@@ -888,7 +899,7 @@ Commands: list, scan, add
             "--category",
             "-c",
             type=str,
-            choices=["security", "performance", "style"],
+            choices=["security", "performance", "style", "architecture"],
             default=None,
             help="Run all patterns in category",
         )
@@ -943,6 +954,656 @@ Commands: list, scan, add
             help="Target languages (can be used multiple times)",
         )
 
+        # pattern search (marketplace)
+        search_parser = pattern_subparsers.add_parser(
+            "search", help="Search local pattern marketplace"
+        )
+        search_parser.add_argument("query", type=str, nargs="?", default="")
+        search_parser.add_argument(
+            "--tag",
+            type=str,
+            action="append",
+            default=None,
+            help="Filter by required tag (repeatable)",
+        )
+        search_parser.add_argument(
+            "--severity",
+            type=str,
+            choices=["critical", "warning", "info"],
+            default=None,
+            help="Filter by severity",
+        )
+        search_parser.add_argument(
+            "--language",
+            type=str,
+            default=None,
+            help="Filter by language",
+        )
+        search_parser.add_argument(
+            "--limit",
+            type=int,
+            default=20,
+            help="Maximum number of entries",
+        )
+        search_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["table", "json"],
+            default="table",
+            help="Output format",
+        )
+
+        # pattern apply (install + scan)
+        apply_parser = pattern_subparsers.add_parser(
+            "apply",
+            help="Apply a marketplace pattern by id/bundle and scan target path",
+        )
+        apply_parser.add_argument("pattern_ref", type=str, help="Pattern id or bundle path")
+        apply_parser.add_argument(
+            "path",
+            type=Path,
+            nargs="?",
+            default=Path("."),
+            help="Directory or file to scan",
+        )
+        apply_parser.add_argument(
+            "--glob",
+            "-g",
+            type=str,
+            default="*",
+            help="File glob pattern",
+        )
+        apply_parser.add_argument(
+            "--max-files",
+            type=int,
+            default=10000,
+            help="Maximum files to scan",
+        )
+        apply_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["table", "json"],
+            default="table",
+            help="Output format",
+        )
+
+        # pattern create (template)
+        create_parser = pattern_subparsers.add_parser(
+            "create",
+            help="Create a custom pattern from template",
+        )
+        create_parser.add_argument(
+            "--template",
+            type=str,
+            required=True,
+            help="Template id (e.g. security.keyword_assignment)",
+        )
+        create_parser.add_argument(
+            "--set",
+            type=str,
+            action="append",
+            default=[],
+            help="Template value in key=value form (repeatable)",
+        )
+        create_parser.add_argument("--id", type=str, default=None, help="Pattern id override")
+        create_parser.add_argument("--name", type=str, default=None, help="Pattern name override")
+        create_parser.add_argument(
+            "--description",
+            type=str,
+            default="",
+            help="Pattern description override",
+        )
+        create_parser.add_argument(
+            "--severity",
+            type=str,
+            choices=["critical", "warning", "info"],
+            default=None,
+            help="Pattern severity override",
+        )
+        create_parser.add_argument(
+            "--tag",
+            type=str,
+            action="append",
+            default=None,
+            help="Pattern tag (repeatable)",
+        )
+        create_parser.add_argument(
+            "--language",
+            type=str,
+            action="append",
+            default=None,
+            help="Pattern language (repeatable)",
+        )
+        create_parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Validate and render without installing",
+        )
+        create_parser.add_argument(
+            "--output",
+            type=Path,
+            default=None,
+            help="Optional bundle output path (.cmpattern.yaml)",
+        )
+        create_parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Output result in JSON",
+        )
+
+        # pattern share
+        share_parser = pattern_subparsers.add_parser(
+            "share",
+            help="Create a shareable local pattern bundle",
+        )
+        share_parser.add_argument("pattern_id", type=str, help="Pattern id to bundle")
+        share_parser.add_argument(
+            "--bundle-out",
+            type=Path,
+            default=None,
+            help="Bundle output path (.cmpattern.yaml)",
+        )
+        share_parser.add_argument(
+            "--include-examples",
+            action="store_true",
+            help="Include example payload section in bundle",
+        )
+        share_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["table", "json"],
+            default="table",
+            help="Output format",
+        )
+
+    def _add_team_parser(self, subparsers: Any) -> None:
+        """Add collaboration team command parser."""
+        parser = subparsers.add_parser(
+            "team",
+            help="Manage local collaboration teams",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        team_subparsers = parser.add_subparsers(
+            dest="team_command",
+            required=True,
+            title="team commands",
+        )
+
+        unlock_parser = team_subparsers.add_parser(
+            "unlock",
+            help="Unlock or initialize workspace encryption key",
+        )
+        unlock_parser.add_argument(
+            "--workspace-id",
+            type=str,
+            default="default",
+            help="Workspace key scope identifier",
+        )
+        unlock_parser.add_argument(
+            "--passphrase-env",
+            type=str,
+            required=True,
+            help="Environment variable name containing collaboration passphrase",
+        )
+        unlock_parser.add_argument(
+            "--initialize",
+            action="store_true",
+            help="Initialize workspace key if missing",
+        )
+        unlock_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        create_parser = team_subparsers.add_parser(
+            "create",
+            help="Create team",
+        )
+        create_parser.add_argument("name", type=str, help="Team name")
+        create_parser.add_argument("--owner-id", type=str, required=True, help="Owner user id")
+        create_parser.add_argument(
+            "--owner-name",
+            type=str,
+            required=True,
+            help="Owner display name",
+        )
+        create_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        add_parser = team_subparsers.add_parser(
+            "add",
+            help="Add team member",
+        )
+        add_parser.add_argument("team_id", type=str, help="Team id")
+        add_parser.add_argument("user_id", type=str, help="Member user id")
+        add_parser.add_argument("--name", type=str, required=True, help="Member display name")
+        add_parser.add_argument(
+            "--role",
+            type=str,
+            choices=["owner", "maintainer", "member", "viewer"],
+            default="member",
+            help="Member role",
+        )
+        add_parser.add_argument(
+            "--by",
+            type=str,
+            required=True,
+            help="Actor user id performing the add",
+        )
+        add_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        list_parser = team_subparsers.add_parser(
+            "list",
+            help="List teams",
+        )
+        list_parser.add_argument(
+            "--limit",
+            type=int,
+            default=100,
+            help="Maximum teams to return",
+        )
+        list_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+    def _add_share_parser(self, subparsers: Any) -> None:
+        """Add collaboration share command parser."""
+        parser = subparsers.add_parser(
+            "share",
+            help="Share investigation artifacts with local teams/users",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        share_subparsers = parser.add_subparsers(
+            dest="share_command",
+            required=True,
+            title="share commands",
+        )
+
+        create_parser = share_subparsers.add_parser(
+            "create",
+            help="Create encrypted share",
+        )
+        create_parser.add_argument("session_id", type=str, help="Investigation session id")
+        create_parser.add_argument(
+            "--by",
+            type=str,
+            required=True,
+            help="Creator user id",
+        )
+        create_parser.add_argument(
+            "--target-team",
+            type=str,
+            action="append",
+            default=[],
+            help="Team id target (repeatable)",
+        )
+        create_parser.add_argument(
+            "--target-user",
+            type=str,
+            action="append",
+            default=[],
+            help="User id target (repeatable)",
+        )
+        create_parser.add_argument(
+            "--permission",
+            type=str,
+            choices=["read", "comment", "manage"],
+            default="read",
+            help="Permission applied to provided targets",
+        )
+        create_parser.add_argument("--title", type=str, default="", help="Share title")
+        create_parser.add_argument("--summary", type=str, default="", help="Share summary")
+        create_parser.add_argument(
+            "--workspace-id",
+            type=str,
+            default="default",
+            help="Workspace key scope identifier",
+        )
+        create_parser.add_argument(
+            "--passphrase-env",
+            type=str,
+            required=True,
+            help="Environment variable containing collaboration passphrase",
+        )
+        create_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        list_parser = share_subparsers.add_parser(
+            "list",
+            help="List shares",
+        )
+        list_parser.add_argument("--session-id", type=str, default=None, help="Session filter")
+        list_parser.add_argument("--team-id", type=str, default=None, help="Team filter")
+        list_parser.add_argument("--limit", type=int, default=100, help="Maximum rows")
+        list_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        revoke_parser = share_subparsers.add_parser(
+            "revoke",
+            help="Revoke active share",
+        )
+        revoke_parser.add_argument("share_id", type=str, help="Share id")
+        revoke_parser.add_argument("--by", type=str, required=True, help="Actor user id")
+        revoke_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        resolve_parser = share_subparsers.add_parser(
+            "resolve",
+            help="Resolve and decrypt one share payload",
+        )
+        resolve_parser.add_argument("share_id", type=str, help="Share id")
+        resolve_parser.add_argument(
+            "--accessor",
+            type=str,
+            required=True,
+            help="Accessor user/team id for permission check",
+        )
+        resolve_parser.add_argument(
+            "--workspace-id",
+            type=str,
+            default="default",
+            help="Workspace key scope identifier",
+        )
+        resolve_parser.add_argument(
+            "--passphrase-env",
+            type=str,
+            required=True,
+            help="Environment variable containing collaboration passphrase",
+        )
+        resolve_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+    def _add_comment_parser(self, subparsers: Any) -> None:
+        """Add collaboration comment command parser."""
+        parser = subparsers.add_parser(
+            "comment",
+            help="Add and review threaded collaboration comments",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        comment_subparsers = parser.add_subparsers(
+            dest="comment_command",
+            required=True,
+            title="comment commands",
+        )
+
+        add_parser = comment_subparsers.add_parser(
+            "add",
+            help="Add comment to share",
+        )
+        add_parser.add_argument("share_id", type=str, help="Share id")
+        add_parser.add_argument("--by", type=str, required=True, help="Author user id")
+        add_parser.add_argument("--name", type=str, required=True, help="Author display name")
+        add_parser.add_argument("--body", type=str, required=True, help="Comment body")
+        add_parser.add_argument(
+            "--parent",
+            type=str,
+            default=None,
+            help="Parent comment id for threaded reply",
+        )
+        add_parser.add_argument(
+            "--workspace-id",
+            type=str,
+            default="default",
+            help="Workspace key scope identifier",
+        )
+        add_parser.add_argument(
+            "--passphrase-env",
+            type=str,
+            required=True,
+            help="Environment variable containing collaboration passphrase",
+        )
+        add_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        list_parser = comment_subparsers.add_parser(
+            "list",
+            help="List comments for share",
+        )
+        list_parser.add_argument("share_id", type=str, help="Share id")
+        list_parser.add_argument(
+            "--thread-root",
+            type=str,
+            default=None,
+            help="Thread root comment id filter",
+        )
+        list_parser.add_argument("--limit", type=int, default=200, help="Maximum comments")
+        list_parser.add_argument(
+            "--workspace-id",
+            type=str,
+            default="default",
+            help="Workspace key scope identifier",
+        )
+        list_parser.add_argument(
+            "--passphrase-env",
+            type=str,
+            required=True,
+            help="Environment variable containing collaboration passphrase",
+        )
+        list_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+        resolve_parser = comment_subparsers.add_parser(
+            "resolve",
+            help="Mark comment as resolved",
+        )
+        resolve_parser.add_argument("comment_id", type=str, help="Comment id")
+        resolve_parser.add_argument("--by", type=str, required=True, help="Resolver user id")
+        resolve_parser.add_argument(
+            "--workspace-id",
+            type=str,
+            default="default",
+            help="Workspace key scope identifier",
+        )
+        resolve_parser.add_argument(
+            "--passphrase-env",
+            type=str,
+            required=True,
+            help="Environment variable containing collaboration passphrase",
+        )
+        resolve_parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+    def _add_history_parser(self, subparsers: Any) -> None:
+        """Add history command parser."""
+        parser = subparsers.add_parser(
+            "history",
+            help="Query investigation knowledge history",
+            description="""Query investigation history events and query suggestions.""",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        parser.add_argument(
+            "session_id",
+            nargs="?",
+            default=None,
+            help="Session ID (optional; uses all sessions when omitted)",
+        )
+        parser.add_argument("--query", type=str, default=None, help="Text query filter")
+        parser.add_argument(
+            "--from-date",
+            type=str,
+            default=None,
+            help="Start date/time (YYYY-MM-DD or ISO timestamp)",
+        )
+        parser.add_argument(
+            "--to-date",
+            type=str,
+            default=None,
+            help="End date/time (YYYY-MM-DD or ISO timestamp)",
+        )
+        parser.add_argument(
+            "--event-type",
+            type=str,
+            choices=[
+                "investigate",
+                "observe",
+                "query",
+                "pattern_scan",
+                "export",
+                "insight",
+            ],
+            default=None,
+            help="Filter by event type",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=100,
+            help="Maximum events to return (default: 100)",
+        )
+        parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+    def _add_graph_parser(self, subparsers: Any) -> None:
+        """Add graph command parser."""
+        parser = subparsers.add_parser(
+            "graph",
+            help="Query investigation knowledge graph",
+            description="""Query relationship graph of files, modules, queries, and patterns.""",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        parser.add_argument(
+            "session_id",
+            nargs="?",
+            default=None,
+            help="Session ID (optional; uses all sessions when omitted)",
+        )
+        parser.add_argument(
+            "--focus",
+            type=str,
+            default=None,
+            help="Focus node ID for neighborhood traversal",
+        )
+        parser.add_argument(
+            "--depth",
+            type=int,
+            default=2,
+            help="Traversal depth from focus node (default: 2)",
+        )
+        parser.add_argument(
+            "--edge-type",
+            type=str,
+            choices=[
+                "imports",
+                "exports",
+                "depends_on",
+                "mentions_pattern",
+                "asked_question",
+                "contains_file",
+                "hits_file",
+            ],
+            default=None,
+            help="Filter by edge type",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=200,
+            help="Maximum edges in response (default: 200)",
+        )
+        parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
+    def _add_recommendations_parser(self, subparsers: Any) -> None:
+        """Add recommendations command parser."""
+        parser = subparsers.add_parser(
+            "recommendations",
+            help="Generate investigation recommendations",
+            description="""Generate next-step recommendations from history and graph context.""",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        parser.add_argument(
+            "session_id",
+            help="Session ID to generate recommendations for",
+        )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=10,
+            help="Maximum recommendations to return (default: 10)",
+        )
+        parser.add_argument(
+            "--category",
+            type=str,
+            choices=["next_step", "hotspot", "workflow"],
+            default=None,
+            help="Filter recommendations by category",
+        )
+        parser.add_argument(
+            "--refresh",
+            action="store_true",
+            help="Regenerate recommendations and bypass cache",
+        )
+        parser.add_argument(
+            "--output",
+            "-o",
+            choices=["text", "json"],
+            default="text",
+            help="Output format",
+        )
+
     def run(self, args: list[str] | None = None) -> int:
         """
         Run the CLI with provided arguments.
@@ -966,6 +1627,10 @@ Commands: list, scan, add
         # Handle info flag before requiring a command
         if parsed_args.info:
             return self._handle_info()
+
+        if not parsed_args.command:
+            self.parser.print_help()
+            return 1
 
         # Set up logging
         self._setup_logging(parsed_args.debug)
@@ -1001,7 +1666,24 @@ Commands: list, scan, add
             elif parsed_args.command == "search":
                 return self._handle_search(parsed_args)
             elif parsed_args.command == "pattern":
+                self._warn(
+                    "Command `pattern` is deprecated and will be removed in a future release. Use `patterns` instead."
+                )
                 return self._handle_pattern(parsed_args)
+            elif parsed_args.command == "patterns":
+                return self._handle_pattern(parsed_args)
+            elif parsed_args.command == "history":
+                return self._handle_history(parsed_args)
+            elif parsed_args.command == "graph":
+                return self._handle_graph(parsed_args)
+            elif parsed_args.command == "recommendations":
+                return self._handle_recommendations(parsed_args)
+            elif parsed_args.command == "team":
+                return self._handle_team(parsed_args)
+            elif parsed_args.command == "share":
+                return self._handle_share(parsed_args)
+            elif parsed_args.command == "comment":
+                return self._handle_comment(parsed_args)
             else:
                 # Should not happen due to argparse validation
                 self._refuse(f"Unknown command: {parsed_args.command}")
@@ -1148,6 +1830,19 @@ Commands: list, scan, add
                     raw_result.get("intent_record", {})
                     .get("parameters", {})
                     .get("intent", "unknown")
+                )
+                self._record_knowledge_event(
+                    session_id=str(result.investigation_id),
+                    event_type="investigate",
+                    path=str(args.path),
+                    metadata={
+                        "scope": args.scope,
+                        "intent": intent_val,
+                        "status": str(result.status),
+                        "observation_count": int(
+                            getattr(result, "observation_count", 0) or 0
+                        ),
+                    },
                 )
                 self._show_investigation_result(result, intent=intent_val)
                 return 0
@@ -1413,6 +2108,27 @@ Commands: list, scan, add
                         )
                         self._safe_print("=" * 80)
 
+                event_session_id = (
+                    result.intent_record.get("session_id")
+                    if result.intent_record
+                    else str(session_context.snapshot_id)
+                )
+                graph_observations: list[dict[str, Any]] = []
+                if isinstance(observation_payload, dict):
+                    nested = observation_payload.get("observations", [])
+                    if isinstance(nested, list):
+                        graph_observations = [item for item in nested if isinstance(item, dict)]
+                self._record_knowledge_event(
+                    session_id=str(event_session_id),
+                    event_type="observe",
+                    path=str(args.path),
+                    metadata={
+                        "scope": args.scope,
+                        "constitutional": bool(getattr(args, "constitutional", False)),
+                        "persisted": bool(getattr(args, "persist", False)),
+                    },
+                    observations=graph_observations,
+                )
                 return 0
             else:
                 self._refuse(f"Observation failed: {result.error_message}")
@@ -1469,6 +2185,17 @@ Commands: list, scan, add
                 error_message=None,
             )
 
+            self._record_knowledge_event(
+                session_id=str(args.investigation_id),
+                event_type="query",
+                question=args.question,
+                question_type=args.question_type,
+                metadata={
+                    "focus": args.focus or "",
+                    "limit": int(args.limit or 0),
+                    "observations_used": len(observations),
+                },
+            )
             self._show_query_result(result)
             return 0
 
@@ -1761,6 +2488,16 @@ Commands: list, scan, add
                 error_message=None,
             )
 
+            self._record_knowledge_event(
+                session_id=str(args.investigation_id),
+                event_type="export",
+                path=str(output_path),
+                metadata={
+                    "format": args.format,
+                    "include_notes": bool(args.include_notes),
+                    "include_patterns": bool(args.include_patterns),
+                },
+            )
             self._show_export_result(result)
             return 0
 
@@ -2182,12 +2919,571 @@ Commands: list, scan, add
             self._refuse(f"Search error: {str(e)}")
             return 1
 
+    def _handle_history(self, args: argparse.Namespace) -> int:
+        """Handle history command."""
+        from bridge.commands import execute_history
+
+        try:
+            result = execute_history(
+                session_id=args.session_id,
+                query=args.query,
+                from_date=args.from_date,
+                to_date=args.to_date,
+                event_type=args.event_type,
+                limit=args.limit,
+            )
+            if not result.get("success", False):
+                self._refuse("History query failed")
+                return 1
+
+            if args.output == "json":
+                import json
+
+                self._safe_print(
+                    json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                )
+                return 0
+
+            events = list(result.get("events", []))
+            self._safe_print("\nKNOWLEDGE HISTORY")
+            self._safe_print("=" * 80)
+            self._safe_print(f"Events: {len(events)}")
+            if args.session_id:
+                self._safe_print(f"Session: {args.session_id}")
+            if args.event_type:
+                self._safe_print(f"Event Type: {args.event_type}")
+            if args.query:
+                self._safe_print(f"Query Filter: {args.query}")
+
+            for event in events[:50]:
+                timestamp = str(event.get("timestamp") or "unknown")
+                event_type = str(event.get("event_type") or "unknown")
+                session_id = str(event.get("session_id") or "unknown")
+                question = str(event.get("question") or "").strip()
+                self._safe_print(f"- [{timestamp}] {event_type} ({session_id})")
+                if question:
+                    self._safe_print(f"    Q: {question}")
+
+            suggestions = list(result.get("suggestions", []))
+            if suggestions:
+                self._safe_print("\nTop Query Suggestions:")
+                for suggestion in suggestions[:10]:
+                    query_text = str(suggestion.get("query") or "")
+                    count = int(suggestion.get("count") or 0)
+                    self._safe_print(f"- {query_text} ({count})")
+            self._safe_print("=" * 80)
+            return 0
+        except Exception as e:
+            logger.exception("History command failed")
+            self._refuse(f"History error: {str(e)}")
+            return 1
+
+    def _handle_graph(self, args: argparse.Namespace) -> int:
+        """Handle graph command."""
+        from bridge.commands import execute_graph
+
+        try:
+            result = execute_graph(
+                session_id=args.session_id,
+                focus=args.focus,
+                depth=args.depth,
+                edge_type=args.edge_type,
+                limit=args.limit,
+            )
+            if not result.get("success", False):
+                self._refuse("Graph query failed")
+                return 1
+
+            if args.output == "json":
+                import json
+
+                self._safe_print(
+                    json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                )
+                return 0
+
+            summary = result.get("summary", {}) if isinstance(result, dict) else {}
+            nodes = list(result.get("nodes", []))
+            edges = list(result.get("edges", []))
+            self._safe_print("\nKNOWLEDGE GRAPH")
+            self._safe_print("=" * 80)
+            self._safe_print(f"Nodes: {summary.get('node_count', len(nodes))}")
+            self._safe_print(f"Edges: {summary.get('edge_count', len(edges))}")
+            if args.focus:
+                self._safe_print(f"Focus: {args.focus} (depth={args.depth})")
+            if args.edge_type:
+                self._safe_print(f"Edge Type: {args.edge_type}")
+
+            self._safe_print("\nSample Nodes:")
+            for node in nodes[:15]:
+                node_id = str(node.get("node_id") or "unknown")
+                node_type = str(node.get("node_type") or "unknown")
+                label = str(node.get("label") or "")
+                self._safe_print(f"- {node_id} [{node_type}] {label}")
+
+            self._safe_print("\nSample Edges:")
+            for edge in edges[:25]:
+                src = str(edge.get("from_node") or "")
+                dst = str(edge.get("to_node") or "")
+                edge_type = str(edge.get("edge_type") or "")
+                weight = float(edge.get("weight") or 0.0)
+                self._safe_print(f"- {src} -({edge_type}:{weight:.2f})-> {dst}")
+            self._safe_print("=" * 80)
+            return 0
+        except Exception as e:
+            logger.exception("Graph command failed")
+            self._refuse(f"Graph error: {str(e)}")
+            return 1
+
+    def _handle_recommendations(self, args: argparse.Namespace) -> int:
+        """Handle recommendations command."""
+        from bridge.commands import execute_recommendations
+
+        try:
+            result = execute_recommendations(
+                session_id=args.session_id,
+                limit=args.limit,
+                category=args.category,
+                refresh=args.refresh,
+            )
+            if not result.get("success", False):
+                self._refuse("Recommendation generation failed")
+                return 1
+
+            if args.output == "json":
+                import json
+
+                self._safe_print(
+                    json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                )
+                return 0
+
+            recommendations = list(result.get("recommendations", []))
+            self._safe_print("\nRECOMMENDATIONS")
+            self._safe_print("=" * 80)
+            self._safe_print(f"Session: {args.session_id}")
+            if args.category:
+                self._safe_print(f"Category: {args.category}")
+            self._safe_print(f"Count: {len(recommendations)}")
+
+            for item in recommendations:
+                title = str(item.get("title") or "Untitled")
+                category = str(item.get("category") or "unknown")
+                confidence = float(item.get("confidence") or 0.0)
+                reason = str(item.get("reason") or "")
+                self._safe_print(f"- {title} [{category}] ({confidence:.2f})")
+                if reason:
+                    self._safe_print(f"    {reason}")
+                actions = item.get("actions", [])
+                if isinstance(actions, list):
+                    for action in actions[:3]:
+                        self._safe_print(f"    -> {action}")
+            self._safe_print("=" * 80)
+            return 0
+        except Exception as e:
+            logger.exception("Recommendations command failed")
+            self._refuse(f"Recommendations error: {str(e)}")
+            return 1
+
+    def _handle_team(self, args: argparse.Namespace) -> int:
+        """Handle collaboration team commands."""
+        from bridge.commands import (
+            execute_team_add,
+            execute_team_create,
+            execute_team_list,
+            execute_team_unlock,
+        )
+
+        try:
+            if args.team_command == "unlock":
+                passphrase = self._read_passphrase_from_env(args.passphrase_env)
+                if passphrase is None:
+                    return 1
+                result = execute_team_unlock(
+                    workspace_id=args.workspace_id,
+                    passphrase=passphrase,
+                    initialize=bool(args.initialize),
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                if not result.get("success", False):
+                    self._refuse(str(result.get("error") or "Team unlock failed"))
+                    return 1
+                self._safe_print("TEAM WORKSPACE UNLOCKED")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Workspace:  {result.get('workspace_id')}")
+                self._safe_print(f"Initialized:{bool(result.get('initialized', False))}")
+                self._safe_print(f"Unlocked:   {bool(result.get('unlocked', False))}")
+                self._safe_print("=" * 80)
+                return 0
+
+            if args.team_command == "create":
+                result = execute_team_create(
+                    name=args.name,
+                    owner_user_id=args.owner_id,
+                    owner_name=args.owner_name,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                team = result.get("team", {})
+                self._safe_print("TEAM CREATED")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Team ID:    {team.get('team_id')}")
+                self._safe_print(f"Name:       {team.get('name')}")
+                self._safe_print(f"Owner:      {team.get('created_by')}")
+                self._safe_print(f"Members:    {len(team.get('members', []))}")
+                self._safe_print("=" * 80)
+                return 0
+
+            if args.team_command == "add":
+                result = execute_team_add(
+                    team_id=args.team_id,
+                    user_id=args.user_id,
+                    display_name=args.name,
+                    role=args.role,
+                    added_by=args.by,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                team = result.get("team", {})
+                self._safe_print("TEAM MEMBER ADDED")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Team ID:    {team.get('team_id')}")
+                self._safe_print(f"User ID:    {args.user_id}")
+                self._safe_print(f"Role:       {args.role}")
+                self._safe_print(f"Members:    {len(team.get('members', []))}")
+                self._safe_print("=" * 80)
+                return 0
+
+            if args.team_command == "list":
+                result = execute_team_list(
+                    limit=args.limit,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                teams = list(result.get("teams", []))
+                self._safe_print(f"\nTeams ({len(teams)}):")
+                self._safe_print("=" * 80)
+                self._safe_print(f"{'Team ID':<22} {'Name':<28} {'Members':<8} {'Created By':<18}")
+                self._safe_print("-" * 80)
+                for team in teams:
+                    self._safe_print(
+                        f"{str(team.get('team_id', ''))[:22]:<22} "
+                        f"{str(team.get('name', ''))[:28]:<28} "
+                        f"{len(team.get('members', [])):<8} "
+                        f"{str(team.get('created_by', ''))[:18]:<18}"
+                    )
+                return 0
+
+            self._refuse(f"Unknown team command: {args.team_command}")
+            return 1
+        except Exception as e:
+            logger.exception("Team command failed")
+            self._refuse(f"Team error: {str(e)}")
+            return 1
+
+    def _handle_share(self, args: argparse.Namespace) -> int:
+        """Handle collaboration share commands."""
+        from bridge.commands import (
+            execute_share_create,
+            execute_share_list,
+            execute_share_resolve,
+            execute_share_revoke,
+        )
+
+        try:
+            if args.share_command == "create":
+                passphrase = self._read_passphrase_from_env(args.passphrase_env)
+                if passphrase is None:
+                    return 1
+                targets: list[dict[str, str]] = []
+                for team_id in list(args.target_team or []):
+                    targets.append(
+                        {
+                            "target_type": "team",
+                            "target_id": str(team_id),
+                            "permission": args.permission,
+                        }
+                    )
+                for user_id in list(args.target_user or []):
+                    targets.append(
+                        {
+                            "target_type": "user",
+                            "target_id": str(user_id),
+                            "permission": args.permission,
+                        }
+                    )
+                result = execute_share_create(
+                    session_id=args.session_id,
+                    created_by=args.by,
+                    targets=targets,
+                    title=args.title,
+                    summary=args.summary,
+                    workspace_id=args.workspace_id,
+                    passphrase=passphrase,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                if not result.get("success", False):
+                    self._refuse(str(result.get("error") or "Share create failed"))
+                    return 1
+                share = result.get("share", {})
+                self._safe_print("SHARE CREATED")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Share ID:    {share.get('share_id')}")
+                self._safe_print(f"Session ID:  {share.get('session_id')}")
+                self._safe_print(f"Created By:  {share.get('created_by')}")
+                self._safe_print(f"Targets:     {len(share.get('targets', []))}")
+                self._safe_print(f"Status:      {share.get('status')}")
+                self._safe_print("=" * 80)
+                return 0
+
+            if args.share_command == "list":
+                result = execute_share_list(
+                    session_id=args.session_id,
+                    team_id=args.team_id,
+                    limit=args.limit,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                shares = list(result.get("shares", []))
+                self._safe_print(f"\nShares ({len(shares)}):")
+                self._safe_print("=" * 100)
+                self._safe_print(
+                    f"{'Share ID':<22} {'Session ID':<22} {'Creator':<16} {'Status':<10} {'Targets':<7}"
+                )
+                self._safe_print("-" * 100)
+                for share in shares:
+                    self._safe_print(
+                        f"{str(share.get('share_id', ''))[:22]:<22} "
+                        f"{str(share.get('session_id', ''))[:22]:<22} "
+                        f"{str(share.get('created_by', ''))[:16]:<16} "
+                        f"{str(share.get('status', ''))[:10]:<10} "
+                        f"{len(share.get('targets', [])):<7}"
+                    )
+                return 0
+
+            if args.share_command == "revoke":
+                result = execute_share_revoke(
+                    share_id=args.share_id,
+                    revoked_by=args.by,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                if not result.get("success", False):
+                    self._refuse("Share revoke failed")
+                    return 1
+                self._safe_print(f"Share revoked: {args.share_id}")
+                return 0
+
+            if args.share_command == "resolve":
+                passphrase = self._read_passphrase_from_env(args.passphrase_env)
+                if passphrase is None:
+                    return 1
+                result = execute_share_resolve(
+                    share_id=args.share_id,
+                    accessor_id=args.accessor,
+                    workspace_id=args.workspace_id,
+                    passphrase=passphrase,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                if not result.get("success", False):
+                    self._refuse(str(result.get("error") or "Share resolve failed"))
+                    return 1
+                payload = result.get("payload", {})
+                self._safe_print("SHARE PAYLOAD")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Share ID: {args.share_id}")
+                self._safe_print(str(payload))
+                self._safe_print("=" * 80)
+                return 0
+
+            self._refuse(f"Unknown share command: {args.share_command}")
+            return 1
+        except Exception as e:
+            logger.exception("Share command failed")
+            self._refuse(f"Share error: {str(e)}")
+            return 1
+
+    def _handle_comment(self, args: argparse.Namespace) -> int:
+        """Handle collaboration comment commands."""
+        from bridge.commands import (
+            execute_comment_add,
+            execute_comment_list,
+            execute_comment_resolve,
+        )
+
+        try:
+            if args.comment_command == "add":
+                passphrase = self._read_passphrase_from_env(args.passphrase_env)
+                if passphrase is None:
+                    return 1
+                result = execute_comment_add(
+                    share_id=args.share_id,
+                    author_id=args.by,
+                    author_name=args.name,
+                    body=args.body,
+                    parent_comment_id=args.parent,
+                    workspace_id=args.workspace_id,
+                    passphrase=passphrase,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                if not result.get("success", False):
+                    self._refuse(str(result.get("error") or "Comment add failed"))
+                    return 1
+                comment = result.get("comment", {})
+                self._safe_print("COMMENT ADDED")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Comment ID:  {comment.get('comment_id')}")
+                self._safe_print(f"Share ID:    {comment.get('share_id')}")
+                self._safe_print(f"Author:      {comment.get('author_id')}")
+                self._safe_print("=" * 80)
+                return 0
+
+            if args.comment_command == "list":
+                passphrase = self._read_passphrase_from_env(args.passphrase_env)
+                if passphrase is None:
+                    return 1
+                result = execute_comment_list(
+                    share_id=args.share_id,
+                    thread_root_id=args.thread_root,
+                    limit=args.limit,
+                    workspace_id=args.workspace_id,
+                    passphrase=passphrase,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                comments = list(result.get("comments", []))
+                self._safe_print(f"\nComments ({len(comments)}):")
+                self._safe_print("=" * 100)
+                self._safe_print(
+                    f"{'Comment ID':<20} {'Author':<16} {'Status':<10} {'Parent':<20} {'Body':<30}"
+                )
+                self._safe_print("-" * 100)
+                for item in comments:
+                    self._safe_print(
+                        f"{str(item.get('comment_id', ''))[:20]:<20} "
+                        f"{str(item.get('author_id', ''))[:16]:<16} "
+                        f"{str(item.get('status', ''))[:10]:<10} "
+                        f"{str(item.get('parent_comment_id', '') or '-')[:20]:<20} "
+                        f"{str(item.get('body', ''))[:30]:<30}"
+                    )
+                return 0
+
+            if args.comment_command == "resolve":
+                passphrase = self._read_passphrase_from_env(args.passphrase_env)
+                if passphrase is None:
+                    return 1
+                result = execute_comment_resolve(
+                    comment_id=args.comment_id,
+                    resolver_id=args.by,
+                    workspace_id=args.workspace_id,
+                    passphrase=passphrase,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    self._safe_print(
+                        json.dumps(result, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.get("success", False) else 1
+
+                if not result.get("success", False):
+                    self._refuse(str(result.get("error") or "Comment resolve failed"))
+                    return 1
+                self._safe_print(f"Comment resolved: {args.comment_id}")
+                return 0
+
+            self._refuse(f"Unknown comment command: {args.comment_command}")
+            return 1
+        except Exception as e:
+            logger.exception("Comment command failed")
+            self._refuse(f"Comment error: {str(e)}")
+            return 1
+
     def _handle_pattern(self, args: argparse.Namespace) -> int:
         """Handle pattern command."""
         from bridge.commands import (
+            execute_pattern_apply,
             execute_pattern_add,
+            execute_pattern_create,
             execute_pattern_list,
+            execute_pattern_search,
             execute_pattern_scan,
+            execute_pattern_share,
         )
 
         try:
@@ -2265,6 +3561,18 @@ Commands: list, scan, add
                     )
                     if not result.success:
                         return 1
+                    self._record_knowledge_event(
+                        session_id="latest",
+                        event_type="pattern_scan",
+                        path=str(args.path),
+                        metadata={
+                            "category": args.category or "",
+                            "glob": args.glob,
+                            "files_scanned": int(result.files_scanned),
+                            "matches_found": int(result.matches_found),
+                        },
+                        pattern_matches=list(result.matches),
+                    )
                     return 0 if result.matches_found == 0 else 1
 
                 if result.success:
@@ -2300,6 +3608,18 @@ Commands: list, scan, add
                             print(f"  > {match['matched']}")
                             print()
 
+                    self._record_knowledge_event(
+                        session_id="latest",
+                        event_type="pattern_scan",
+                        path=str(args.path),
+                        metadata={
+                            "category": args.category or "",
+                            "glob": args.glob,
+                            "files_scanned": int(result.files_scanned),
+                            "matches_found": int(result.matches_found),
+                        },
+                        pattern_matches=list(result.matches),
+                    )
                     return 0 if result.matches_found == 0 else 1
                 else:
                     self._refuse(f"Scan failed: {result.error}")
@@ -2323,6 +3643,244 @@ Commands: list, scan, add
                     self._refuse(f"Failed to add pattern: {result.error}")
                     return 1
 
+            elif args.pattern_command == "search":
+                result = execute_pattern_search(
+                    query=args.query,
+                    tags=args.tag,
+                    severity=args.severity,
+                    language=args.language,
+                    limit=args.limit,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    payload = {
+                        "success": result.success,
+                        "total_count": result.total_count,
+                        "patterns": result.patterns,
+                        "message": result.message,
+                        "error": result.error,
+                    }
+                    self._safe_print(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.success else 1
+
+                if not result.success:
+                    self._refuse(f"Pattern search failed: {result.error}")
+                    return 1
+
+                self._safe_print(f"\nMarketplace Patterns ({result.total_count}):")
+                self._safe_print("=" * 100)
+                self._safe_print(
+                    f"{'ID':<32} {'Name':<28} {'Sev':<8} {'Rating':<10} {'Installed':<10}"
+                )
+                self._safe_print("-" * 100)
+                for item in result.patterns:
+                    rating = item.get("rating", {})
+                    rating_value = float(rating.get("average_rating", 0.0))
+                    rating_count = int(rating.get("total_reviews", 0))
+                    self._safe_print(
+                        f"{str(item.get('pattern_id', '')):<32} "
+                        f"{str(item.get('name', ''))[:28]:<28} "
+                        f"{str(item.get('severity', '')):<8} "
+                        f"{rating_value:.1f}/{rating_count:<8} "
+                        f"{str(bool(item.get('installed', False))):<10}"
+                    )
+                return 0
+
+            elif args.pattern_command == "apply":
+                result = execute_pattern_apply(
+                    pattern_ref=args.pattern_ref,
+                    path=args.path,
+                    glob=args.glob,
+                    max_files=args.max_files,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    payload = {
+                        "success": result.success,
+                        "pattern_id": result.pattern_id,
+                        "installed": result.installed,
+                        "patterns_scanned": result.patterns_scanned,
+                        "files_scanned": result.files_scanned,
+                        "matches_found": result.matches_found,
+                        "scan_time_ms": result.scan_time_ms,
+                        "matches": result.matches,
+                        "errors": result.errors,
+                        "message": result.message,
+                        "error": result.error,
+                    }
+                    self._safe_print(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+                    )
+                    if not result.success:
+                        return 1
+                    self._record_knowledge_event(
+                        session_id="latest",
+                        event_type="pattern_apply",
+                        path=str(args.path),
+                        metadata={
+                            "pattern_id": result.pattern_id,
+                            "glob": args.glob,
+                            "files_scanned": int(result.files_scanned),
+                            "matches_found": int(result.matches_found),
+                            "installed": bool(result.installed),
+                        },
+                        pattern_matches=list(result.matches),
+                    )
+                    return 0 if result.matches_found == 0 else 1
+
+                if not result.success:
+                    self._refuse(f"Pattern apply failed: {result.error}")
+                    return 1
+
+                self._safe_print("\nPattern Apply Results")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Pattern:         {result.pattern_id}")
+                self._safe_print(f"Installed:       {result.installed}")
+                self._safe_print(f"Patterns scanned:{result.patterns_scanned}")
+                self._safe_print(f"Files scanned:   {result.files_scanned}")
+                self._safe_print(f"Matches found:   {result.matches_found}")
+                self._safe_print(f"Scan time:       {result.scan_time_ms:.2f}ms")
+                if result.message:
+                    self._safe_print(f"Message:         {result.message}")
+                self._safe_print("=" * 80)
+
+                self._record_knowledge_event(
+                    session_id="latest",
+                    event_type="pattern_apply",
+                    path=str(args.path),
+                    metadata={
+                        "pattern_id": result.pattern_id,
+                        "glob": args.glob,
+                        "files_scanned": int(result.files_scanned),
+                        "matches_found": int(result.matches_found),
+                        "installed": bool(result.installed),
+                    },
+                    pattern_matches=list(result.matches),
+                )
+                return 0 if result.matches_found == 0 else 1
+
+            elif args.pattern_command == "create":
+                values: dict[str, str] = {}
+                for assignment in list(args.set or []):
+                    if "=" not in assignment:
+                        self._refuse(
+                            f"Invalid --set value '{assignment}'. Expected key=value."
+                        )
+                        return 1
+                    key, value = assignment.split("=", 1)
+                    normalized_key = key.strip()
+                    if not normalized_key:
+                        self._refuse(
+                            f"Invalid --set value '{assignment}'. Key cannot be empty."
+                        )
+                        return 1
+                    values[normalized_key] = value.strip()
+
+                result = execute_pattern_create(
+                    template_id=args.template,
+                    values=values,
+                    pattern_id=args.id,
+                    name=args.name,
+                    description=args.description,
+                    severity=args.severity,
+                    tags=args.tag,
+                    languages=args.language,
+                    dry_run=args.dry_run,
+                    output_path=args.output,
+                    storage_root=Path("storage"),
+                )
+                if args.json:
+                    import json
+
+                    payload = {
+                        "success": result.success,
+                        "template_id": result.template_id,
+                        "pattern_id": result.pattern_id,
+                        "created": result.created,
+                        "installed": result.installed,
+                        "dry_run": result.dry_run,
+                        "submission_id": result.submission_id,
+                        "validation_errors": result.validation_errors,
+                        "validation_warnings": result.validation_warnings,
+                        "output_path": result.output_path,
+                        "pattern": result.pattern,
+                        "message": result.message,
+                        "error": result.error,
+                    }
+                    self._safe_print(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.success else 1
+
+                if not result.success:
+                    details = result.error or "; ".join(result.validation_errors)
+                    self._refuse(f"Pattern create failed: {details}")
+                    return 1
+
+                self._safe_print("\nPattern Create Result")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Template:      {result.template_id}")
+                self._safe_print(f"Pattern ID:    {result.pattern_id}")
+                self._safe_print(f"Dry run:       {result.dry_run}")
+                self._safe_print(f"Created:       {result.created}")
+                self._safe_print(f"Installed:     {result.installed}")
+                self._safe_print(f"Submission ID: {result.submission_id}")
+                if result.validation_warnings:
+                    self._safe_print("Warnings:")
+                    for warning in result.validation_warnings:
+                        self._safe_print(f"  - {warning}")
+                if result.output_path:
+                    self._safe_print(f"Bundle path:   {result.output_path}")
+                if result.message:
+                    self._safe_print(f"Message:       {result.message}")
+                self._safe_print("=" * 80)
+                return 0
+
+            elif args.pattern_command == "share":
+                result = execute_pattern_share(
+                    pattern_id=args.pattern_id,
+                    bundle_out=args.bundle_out,
+                    include_examples=args.include_examples,
+                    storage_root=Path("storage"),
+                )
+                if args.output == "json":
+                    import json
+
+                    payload = {
+                        "success": result.success,
+                        "pattern_id": result.pattern_id,
+                        "package_id": result.package_id,
+                        "path": result.path,
+                        "version": result.version,
+                        "created_at": result.created_at,
+                        "message": result.message,
+                        "error": result.error,
+                    }
+                    self._safe_print(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+                    )
+                    return 0 if result.success else 1
+
+                if not result.success:
+                    self._refuse(f"Pattern share failed: {result.error}")
+                    return 1
+
+                self._safe_print("\nPattern Share Result")
+                self._safe_print("=" * 80)
+                self._safe_print(f"Pattern ID: {result.pattern_id}")
+                self._safe_print(f"Package ID: {result.package_id}")
+                self._safe_print(f"Version:    {result.version}")
+                self._safe_print(f"Path:       {result.path}")
+                self._safe_print(f"Created At: {result.created_at}")
+                self._safe_print("=" * 80)
+                return 0
+
             else:
                 self._refuse(f"Unknown pattern command: {args.pattern_command}")
                 return 1
@@ -2341,9 +3899,12 @@ Commands: list, scan, add
 
             codemarshal_version = version("codemarshal")
         except ImportError:
-            codemarshal_version = "1.0.0"
+            from __init__ import __version__ as codemarshal_version
         except Exception:
-            codemarshal_version = "unknown"
+            try:
+                from __init__ import __version__ as codemarshal_version
+            except Exception:
+                codemarshal_version = "unknown"
 
         print(f"CodeMarshal v{codemarshal_version}")
         print(f"Python: {platform.python_version()}")
@@ -2360,9 +3921,12 @@ Commands: list, scan, add
 
             codemarshal_version = version("codemarshal")
         except ImportError:
-            codemarshal_version = "1.0.0"
+            from __init__ import __version__ as codemarshal_version
         except Exception:
-            codemarshal_version = "unknown"
+            try:
+                from __init__ import __version__ as codemarshal_version
+            except Exception:
+                codemarshal_version = "unknown"
 
         print("CodeMarshal System Information")
         print("=" * 40)
@@ -2851,6 +4415,55 @@ Commands: list, scan, add
             if keyword in question_lower:
                 return True
         return False
+
+    def _record_knowledge_event(
+        self,
+        *,
+        session_id: str,
+        event_type: str,
+        question: str | None = None,
+        question_type: str | None = None,
+        path: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        observations: list[dict[str, Any]] | None = None,
+        pattern_matches: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Best-effort knowledge event recording."""
+        try:
+            from knowledge import KnowledgeBase
+
+            kb = KnowledgeBase()
+            kb.record_event(
+                session_id,
+                event_type,
+                question=question,
+                path=path,
+                metadata=metadata or {},
+            )
+            if observations:
+                kb.ingest_observations(session_id, observations)
+            if question:
+                kb.ingest_query(session_id, question, question_type or "structure")
+            if pattern_matches:
+                kb.ingest_pattern_matches(session_id, pattern_matches)
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.debug("Knowledge event skipped: %s", exc)
+
+    def _read_passphrase_from_env(self, variable_name: str) -> str | None:
+        """Read passphrase from environment variable for encrypted operations."""
+        env_name = str(variable_name or "").strip()
+        if not env_name:
+            self._refuse("passphrase environment variable name is required")
+            return None
+        import os
+
+        value = os.environ.get(env_name)
+        if value is None or not value.strip():
+            self._refuse(
+                f"Environment variable `{env_name}` is missing or empty."
+            )
+            return None
+        return value
 
     def _safe_print(self, text: str) -> None:
         """Print text safely, handling encoding errors by replacing characters."""

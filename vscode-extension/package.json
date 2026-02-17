@@ -2,7 +2,7 @@
   "name": "codemarshal",
   "displayName": "CodeMarshal",
   "description": "Truth-preserving code investigation in VS Code",
-  "version": "0.1.0",
+  "version": "2.2.0-rc.1",
   "publisher": "codemarshal",
   "engines": {
     "vscode": "^1.85.0"
@@ -69,8 +69,51 @@
       {
         "command": "codemarshal.showPatternsForFile",
         "title": "CodeMarshal: Show Patterns For File"
+      },
+      {
+        "command": "codemarshal.history.refresh",
+        "title": "Refresh History",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codemarshal.history.clear",
+        "title": "Clear History",
+        "icon": "$(trash)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codemarshal.history.refresh",
+          "when": "view == codemarshal.historyView",
+          "group": "navigation"
+        },
+        {
+          "command": "codemarshal.history.clear",
+          "when": "view == codemarshal.historyView",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "codemarshal.scanPatternsForFile",
+          "group": "code-codemarshal@1",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == javascriptreact || resourceLangId == typescriptreact"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codemarshal.scanPatternsForFile",
+          "group": "code-codemarshal@1",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == javascriptreact || resourceLangId == typescriptreact"
+        },
+        {
+          "command": "codemarshal.scanPatternsForFolder",
+          "group": "code-codemarshal@2",
+          "when": "explorerResourceIsFolder"
+        }
+      ]
+    },
     "configuration": {
       "type": "object",
       "title": "CodeMarshal",
@@ -84,6 +127,36 @@
           "type": "boolean",
           "default": true,
           "description": "Run pattern scans on save"
+        },
+        "codemarshal.debounceTime": {
+          "type": "number",
+          "default": 500,
+          "description": "Debounce time in milliseconds for file scans"
+        },
+        "codemarshal.showWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warning-level pattern matches"
+        },
+        "codemarshal.showInfo": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show info-level pattern matches"
+        },
+        "codemarshal.includeGitignore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include files in .gitignore when scanning"
+        },
+        "codemarshal.maxHistoryItems": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of investigation history items to keep"
+        },
+        "codemarshal.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-refresh webview when content changes"
         }
       }
     }

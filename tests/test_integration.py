@@ -5,7 +5,6 @@ Tests complete workflows from observation to export.
 """
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -17,14 +16,13 @@ class TestCompleteWorkflow:
     """Test complete investigation workflows."""
 
     @pytest.fixture
-    def temp_project(self):
+    def temp_project(self, tmp_path: Path):
         """Create a temporary project for testing."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            project_dir = Path(tmpdir) / "test_project"
-            project_dir.mkdir()
+        project_dir = tmp_path / "test_project"
+        project_dir.mkdir()
 
-            # Create some Python files
-            (project_dir / "main.py").write_text("""
+        # Create some Python files
+        (project_dir / "main.py").write_text("""
 import os
 import sys
 
@@ -35,12 +33,12 @@ if __name__ == "__main__":
     main()
 """)
 
-            (project_dir / "utils.py").write_text("""
+        (project_dir / "utils.py").write_text("""
 def helper():
     return "help"
 """)
 
-            yield project_dir
+        yield project_dir
 
     def test_cli_has_required_methods(self):
         """Test that CLI has all required methods for workflow."""
@@ -61,14 +59,14 @@ def helper():
         assert hasattr(cli, "_generate_svg_export")
         assert hasattr(cli, "_generate_pdf_export")
 
-    def test_session_data_loading(self, temp_project):
+    def test_session_data_loading(self, temp_project: Path, tmp_path: Path):
         """Test loading session data from storage."""
         cli = CodeMarshalCLI()
 
         # Create a mock session
         from storage.investigation_storage import InvestigationStorage
 
-        storage = InvestigationStorage()
+        storage = InvestigationStorage(base_path=tmp_path / "storage")
         session_data = {
             "id": "test-integration-session",
             "path": str(temp_project),
@@ -85,13 +83,13 @@ def helper():
         assert loaded is not None
         assert loaded["id"] == session_id
 
-    def test_observation_loading(self, temp_project):
+    def test_observation_loading(self, temp_project: Path, tmp_path: Path):
         """Test loading observations for a session."""
         cli = CodeMarshalCLI()
 
         from storage.investigation_storage import InvestigationStorage
 
-        storage = InvestigationStorage()
+        storage = InvestigationStorage(base_path=tmp_path / "storage")
 
         # Create an observation
         observation = {
@@ -140,7 +138,7 @@ def helper():
         assert len(answer) > 0
         assert "Directory" in answer or "structure" in answer.lower()
 
-    def test_full_export_workflow(self, temp_project):
+    def test_full_export_workflow(self, temp_project: Path, tmp_path: Path):
         """Test complete export workflow."""
         cli = CodeMarshalCLI()
 
@@ -175,21 +173,15 @@ def helper():
             if fmt == "pdf":
                 assert isinstance(content, bytes)
                 assert len(content) > 0
-                with tempfile.NamedTemporaryFile(
-                    mode="wb", suffix=f".{fmt}", delete=False
-                ) as f:
-                    f.write(content)
-                    output_path = Path(f.name)
+                output_path = tmp_path / f"integration-export.{fmt}"
+                output_path.write_bytes(content)
             else:
                 assert isinstance(content, str)
                 assert len(content) > 0
 
                 # Write to file and verify
-                with tempfile.NamedTemporaryFile(
-                    mode="w", suffix=f".{fmt}", delete=False
-                ) as f:
-                    f.write(content)
-                    output_path = Path(f.name)
+                output_path = tmp_path / f"integration-export.{fmt}"
+                output_path.write_text(content, encoding="utf-8")
 
 
 
@@ -197,7 +189,7 @@ def helper():
             assert output_path.stat().st_size > 0
 
             # Cleanup
-            output_path.unlink()
+            output_path.unlink(missing_ok=True)
 
 class TestQuerySystemIntegration:
     """Test query system integration with all analyzers."""

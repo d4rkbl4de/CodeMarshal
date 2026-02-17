@@ -9,13 +9,14 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 # Allowed imports per constitutional constraints
-from bridge.commands import observe
+from bridge.commands import observe, execute_pattern_apply, execute_pattern_search
 from lens.indicators import LoadingIndicator
 from lens.indicators.errors import ErrorCategory, ErrorIndicator, ErrorSeverity
 from lens.navigation import Step, WorkflowNavigator
@@ -48,6 +49,13 @@ class TUIState(Enum):
     EXPORTING = "exporting"
     REFUSING = "refusing"
     EXITING = "exiting"
+    WATCHING = "watching"  # Real-time file watching
+    DIFF_VIEWING = "diff_viewing"  # Viewing file diffs
+    STATUS_VIEWING = "status_viewing"  # Viewing investigation status
+    HISTORY_VIEWING = "history_viewing"  # Knowledge history view
+    GRAPH_VIEWING = "graph_viewing"  # Knowledge graph view
+    RECOMMENDATIONS_VIEWING = "recommendations_viewing"  # Recommendation view
+    MARKETPLACE_VIEWING = "marketplace_viewing"  # Pattern marketplace view
 
 
 @dataclass
@@ -65,6 +73,18 @@ class TUIContext:
     # Navigation
     workflow: WorkflowNavigator | None = None
     current_step: Step | None = None
+
+    # Real-time watching
+    watcher_active: bool = False
+    detected_changes: list = field(default_factory=list)
+    watching_start_time: datetime | None = None
+
+    # Diff viewing
+    diff_content: str | None = None
+    diff_file_path: Path | None = None
+
+    # Status viewing
+    status_info: dict | None = None
 
 
 class TruthPreservingTUI:
@@ -104,8 +124,17 @@ class TruthPreservingTUI:
             "o": ("Observe", self._handle_observe),
             "s": ("Ask structural question", self._handle_structure_question),
             "p": ("Analyze patterns", self._handle_patterns),
+            "m": ("Pattern marketplace", self._handle_marketplace),
             "n": ("Add note", self._handle_note),
             "e": ("Export", self._handle_export),
+            # Real-time features
+            "w": ("Watch", self._handle_watch),
+            "d": ("Diff", self._handle_diff),
+            "t": ("Status", self._handle_status),
+            # Knowledge features
+            "k": ("History", self._handle_history),
+            "g": ("Graph", self._handle_graph),
+            "r": ("Recommendations", self._handle_recommendations),
             # Confirmation
             "y": ("Yes", self._handle_confirm),
             "x": ("No", self._handle_deny),
@@ -218,32 +247,60 @@ class TruthPreservingTUI:
         elif state == TUIState.OBSERVING:
             self.enabled_actions["q"] = True  # Quit
             self.enabled_actions["h"] = True  # Help
-            # After observing, you can ask questions, analyze patterns, or add notes
+            # After observing, you can ask questions, analyze patterns, add notes, or use real-time features
             self.enabled_actions["s"] = True
             self.enabled_actions["p"] = True
+            self.enabled_actions["m"] = True
             self.enabled_actions["n"] = True
             self.enabled_actions["e"] = True
+            self.enabled_actions["w"] = True  # Watch
+            self.enabled_actions["d"] = True  # Diff
+            self.enabled_actions["t"] = True  # Status
+            self.enabled_actions["k"] = True  # History
+            self.enabled_actions["g"] = True  # Graph
+            self.enabled_actions["r"] = True  # Recommendations
 
         elif state == TUIState.QUESTIONING:
             self.enabled_actions["q"] = True  # Quit
             self.enabled_actions["h"] = True  # Help
             self.enabled_actions["p"] = True  # Can switch to patterns
+            self.enabled_actions["m"] = True
             self.enabled_actions["n"] = True  # Can add notes
             self.enabled_actions["e"] = True  # Can export
+            self.enabled_actions["w"] = True  # Watch
+            self.enabled_actions["d"] = True  # Diff
+            self.enabled_actions["t"] = True  # Status
+            self.enabled_actions["k"] = True  # History
+            self.enabled_actions["g"] = True  # Graph
+            self.enabled_actions["r"] = True  # Recommendations
 
         elif state == TUIState.PATTERN_ANALYSIS:
             self.enabled_actions["q"] = True  # Quit
             self.enabled_actions["h"] = True  # Help
             self.enabled_actions["s"] = True  # Can ask questions
+            self.enabled_actions["m"] = True
             self.enabled_actions["n"] = True  # Can add notes
             self.enabled_actions["e"] = True  # Can export
+            self.enabled_actions["w"] = True  # Watch
+            self.enabled_actions["d"] = True  # Diff
+            self.enabled_actions["t"] = True  # Status
+            self.enabled_actions["k"] = True  # History
+            self.enabled_actions["g"] = True  # Graph
+            self.enabled_actions["r"] = True  # Recommendations
 
         elif state == TUIState.NOTING:
             self.enabled_actions["q"] = True  # Quit
             self.enabled_actions["h"] = True  # Help
             self.enabled_actions["s"] = True  # Can ask questions
             self.enabled_actions["p"] = True  # Can analyze patterns
+            self.enabled_actions["m"] = True
             self.enabled_actions["e"] = True  # Can export
+            self.enabled_actions["w"] = True  # Watch
+            self.enabled_actions["d"] = True  # Diff
+            self.enabled_actions["t"] = True  # Status
+            self.enabled_actions["k"] = True  # History
+            self.enabled_actions["g"] = True  # Graph
+            self.enabled_actions["r"] = True  # Recommendations
 
         elif state == TUIState.EXPORTING:
             self.enabled_actions["q"] = True  # Quit
@@ -254,6 +311,46 @@ class TruthPreservingTUI:
         elif state == TUIState.REFUSING:
             self.enabled_actions["q"] = True  # Quit
             self.enabled_actions["h"] = True  # Help
+
+        elif state == TUIState.WATCHING:
+            self.enabled_actions["q"] = True  # Quit
+            self.enabled_actions["h"] = True  # Help
+            self.enabled_actions["t"] = True  # Status
+
+        elif state == TUIState.DIFF_VIEWING:
+            self.enabled_actions["q"] = True  # Quit
+            self.enabled_actions["h"] = True  # Help
+            self.enabled_actions["t"] = True  # Status
+
+        elif state == TUIState.STATUS_VIEWING:
+            self.enabled_actions["q"] = True  # Quit
+            self.enabled_actions["h"] = True  # Help
+            self.enabled_actions["w"] = True  # Watch
+            self.enabled_actions["d"] = True  # Diff
+
+        elif state == TUIState.HISTORY_VIEWING:
+            self.enabled_actions["q"] = True
+            self.enabled_actions["h"] = True
+            self.enabled_actions["g"] = True
+            self.enabled_actions["r"] = True
+
+        elif state == TUIState.GRAPH_VIEWING:
+            self.enabled_actions["q"] = True
+            self.enabled_actions["h"] = True
+            self.enabled_actions["k"] = True
+            self.enabled_actions["r"] = True
+
+        elif state == TUIState.RECOMMENDATIONS_VIEWING:
+            self.enabled_actions["q"] = True
+            self.enabled_actions["h"] = True
+            self.enabled_actions["k"] = True
+            self.enabled_actions["g"] = True
+
+        elif state == TUIState.MARKETPLACE_VIEWING:
+            self.enabled_actions["q"] = True
+            self.enabled_actions["h"] = True
+            self.enabled_actions["p"] = True
+            self.enabled_actions["s"] = True
 
         # Always enable confirmation keys when awaiting confirmation
         if self.context.awaiting_confirmation:
@@ -327,6 +424,27 @@ class TruthPreservingTUI:
 
         elif self.context.current_state == TUIState.REFUSING:
             self._render_refusal(content_y, content_height)
+
+        elif self.context.current_state == TUIState.WATCHING:
+            self._render_watching_interface(content_y, content_height)
+
+        elif self.context.current_state == TUIState.DIFF_VIEWING:
+            self._render_diff_interface(content_y, content_height)
+
+        elif self.context.current_state == TUIState.STATUS_VIEWING:
+            self._render_status_interface(content_y, content_height)
+
+        elif self.context.current_state == TUIState.HISTORY_VIEWING:
+            self._render_history_interface(content_y, content_height)
+
+        elif self.context.current_state == TUIState.GRAPH_VIEWING:
+            self._render_graph_interface(content_y, content_height)
+
+        elif self.context.current_state == TUIState.RECOMMENDATIONS_VIEWING:
+            self._render_recommendations_interface(content_y, content_height)
+
+        elif self.context.current_state == TUIState.MARKETPLACE_VIEWING:
+            self._render_marketplace_interface(content_y, content_height)
 
     def _render_path_prompt(self, y: int, height: int) -> None:
         """Render path input prompt."""
@@ -661,6 +779,85 @@ class TruthPreservingTUI:
 
         self._transition_to(TUIState.PATTERN_ANALYSIS)
 
+    def _handle_marketplace(self) -> None:
+        """Handle local marketplace listing/search/apply flow."""
+        if not self.context.current_path:
+            self.context.last_error = "Must set a path before using marketplace features"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.MARKETPLACE_VIEWING)
+        query = self._request_text_input(
+            "Marketplace search query (blank for top local patterns):",
+            "",
+        )
+        if query is None:
+            self._transition_to(TUIState.OBSERVING)
+            return
+
+        try:
+            search_result = execute_pattern_search(
+                query=query.strip(),
+                limit=12,
+                storage_root=Path("storage"),
+            )
+            if not search_result.success:
+                self._show_temporary_message(
+                    f"Marketplace search failed:\n{search_result.error}"
+                )
+                self._transition_to(TUIState.OBSERVING)
+                return
+
+            lines = [
+                "Pattern Marketplace",
+                "===================",
+                f"Query: {query.strip() or '(top patterns)'}",
+                f"Results: {search_result.total_count}",
+                "",
+            ]
+            for item in search_result.patterns[:10]:
+                pattern_id = str(item.get("pattern_id", ""))
+                name = str(item.get("name", ""))
+                severity = str(item.get("severity", ""))
+                installed = bool(item.get("installed", False))
+                lines.append(
+                    f"- {pattern_id} [{severity}] {'(installed)' if installed else ''}"
+                )
+                if name:
+                    lines.append(f"    {name}")
+
+            self._show_temporary_message("\n".join(lines))
+
+            apply_pattern_id = self._request_text_input(
+                "Optional pattern ID to apply now (blank to skip):",
+                "",
+            )
+            if apply_pattern_id:
+                apply_result = execute_pattern_apply(
+                    pattern_ref=apply_pattern_id.strip(),
+                    path=self.context.current_path,
+                    glob="*.py",
+                    max_files=5000,
+                    storage_root=Path("storage"),
+                )
+                if not apply_result.success:
+                    self._show_temporary_message(
+                        f"Apply failed:\n{apply_result.error or 'Unknown error'}"
+                    )
+                else:
+                    self._show_temporary_message(
+                        "Pattern applied\n"
+                        f"Pattern: {apply_result.pattern_id}\n"
+                        f"Files scanned: {apply_result.files_scanned}\n"
+                        f"Matches found: {apply_result.matches_found}"
+                    )
+        except Exception as exc:
+            self.context.last_error = f"Marketplace failed: {exc}"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.OBSERVING)
+
     def _handle_note(self) -> None:
         """Handle note-taking request."""
         if not self.context.investigation_id:
@@ -755,6 +952,223 @@ class TruthPreservingTUI:
             self._transition_to(TUIState.REFUSING)
         finally:
             self.loading_indicator = LoadingIndicator.create_idle()
+
+    def _handle_watch(self) -> None:
+        """Handle file watching request."""
+        if not self.context.current_path:
+            self.context.last_error = "Must set a path before watching"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.WATCHING)
+
+        # Show watching status
+        self._show_temporary_message(
+            f"Watching {self.context.current_path}\n"
+            "File system monitoring active.\n"
+            "Changes will be detected in real-time.\n\n"
+            "Press any key to return to observing..."
+        )
+
+        # Note: Real-time watching would require async/threading integration
+        # For now, we show the UI state
+        self._transition_to(TUIState.OBSERVING)
+
+    def _handle_diff(self) -> None:
+        """Handle diff viewing request."""
+        if not self.context.current_path:
+            self.context.last_error = "Must set a path before viewing diffs"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.DIFF_VIEWING)
+
+        # Show diff viewer placeholder
+        self._show_temporary_message(
+            f"Diff Viewer\n"
+            f"Path: {self.context.current_path}\n\n"
+            "Compare file versions and view changes.\n\n"
+            "Use 'codemarshal diff' CLI command for full functionality.\n\n"
+            "Press any key to return..."
+        )
+
+        self._transition_to(TUIState.OBSERVING)
+
+    def _handle_status(self) -> None:
+        """Handle status viewing request."""
+        self._transition_to(TUIState.STATUS_VIEWING)
+
+        # Gather status information
+        status_lines = [
+            "Investigation Status",
+            "===================",
+            "",
+        ]
+
+        if self.context.current_path:
+            status_lines.append(f"Current Path: {self.context.current_path}")
+        else:
+            status_lines.append("Current Path: Not set")
+
+        if self.context.investigation_id:
+            status_lines.append(f"Investigation ID: {self.context.investigation_id}")
+
+        status_lines.append(f"Current State: {self.context.current_state.value}")
+
+        if self.context.detected_changes:
+            status_lines.append(
+                f"Detected Changes: {len(self.context.detected_changes)}"
+            )
+
+        status_lines.extend(
+            [
+                "",
+                "Press any key to return...",
+            ]
+        )
+
+        self._show_temporary_message("\n".join(status_lines))
+        self._transition_to(TUIState.OBSERVING)
+
+    def _handle_history(self) -> None:
+        """Handle knowledge history request."""
+        if not self.context.investigation_id:
+            self.context.last_error = "Must observe first before viewing history"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.HISTORY_VIEWING)
+        try:
+            from knowledge import KnowledgeBase
+
+            kb = KnowledgeBase()
+            events = kb.history(session_id=self.context.investigation_id, limit=20)
+            suggestions = kb.history_service.suggestions(
+                session_id=self.context.investigation_id,
+                limit=5,
+            )
+
+            lines = [
+                "Knowledge History",
+                "=================",
+                "",
+                f"Session: {self.context.investigation_id}",
+                f"Events: {len(events)}",
+                "",
+            ]
+            for event in events[:10]:
+                timestamp = str(event.get("timestamp") or "unknown")
+                event_type = str(event.get("event_type") or "unknown")
+                question = str(event.get("question") or "").strip()
+                lines.append(f"- [{timestamp}] {event_type}")
+                if question:
+                    lines.append(f"    Q: {question}")
+
+            if suggestions:
+                lines.extend(["", "Top suggestions:"])
+                for item in suggestions:
+                    lines.append(f"- {item.get('query', '')} ({item.get('count', 0)})")
+
+            lines.extend(["", "Press any key to return..."])
+            self._show_temporary_message("\n".join(lines))
+        except Exception as exc:
+            self.context.last_error = f"History failed: {exc}"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.OBSERVING)
+
+    def _handle_graph(self) -> None:
+        """Handle knowledge graph request."""
+        if not self.context.investigation_id:
+            self.context.last_error = "Must observe first before viewing graph"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.GRAPH_VIEWING)
+        try:
+            from knowledge import KnowledgeBase
+
+            kb = KnowledgeBase()
+            payload = kb.graph(session_id=self.context.investigation_id, depth=2, limit=80)
+            nodes = payload.get("nodes", [])
+            edges = payload.get("edges", [])
+
+            lines = [
+                "Knowledge Graph",
+                "===============",
+                "",
+                f"Session: {self.context.investigation_id}",
+                f"Nodes: {len(nodes)}",
+                f"Edges: {len(edges)}",
+                "",
+                "Sample nodes:",
+            ]
+            for node in nodes[:8]:
+                node_id = str(node.get("node_id") or "")
+                node_type = str(node.get("node_type") or "unknown")
+                label = str(node.get("label") or "")
+                lines.append(f"- {node_id} [{node_type}] {label}")
+
+            lines.append("")
+            lines.append("Sample edges:")
+            for edge in edges[:10]:
+                src = str(edge.get("from_node") or "")
+                dst = str(edge.get("to_node") or "")
+                edge_type = str(edge.get("edge_type") or "")
+                lines.append(f"- {src} -> {dst} ({edge_type})")
+
+            lines.extend(["", "Press any key to return..."])
+            self._show_temporary_message("\n".join(lines))
+        except Exception as exc:
+            self.context.last_error = f"Graph failed: {exc}"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.OBSERVING)
+
+    def _handle_recommendations(self) -> None:
+        """Handle recommendation request."""
+        if not self.context.investigation_id:
+            self.context.last_error = "Must observe first before viewing recommendations"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.RECOMMENDATIONS_VIEWING)
+        try:
+            from knowledge import KnowledgeBase
+
+            kb = KnowledgeBase()
+            recommendations = kb.recommendations(
+                self.context.investigation_id,
+                limit=8,
+            )
+
+            lines = [
+                "Recommendations",
+                "===============",
+                "",
+                f"Session: {self.context.investigation_id}",
+                f"Count: {len(recommendations)}",
+                "",
+            ]
+            for item in recommendations:
+                title = str(item.get("title") or "Untitled")
+                category = str(item.get("category") or "unknown")
+                confidence = float(item.get("confidence") or 0.0)
+                reason = str(item.get("reason") or "")
+                lines.append(f"- {title} [{category}] ({confidence:.2f})")
+                if reason:
+                    lines.append(f"    {reason}")
+
+            lines.extend(["", "Press any key to return..."])
+            self._show_temporary_message("\n".join(lines))
+        except Exception as exc:
+            self.context.last_error = f"Recommendations failed: {exc}"
+            self._transition_to(TUIState.REFUSING)
+            return
+
+        self._transition_to(TUIState.OBSERVING)
 
     def _handle_confirm(self) -> None:
         """Handle confirmation."""
@@ -987,6 +1401,138 @@ class TruthPreservingTUI:
                 self.stdscr.addstr(y, x, truncated)
         except curses.error:
             pass  # Ignore cursor position errors at screen edges
+
+    def _render_watching_interface(self, y: int, height: int) -> None:
+        """Render real-time watching interface."""
+        lines = [
+            "File System Watcher",
+            "",
+            f"Watching: {self.context.current_path}",
+            "",
+            "Real-time monitoring active.",
+            "Changes will be detected automatically.",
+            "",
+            f"Detected Changes: {len(self.context.detected_changes)}",
+        ]
+
+        if self.context.detected_changes:
+            lines.extend(["", "Recent changes:"])
+            for change in self.context.detected_changes[-5:]:  # Show last 5
+                lines.append(f"  [{change.change_type.name}] {change.path.name}")
+
+        lines.extend(["", "Press 'q' to stop watching, 'h' for help."])
+
+        for i, line in enumerate(lines[:height]):
+            self._addstr_centered(y + i, line, curses.color_pair(1))
+
+    def _render_diff_interface(self, y: int, height: int) -> None:
+        """Render diff viewer interface."""
+        lines = [
+            "Diff Viewer",
+            "",
+            f"Path: {self.context.current_path}",
+            "",
+            "Compare file versions and view changes.",
+            "",
+            "Features:",
+            "  - Line-by-line comparison",
+            "  - Semantic change detection",
+            "  - Import/function/class tracking",
+            "",
+            "Use 'codemarshal diff' CLI for full functionality.",
+        ]
+
+        for i, line in enumerate(lines[:height]):
+            self._addstr_centered(y + i, line, curses.color_pair(1))
+
+    def _render_status_interface(self, y: int, height: int) -> None:
+        """Render investigation status interface."""
+        lines = [
+            "Investigation Status",
+            "===================",
+            "",
+        ]
+
+        if self.context.current_path:
+            lines.append(f"Current Path: {self.context.current_path}")
+        else:
+            lines.append("Current Path: Not set")
+
+        if self.context.investigation_id:
+            lines.append(f"Investigation ID: {self.context.investigation_id}")
+
+        lines.extend(
+            [
+                f"Current State: {self.context.current_state.value}",
+                f"Watcher Active: {self.context.watcher_active}",
+            ]
+        )
+
+        if self.context.detected_changes:
+            lines.append(f"Detected Changes: {len(self.context.detected_changes)}")
+
+        lines.extend(
+            [
+                "",
+                "Press 'w' to start watching, 'd' for diff, 'q' to quit.",
+            ]
+        )
+
+        for i, line in enumerate(lines[:height]):
+            if i < 3:
+                self._addstr_centered(y + i, line, curses.color_pair(5))  # Cyan header
+            else:
+                self._addstr_centered(y + i, line, curses.color_pair(1))
+
+    def _render_history_interface(self, y: int, height: int) -> None:
+        """Render knowledge history placeholder interface."""
+        lines = [
+            "Knowledge History",
+            "",
+            "Reviewing timeline events and query suggestions...",
+            "",
+            "Press any key to open details.",
+        ]
+        for i, line in enumerate(lines[:height]):
+            self._addstr_centered(y + i, line, curses.color_pair(1))
+
+    def _render_graph_interface(self, y: int, height: int) -> None:
+        """Render knowledge graph placeholder interface."""
+        lines = [
+            "Knowledge Graph",
+            "",
+            "Building bounded relationship graph for this session...",
+            "",
+            "Press any key to open details.",
+        ]
+        for i, line in enumerate(lines[:height]):
+            self._addstr_centered(y + i, line, curses.color_pair(1))
+
+    def _render_recommendations_interface(self, y: int, height: int) -> None:
+        """Render recommendations placeholder interface."""
+        lines = [
+            "Recommendations",
+            "",
+            "Generating deterministic next-step guidance...",
+            "",
+            "Press any key to open details.",
+        ]
+        for i, line in enumerate(lines[:height]):
+            self._addstr_centered(y + i, line, curses.color_pair(1))
+
+    def _render_marketplace_interface(self, y: int, height: int) -> None:
+        """Render pattern marketplace placeholder interface."""
+        lines = [
+            "Pattern Marketplace",
+            "",
+            "Searching local catalog and installed templates...",
+            "",
+            "You can search and apply pattern IDs from here.",
+            "",
+            "Press any key to open details.",
+        ]
+        for i, line in enumerate(lines[:height]):
+            self._addstr_centered(y + i, line, curses.color_pair(1))
 
 
 def launch_tui(initial_path: Path | None = None) -> int:

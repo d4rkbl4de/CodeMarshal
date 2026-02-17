@@ -47,11 +47,16 @@ class SessionManager:
                 "accessibility_mode": "standard",
                 "font_scale": 1.0,
                 "visual_theme_variant": "noir_premium",
+                "theme_family": "dark",
                 "motion_level": "standard",
                 "sidebar_collapsed": False,
                 "reduced_motion": False,
                 "ui_density": "comfortable",
                 "accent_intensity": "normal",
+                "knowledge_canvas_filters": {},
+                "history_sidebar_visible": True,
+                "comments_panel_collapsed": False,
+                "layout_splitter_ratios": {},
             },
             "dirty": False,
             "last_saved_at": None,
@@ -87,6 +92,8 @@ class SessionManager:
             else:
                 merged_ui = dict(self._default_state()["ui"])
                 merged_ui.update(base["ui"])
+                if not isinstance(merged_ui.get("layout_splitter_ratios"), dict):
+                    merged_ui["layout_splitter_ratios"] = {}
                 base["ui"] = merged_ui
             return base
         except Exception:
@@ -316,17 +323,36 @@ class SessionManager:
             variant = str(ui.get("visual_theme_variant") or "noir_premium").strip().lower()
             return (
                 variant
-                if variant in {"noir_premium", "noir", "ledger"}
+                if variant in {"noir_premium", "noir", "ledger", "linen_day", "harbor_light"}
                 else "noir_premium"
             )
 
     def set_visual_theme_variant(self, variant: str) -> None:
         normalized = str(variant or "noir_premium").strip().lower()
-        if normalized not in {"noir_premium", "noir", "ledger"}:
+        if normalized not in {"noir_premium", "noir", "ledger", "linen_day", "harbor_light"}:
             normalized = "noir_premium"
         with self._lock:
             ui = dict(self._state.get("ui", {}))
             ui["visual_theme_variant"] = normalized
+            ui["theme_family"] = (
+                "light" if normalized in {"linen_day", "harbor_light"} else "dark"
+            )
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_theme_family(self) -> str:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            family = str(ui.get("theme_family") or "dark").strip().lower()
+            return family if family in {"dark", "light"} else "dark"
+
+    def set_theme_family(self, family: str) -> None:
+        normalized = str(family or "dark").strip().lower()
+        if normalized not in {"dark", "light"}:
+            normalized = "dark"
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["theme_family"] = normalized
             self._state["ui"] = ui
             self._save_state()
 
@@ -405,6 +431,78 @@ class SessionManager:
         with self._lock:
             ui = dict(self._state.get("ui", {}))
             ui["accent_intensity"] = normalized
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_knowledge_canvas_filters(self) -> dict[str, Any]:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            payload = ui.get("knowledge_canvas_filters", {})
+            return dict(payload) if isinstance(payload, dict) else {}
+
+    def set_knowledge_canvas_filters(self, filters: dict[str, Any]) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["knowledge_canvas_filters"] = dict(filters) if isinstance(filters, dict) else {}
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_history_sidebar_visible(self) -> bool:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return bool(ui.get("history_sidebar_visible", True))
+
+    def set_history_sidebar_visible(self, visible: bool) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["history_sidebar_visible"] = bool(visible)
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_comments_panel_collapsed(self) -> bool:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            return bool(ui.get("comments_panel_collapsed", False))
+
+    def set_comments_panel_collapsed(self, collapsed: bool) -> None:
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ui["comments_panel_collapsed"] = bool(collapsed)
+            self._state["ui"] = ui
+            self._save_state()
+
+    def get_layout_splitter_ratio(self, route: str, default: float = 0.42) -> float:
+        name = str(route or "").strip().lower()
+        fallback = max(0.2, min(0.8, float(default)))
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ratios = ui.get("layout_splitter_ratios", {})
+            if not isinstance(ratios, dict):
+                return fallback
+            value = ratios.get(name)
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                return fallback
+            return max(0.2, min(0.8, parsed))
+
+    def set_layout_splitter_ratio(self, route: str, ratio: float) -> None:
+        name = str(route or "").strip().lower()
+        if not name:
+            return
+        try:
+            parsed = float(ratio)
+        except (TypeError, ValueError):
+            parsed = 0.42
+        normalized = max(0.2, min(0.8, parsed))
+        with self._lock:
+            ui = dict(self._state.get("ui", {}))
+            ratios = ui.get("layout_splitter_ratios", {})
+            if not isinstance(ratios, dict):
+                ratios = {}
+            updated = dict(ratios)
+            updated[name] = normalized
+            ui["layout_splitter_ratios"] = updated
             self._state["ui"] = ui
             self._save_state()
 

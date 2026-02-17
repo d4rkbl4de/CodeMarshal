@@ -2,10 +2,11 @@
 
 Truth-preserving investigation tooling for complex codebases.
 
-## Current Status (February 15, 2026)
+## Current Status (February 16, 2026)
 
 - Phases complete: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
-- Latest local validation run (`python -m pytest -q`): `213 collected, 211 passed, 2 skipped`
+- Release line: `v2.2.0-rc1`
+- Latest local validation run (project `.venv`, `python -m pytest -q`): `274 collected, 274 passed, 0 failed`
 - Coverage policy: `fail_under = 90%` (run `pytest --cov=. --cov-report=term -q` for current value)
 
 See `ROADMAP.md` for the execution-status roadmap.
@@ -53,7 +54,13 @@ codemarshal export <investigation_id> --format=pdf --output=report.pdf --confirm
 - `observe` - collect observations without full investigation
 - `query` - ask evidence-anchored questions
 - `search` - regex/text search with limit/context/file filters
-- `pattern` - list, scan, or add patterns
+- `pattern` / `patterns` - list, scan, add, search, apply, create, or share patterns
+
+Note: `pattern` is deprecated; prefer `patterns`.
+- `history`, `graph`, `recommendations` - inspect knowledge timeline, graph, and suggested next steps
+- `team` - manage local collaboration teams and workspace key unlock
+- `share` - create/list/revoke/resolve encrypted share artifacts
+- `comment` - add/list/resolve encrypted threaded comments
 - `export` - export investigation data (`json`, `markdown`, `html`, `plain`, `csv`, `jupyter`, `pdf`, `svg`)
 - `gui` - desktop GUI entrypoint
 - `tui` - terminal UI
@@ -68,6 +75,13 @@ python -m pip install -e .[gui]
 python -m pip install -e .[export_pdf]
 python -m pip install -e .[dev]
 ```
+
+## Desktop GUI Highlights
+
+- Diff viewer with fold/unfold hunk sections and line-aware coloring.
+- Pattern template and marketplace panels integrated into the Patterns route.
+- Knowledge canvas + history sidebar + threaded comments panel in the Knowledge route.
+- Expanded theme catalog with dark and light variants.
 
 ## Docker Note (PDF Export)
 
@@ -94,7 +108,10 @@ On Windows host environments, PDF export still requires GTK runtime/native libra
 - **[CHANGELOG.md](CHANGELOG.md)** - version history and migration guides
 - **[docs/index.md](docs/index.md)** - documentation navigation guide
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** - command usage and workflows
+- **[docs/RELEASE_CHECKLIST_v2.2.0-rc1.md](docs/RELEASE_CHECKLIST_v2.2.0-rc1.md)** - release-candidate gate checklist and results
 - **[docs/FEATURES.md](docs/FEATURES.md)** - implemented features and phase mapping
+- **[docs/pattern_library.md](docs/pattern_library.md)** - local marketplace and template workflows
+- **[docs/collaboration.md](docs/collaboration.md)** - team, share, and comment collaboration workflows
 - **[docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)** - programmatic API notes
 - **[docs/architecture.md](docs/architecture.md)** - system architecture
 - **[docs/INTEGRATION_EXAMPLES.md](docs/INTEGRATION_EXAMPLES.md)** - CI/CD and editor integration

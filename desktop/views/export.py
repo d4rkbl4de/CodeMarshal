@@ -9,9 +9,12 @@ from typing import Any
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from desktop.widgets import (
+    ActionStrip,
     ErrorDialog,
     HintPanel,
+    PageScaffold,
     ResultsViewer,
+    SectionHeader,
     apply_accessible,
     clear_invalid,
     mark_invalid,
@@ -22,6 +25,7 @@ class ExportView(QtWidgets.QWidget):
     """Preview and export investigation outputs."""
 
     navigate_requested = QtCore.Signal(str)
+    layout_splitter_ratio_changed = QtCore.Signal(float)
 
     def __init__(
         self,
@@ -39,18 +43,23 @@ class ExportView(QtWidgets.QWidget):
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        header = QtWidgets.QHBoxLayout()
-        self.back_btn = QtWidgets.QPushButton("Home")
-        self.back_btn.clicked.connect(lambda: self.navigate_requested.emit("home"))
-        apply_accessible(self.back_btn, name="Return to Home view")
-        title = QtWidgets.QLabel("Export")
-        title.setObjectName("sectionTitle")
-        header.addWidget(self.back_btn)
-        header.addWidget(title)
-        header.addStretch(1)
-        layout.addLayout(header)
+        self.page_scaffold = PageScaffold(default_ratio=0.42, narrow_breakpoint=1300)
+        self.page_scaffold.splitter_ratio_changed.connect(
+            self.layout_splitter_ratio_changed.emit
+        )
+        layout.addWidget(self.page_scaffold)
+
+        header = SectionHeader(
+            "Export",
+            "Preview and publish investigation outputs in multiple formats.",
+        )
+        self.page_scaffold.set_header_widget(header)
+
+        form_layout = self.page_scaffold.form_layout
+        results_layout = self.page_scaffold.results_layout
 
         self.hint_panel = HintPanel(
             "Export Tips",
@@ -59,7 +68,7 @@ class ExportView(QtWidgets.QWidget):
                 "If preview is truncated, use Load Full Preview before writing files."
             ),
         )
-        layout.addWidget(self.hint_panel)
+        form_layout.addWidget(self.hint_panel)
 
         config_group = QtWidgets.QGroupBox("Export Configuration")
         config_form = QtWidgets.QFormLayout(config_group)
@@ -109,47 +118,14 @@ class ExportView(QtWidgets.QWidget):
         output_row.addWidget(self.output_input, stretch=1)
         output_row.addWidget(self.browse_btn)
         config_form.addRow("Output:", output_row)
-        layout.addWidget(config_group)
-
-        actions = QtWidgets.QHBoxLayout()
-        self.preview_btn = QtWidgets.QPushButton("Preview")
-        self.preview_btn.clicked.connect(self._on_preview)
-        apply_accessible(self.preview_btn, name="Preview export output")
-        self.full_preview_btn = QtWidgets.QPushButton("Load Full Preview")
-        self.full_preview_btn.setEnabled(False)
-        self.full_preview_btn.clicked.connect(self._on_load_full_preview)
-        apply_accessible(self.full_preview_btn, name="Load full export preview")
-        self.export_btn = QtWidgets.QPushButton("Export")
-        self.export_btn.setProperty("variant", "primary")
-        self.export_btn.clicked.connect(self._on_export)
-        apply_accessible(self.export_btn, name="Run export")
-        self.cancel_btn = QtWidgets.QPushButton("Cancel")
-        self.cancel_btn.setEnabled(False)
-        self.cancel_btn.clicked.connect(self._on_cancel)
-        apply_accessible(self.cancel_btn, name="Cancel export operation")
-        self.open_folder_btn = QtWidgets.QPushButton("Open Folder")
-        self.open_folder_btn.setEnabled(False)
-        self.open_folder_btn.clicked.connect(self._open_export_folder)
-        apply_accessible(self.open_folder_btn, name="Open exported file folder")
-        self.copy_path_btn = QtWidgets.QPushButton("Copy Path")
-        self.copy_path_btn.setEnabled(False)
-        self.copy_path_btn.clicked.connect(self._copy_output_path)
-        apply_accessible(self.copy_path_btn, name="Copy export output path")
-        actions.addWidget(self.preview_btn)
-        actions.addWidget(self.full_preview_btn)
-        actions.addWidget(self.export_btn)
-        actions.addWidget(self.open_folder_btn)
-        actions.addWidget(self.copy_path_btn)
-        actions.addWidget(self.cancel_btn)
-        actions.addStretch(1)
-        layout.addLayout(actions)
+        form_layout.addWidget(config_group)
 
         self.validation_label = QtWidgets.QLabel("")
         self.validation_label.setObjectName("validationError")
         self.validation_label.setWordWrap(True)
         self.validation_label.setVisible(False)
         apply_accessible(self.validation_label, name="Export validation message")
-        layout.addWidget(self.validation_label)
+        form_layout.addWidget(self.validation_label)
 
         progress_row = QtWidgets.QHBoxLayout()
         self.progress_bar = QtWidgets.QProgressBar()
@@ -159,13 +135,48 @@ class ExportView(QtWidgets.QWidget):
         apply_accessible(self.progress_label, name="Export progress status")
         progress_row.addWidget(self.progress_bar, stretch=1)
         progress_row.addWidget(self.progress_label)
-        layout.addLayout(progress_row)
+        form_layout.addLayout(progress_row)
 
-        preview_group = QtWidgets.QGroupBox("Export Preview")
-        preview_layout = QtWidgets.QVBoxLayout(preview_group)
+        self.action_strip = ActionStrip()
+        self.action_strip.setProperty("sticky", True)
+        self.preview_btn = self.action_strip.add_button("Preview", self._on_preview)
+        self.full_preview_btn = self.action_strip.add_button(
+            "Load Full Preview",
+            self._on_load_full_preview,
+        )
+        self.full_preview_btn.setEnabled(False)
+        self.export_btn = self.action_strip.add_button(
+            "Export",
+            self._on_export,
+            primary=True,
+        )
+        self.open_folder_btn = self.action_strip.add_button(
+            "Open Folder",
+            self._open_export_folder,
+        )
+        self.open_folder_btn.setEnabled(False)
+        self.copy_path_btn = self.action_strip.add_button("Copy Path", self._copy_output_path)
+        self.copy_path_btn.setEnabled(False)
+        self.cancel_btn = self.action_strip.add_button("Cancel", self._on_cancel)
+        self.cancel_btn.setEnabled(False)
+        apply_accessible(self.preview_btn, name="Preview export output")
+        apply_accessible(self.full_preview_btn, name="Load full export preview")
+        apply_accessible(self.export_btn, name="Run export")
+        apply_accessible(self.cancel_btn, name="Cancel export operation")
+        apply_accessible(self.open_folder_btn, name="Open exported file folder")
+        apply_accessible(self.copy_path_btn, name="Copy export output path")
+        self.action_strip.add_stretch(1)
+        form_layout.addStretch(1)
+        form_layout.addWidget(self.action_strip)
+
+        preview_header = SectionHeader(
+            "Export Preview",
+            "Inspect rendered output before writing files.",
+        )
+        results_layout.addWidget(preview_header)
+
         self.preview_viewer = ResultsViewer()
-        preview_layout.addWidget(self.preview_viewer)
-        layout.addWidget(preview_group, stretch=1)
+        results_layout.addWidget(self.preview_viewer, stretch=1)
 
         self.setTabOrder(self.session_combo, self.format_combo)
         self.setTabOrder(self.format_combo, self.include_notes)
@@ -179,6 +190,9 @@ class ExportView(QtWidgets.QWidget):
         self.setTabOrder(self.export_btn, self.open_folder_btn)
         self.setTabOrder(self.open_folder_btn, self.copy_path_btn)
         self.setTabOrder(self.copy_path_btn, self.cancel_btn)
+
+    def set_layout_splitter_ratio(self, ratio: float) -> None:
+        self.page_scaffold.set_splitter_ratio(ratio)
 
     def set_command_bridge(self, command_bridge: Any) -> None:
         if self._bridge is command_bridge:
@@ -380,6 +394,7 @@ class ExportView(QtWidgets.QWidget):
                 json.dumps(summary, indent=2, default=str),
                 preview_text,
             )
+            self.preview_viewer.set_metadata("Latest operation: Export Preview")
             return
 
         self.progress_label.setText("Export completed")
@@ -387,6 +402,7 @@ class ExportView(QtWidgets.QWidget):
             f"Exported to: {data.get('path', 'unknown')}",
             json.dumps(data, indent=2, default=str),
         )
+        self.preview_viewer.set_metadata("Latest operation: Export")
         self.open_folder_btn.setEnabled(True)
         self.copy_path_btn.setEnabled(True)
 

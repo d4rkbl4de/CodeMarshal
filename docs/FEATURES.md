@@ -1,14 +1,14 @@
 # CodeMarshal Feature Matrix
 
-**Version:** 2.1.1-dev  
-**Last Updated:** February 15, 2026
+**Version:** 2.2.0-rc1  
+**Last Updated:** February 16, 2026
 
 ---
 
 ## Current Product State
 
 - Completed roadmap phases: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
-- Latest local validation run (`python -m pytest -q`): `213 collected, 211 passed, 2 skipped`
+- Latest local validation run (`python -m pytest -q`): `274 collected, 274 passed, 0 failed`
 - Coverage policy: `fail_under = 90%`
 
 ---
@@ -33,7 +33,8 @@
 - Regex search with context and filtering (`search`)
 - Search limit control (`--limit`, `-m`)
 - Files-only result mode (`--files-with-matches`, `-l`)
-- Pattern commands: `list`, `scan`, `add`
+- Semantic and hybrid search support (`search --semantic`, `search --hybrid`)
+- Pattern commands: `list`, `scan`, `add`, `search`, `apply`, `create`, `share`
 - Built-in and custom pattern workflows
 
 ### Multi-Language Observation
@@ -75,7 +76,15 @@ Desktop UX enhancements:
 
 - Schema migration flow
 - Transactional storage components
-- Knowledge-base related storage scaffolding
+- Knowledge graph, history, and recommendations storage
+- Collaboration storage for encrypted shares/comments/team metadata
+
+### Knowledge and Collaboration
+
+- Knowledge timeline/history retrieval (`history`)
+- Graph projection and traversal queries (`graph`)
+- Recommendation generation from investigation artifacts (`recommendations`)
+- Team management, encrypted sharing, and threaded comments (`team`, `share`, `comment`)
 
 ### Integrations and Extensibility
 
@@ -109,7 +118,7 @@ Desktop UX enhancements:
 
 ## Remaining Work
 
-No new roadmap phases remain after v2.1.0 delivery. Active hardening and maintenance items are tracked in `ROADMAP.md` (v2.1.1 maintenance).
+v2.2.0 release hardening remains: packaging verification, release metadata, and final release-candidate checklist execution.
 
 ---
 
@@ -123,5 +132,5 @@ No new roadmap phases remain after v2.1.0 delivery. Active hardening and mainten
 
 ---
 
-**Feature Matrix Version: 2.1.1-dev**  
-**Last Updated: February 15, 2026**
+**Feature Matrix Version: 2.2.0-rc1**  
+**Last Updated: February 16, 2026**

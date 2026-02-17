@@ -16,6 +16,7 @@ Constitutional Rules:
 import os
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -116,6 +117,28 @@ def _sync_file(fd: int) -> None:
         raise SyncError(f"Failed to sync file descriptor {fd}: {e}") from e
 
 
+def _replace_with_retry(temp_path: Path, target_path: Path) -> None:
+    """
+    Replace target with temp file, retrying transient Windows lock errors.
+
+    Windows can return WinError 5/32 for short-lived sharing violations even
+    when the operation is safe to retry.
+    """
+    retries = 8 if IS_WINDOWS else 0
+    for attempt in range(retries + 1):
+        try:
+            os.replace(str(temp_path), str(target_path))
+            return
+        except OSError as e:
+            winerror = getattr(e, "winerror", None)
+            is_transient = IS_WINDOWS and winerror in {5, 32}
+            if not is_transient or attempt >= retries:
+                raise AtomicRenameError(
+                    f"Failed to atomically replace {target_path}: {e}"
+                ) from e
+            time.sleep(0.01 * (attempt + 1))
+
+
 def atomic_read_binary(target_path: str | Path) -> bytes:
     """Atomically read binary data from a file.
 
@@ -175,7 +198,7 @@ def atomic_write_binary(
             _sync_file(f.fileno())
 
         # Step 5: Atomic rename (replaces if exists)
-        os.replace(str(temp_path), str(target_path))
+        _replace_with_retry(temp_path, target_path)
 
         # Step 6: Sync directory entry (on non-Windows)
         # This is the original, correct directory sync logic you provided.
@@ -363,7 +386,7 @@ class AtomicWriter:
         # No error - commit the file
         if self.temp_path and self.temp_path.exists():
             try:
-                os.replace(str(self.temp_path), str(self.target_path))
+                _replace_with_retry(self.temp_path, self.target_path)
 
                 # Restore original directory sync logic for AtomicWriter
                 if not IS_WINDOWS:

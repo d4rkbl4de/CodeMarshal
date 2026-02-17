@@ -5,8 +5,6 @@ Tests all export formats and file creation functionality.
 """
 
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -172,27 +170,30 @@ class TestExportFormats:
         assert isinstance(content, bytes)
         assert content.startswith(b"%PDF")
 
-    def test_export_file_creation(self, sample_session_data, sample_observations):
+    def test_export_file_creation(
+        self,
+        sample_session_data,
+        sample_observations,
+        tmp_path,
+    ):
         """Test that export actually creates files."""
         cli = CodeMarshalCLI()
+        output_path = tmp_path / "test_export.json"
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = Path(tmpdir) / "test_export.json"
+        content = cli._generate_export_content(
+            "json", sample_session_data, sample_observations, False, False
+        )
 
-            content = cli._generate_export_content(
-                "json", sample_session_data, sample_observations, False, False
-            )
+        # Write to file
+        output_path.write_text(content, encoding="utf-8")
 
-            # Write to file
-            output_path.write_text(content, encoding="utf-8")
+        # Verify file exists
+        assert output_path.exists()
+        assert output_path.stat().st_size > 0
 
-            # Verify file exists
-            assert output_path.exists()
-            assert output_path.stat().st_size > 0
-
-            # Verify content is valid
-            data = json.loads(output_path.read_text())
-            assert data["investigation"]["id"] == "test-session-001"
+        # Verify content is valid
+        data = json.loads(output_path.read_text())
+        assert data["investigation"]["id"] == "test-session-001"
 
 
 class TestExportEdgeCases:
