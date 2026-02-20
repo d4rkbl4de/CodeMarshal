@@ -89,12 +89,34 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest pytest-cov
+          pip install -e .[gui,dev]
+
+      - name: Install Linux GUI runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb \
+            libegl1 \
+            libgl1 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxkbcommon-x11-0 \
+            libxrandr2 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xfixes0
           
       - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+          xvfb-run -a pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
         
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -102,7 +124,6 @@ jobs:
         with:
           name: coverage-report
           path: |
-            htmlcov/
             coverage.xml
           retention-days: 30
 
@@ -124,11 +145,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[gui,dev]
 
+      - name: Install Linux GUI runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb \
+            libegl1 \
+            libgl1 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxkbcommon-x11-0 \
+            libxrandr2 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xfixes0
+
       - name: Run headless GUI smoke tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py tests/test_desktop_onboarding_dialog.py tests/test_desktop_results_viewer.py tests/test_desktop_views_validation.py tests/test_desktop_app_onboarding.py tests/test_desktop_a11y_labels.py tests/test_desktop_keyboard_navigation.py tests/test_desktop_shell_layout.py -v
+          xvfb-run -a python -m pytest tests/test_desktop_command_bridge.py tests/test_desktop_session_manager.py tests/test_desktop_runtime_facade.py tests/test_desktop_view_state.py tests/test_desktop_onboarding_dialog.py tests/test_desktop_results_viewer.py tests/test_desktop_views_validation.py tests/test_desktop_app_onboarding.py tests/test_desktop_a11y_labels.py tests/test_desktop_keyboard_navigation.py tests/test_desktop_shell_layout.py -v
 
   windows-package:
     name: Windows GUI Package
@@ -217,9 +259,22 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x jetbrains-plugin/gradlew
+
       - name: Build JetBrains plugin
         run: |
-          gradle -p jetbrains-plugin buildPlugin --no-daemon --console=plain
+          ./jetbrains-plugin/gradlew -p jetbrains-plugin buildPlugin --no-daemon --console=plain --stacktrace
+
+      - name: Upload JetBrains build diagnostics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codemarshal-jetbrains-diagnostics
+          path: |
+            jetbrains-plugin/build/reports/**
+            jetbrains-plugin/build/idea-sandbox/system/log/**
+          retention-days: 14
 
       - name: Upload JetBrains artifact
         uses: actions/upload-artifact@v4
