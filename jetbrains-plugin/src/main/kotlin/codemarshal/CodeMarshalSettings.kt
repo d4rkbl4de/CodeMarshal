@@ -1,149 +1,194 @@
 package codemarshal
 
-import com.intellij.openapi.options.SettingsScreen
-import com.intellij.openapi.project.Project
-import com.intellij.ui.JBColor
-import com.intellij.ui.components.JBLabel
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.service
+import com.intellij.openapi.options.SearchableConfigurable
+import com.intellij.openapi.options.ShowSettingsUtil
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
-import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
-import java.awt.Component
 import java.awt.GridLayout
+import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
-import javax.swing.border.LineBorder
 
-class CodeMarshalSettingsAction : com.intellij.openapi.actionSystem.AnAction("CodeMarshal Settings", "Open CodeMarshal settings", null) {
-    override fun actionPerformed(e: com.intellij.openapi.actionSystem.AnActionEvent) {
-        val project = e.project ?: return
-        val settings = project.service<CodeMarshalSettings>()
-        settings.showSettings()
+@Service(Service.Level.APP)
+@State(name = "CodeMarshalSettings", storages = [Storage("codemarshal.xml")])
+class CodeMarshalSettings : PersistentStateComponent<CodeMarshalSettings.StateData> {
+    data class StateData(
+        var cliPath: String = "codemarshal",
+        var scanOnSave: Boolean = true,
+        var scanScope: String = "file",
+        var scanOutputFormat: String = "json",
+        var showWarnings: Boolean = true,
+        var showInfo: Boolean = true,
+        var debounceTimeMs: Int = 500,
+        var autoRefresh: Boolean = true
+    )
+
+    private var state = StateData()
+
+    override fun getState(): StateData = state
+
+    override fun loadState(state: StateData) {
+        this.state = state
+    }
+
+    var cliPath: String
+        get() = state.cliPath
+        set(value) {
+            state.cliPath = value
+        }
+
+    var scanOnSave: Boolean
+        get() = state.scanOnSave
+        set(value) {
+            state.scanOnSave = value
+        }
+
+    var scanScope: String
+        get() = state.scanScope
+        set(value) {
+            state.scanScope = value
+        }
+
+    var scanOutputFormat: String
+        get() = state.scanOutputFormat
+        set(value) {
+            state.scanOutputFormat = value
+        }
+
+    var showWarnings: Boolean
+        get() = state.showWarnings
+        set(value) {
+            state.showWarnings = value
+        }
+
+    var showInfo: Boolean
+        get() = state.showInfo
+        set(value) {
+            state.showInfo = value
+        }
+
+    var debounceTimeMs: Int
+        get() = state.debounceTimeMs
+        set(value) {
+            state.debounceTimeMs = value
+        }
+
+    var autoRefresh: Boolean
+        get() = state.autoRefresh
+        set(value) {
+            state.autoRefresh = value
+        }
+}
+
+class CodeMarshalSettingsAction : AnAction("CodeMarshal Settings", "Open CodeMarshal settings", null) {
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project
+        ShowSettingsUtil.getInstance().showSettingsDialog(project, CodeMarshalSettingsConfigurable::class.java)
     }
 }
 
-class CodeMarshalSettings {
-    var cliPath: String = "codemarshal"
-    var scanOnSave: Boolean = true
-    var scanScope: String = "file"
-    var scanOutputFormat: String = "json"
-    var showWarnings: Boolean = true
-    var showInfo: Boolean = true
-    var debounceTime: Long = 500
-    var maxHistoryItems: Int = 50
-    var autoRefresh: Boolean = true
+class CodeMarshalSettingsConfigurable : SearchableConfigurable {
+    private var rootPanel: JPanel? = null
+    private lateinit var cliPathField: JBTextField
+    private lateinit var scanScopeField: JBTextField
+    private lateinit var outputFormatField: JBTextField
+    private lateinit var debounceField: JBTextField
+    private lateinit var scanOnSaveCheckBox: JBCheckBox
+    private lateinit var showWarningsCheckBox: JBCheckBox
+    private lateinit var showInfoCheckBox: JBCheckBox
+    private lateinit var autoRefreshCheckBox: JBCheckBox
 
-    fun showSettings() {
-        val settingsWindow = com.intellij.openapi.options.ConfigurableExtensionHelper
-            .showSettingsDialog("CodeMarshal", CodeMarshalSettingsConfigurable::class.java)
-        settingsWindow?.show()
-    }
-
-    fun saveSettings() {
-        // Settings are automatically persisted by JetBrains
-    }
-}
-
-class CodeMarshalSettingsConfigurable : com.intellij.openapi.options.Configurable {
-    private var mySettingsPanel: SettingsPanel? = null
-
-    override fun createComponent(): Component? {
-        mySettingsPanel = SettingsPanel()
-        return mySettingsPanel
-    }
-
-    override fun isModified(): Boolean {
-        return mySettingsPanel?.isModified() ?: false
-    }
-
-    override fun apply() {
-        mySettingsPanel?.applySettings()
-    }
-
-    override fun reset() {
-        mySettingsPanel?.resetSettings()
-    }
+    override fun getId(): String = "codemarshalSettings"
 
     override fun getDisplayName(): String = "CodeMarshal"
 
-    private inner class SettingsPanel : JPanel(BorderLayout()) {
-        private val cliPathField = JBTextField(settings.cliPath).apply {
-            columns = 30
+    override fun createComponent(): JComponent {
+        val settings = service<CodeMarshalSettings>()
+
+        cliPathField = JBTextField(settings.cliPath, 32)
+        scanScopeField = JBTextField(settings.scanScope, 12)
+        outputFormatField = JBTextField(settings.scanOutputFormat, 12)
+        debounceField = JBTextField(settings.debounceTimeMs.toString(), 12)
+        scanOnSaveCheckBox = JBCheckBox("Scan on Save", settings.scanOnSave)
+        showWarningsCheckBox = JBCheckBox("Show Warnings", settings.showWarnings)
+        showInfoCheckBox = JBCheckBox("Show Info", settings.showInfo)
+        autoRefreshCheckBox = JBCheckBox("Auto Refresh", settings.autoRefresh)
+
+        val fields = JPanel(GridLayout(0, 2, 8, 8)).apply {
+            border = EmptyBorder(8, 8, 8, 8)
+            add(JLabel("CLI Path"))
+            add(cliPathField)
+            add(JLabel("Scan Scope"))
+            add(scanScopeField)
+            add(JLabel("Output Format"))
+            add(outputFormatField)
+            add(JLabel("Debounce (ms)"))
+            add(debounceField)
         }
 
-        private val scanScopeField = JBTextField(settings.scanScope).apply {
-            columns = 10
+        val flags = JPanel(GridLayout(0, 1, 8, 8)).apply {
+            border = EmptyBorder(8, 8, 8, 8)
+            add(scanOnSaveCheckBox)
+            add(showWarningsCheckBox)
+            add(showInfoCheckBox)
+            add(autoRefreshCheckBox)
         }
 
-        private val outputFormatField = JBTextField(settings.scanOutputFormat).apply {
-            columns = 10
+        rootPanel = JPanel(BorderLayout(8, 8)).apply {
+            border = EmptyBorder(12, 12, 12, 12)
+            add(fields, BorderLayout.NORTH)
+            add(flags, BorderLayout.CENTER)
         }
 
-        private val debounceTimeField = JBTextField(settings.debounceTime.toString()).apply {
-            columns = 10
-        }
+        return rootPanel as JPanel
+    }
 
-        init {
-            border = EmptyBorder(10, 10, 10, 10)
-            layout = BorderLayout(5, 5)
+    override fun isModified(): Boolean {
+        val settings = service<CodeMarshalSettings>()
+        return cliPathField.text.trim() != settings.cliPath ||
+            scanScopeField.text.trim() != settings.scanScope ||
+            outputFormatField.text.trim() != settings.scanOutputFormat ||
+            debounceField.text.trim().toIntOrNull() != settings.debounceTimeMs ||
+            scanOnSaveCheckBox.isSelected != settings.scanOnSave ||
+            showWarningsCheckBox.isSelected != settings.showWarnings ||
+            showInfoCheckBox.isSelected != settings.showInfo ||
+            autoRefreshCheckBox.isSelected != settings.autoRefresh
+    }
 
-            val settingsPanel = JPanel(GridLayout(0, 2, 10, 10)).apply {
-                add(JBLabel("CLI Path:"))
-                add(cliPathField)
-                add(JBLabel("Scan Scope:"))
-                add(scanScopeField)
-                add(JBLabel("Output Format:"))
-                add(outputFormatField)
-                add(JBLabel("Debounce Time (ms):"))
-                add(debounceTimeField)
-                border = EmptyBorder(10, 10, 10, 10)
-            }
+    override fun apply() {
+        val settings = service<CodeMarshalSettings>()
+        settings.cliPath = cliPathField.text.trim().ifBlank { "codemarshal" }
+        settings.scanScope = scanScopeField.text.trim().ifBlank { "file" }
+        settings.scanOutputFormat = outputFormatField.text.trim().ifBlank { "json" }
+        settings.debounceTimeMs = debounceField.text.trim().toIntOrNull() ?: 500
+        settings.scanOnSave = scanOnSaveCheckBox.isSelected
+        settings.showWarnings = showWarningsCheckBox.isSelected
+        settings.showInfo = showInfoCheckBox.isSelected
+        settings.autoRefresh = autoRefreshCheckBox.isSelected
+    }
 
-            val checkboxesPanel = JPanel(GridLayout(2, 2, 10, 10)).apply {
-                add(JBCheckBox("Scan on Save", settings.scanOnSave))
-                add(JBCheckBox("Show Warnings", settings.showWarnings))
-                add(JBCheckBox("Show Info", settings.showInfo))
-                add(JBCheckBox("Auto Refresh", settings.autoRefresh))
-                border = EmptyBorder(10, 10, 10, 10)
-            }
+    override fun reset() {
+        val settings = service<CodeMarshalSettings>()
+        cliPathField.text = settings.cliPath
+        scanScopeField.text = settings.scanScope
+        outputFormatField.text = settings.scanOutputFormat
+        debounceField.text = settings.debounceTimeMs.toString()
+        scanOnSaveCheckBox.isSelected = settings.scanOnSave
+        showWarningsCheckBox.isSelected = settings.showWarnings
+        showInfoCheckBox.isSelected = settings.showInfo
+        autoRefreshCheckBox.isSelected = settings.autoRefresh
+    }
 
-            add(settingsPanel, BorderLayout.NORTH)
-            add(checkboxesPanel, BorderLayout.CENTER)
-
-            add(JBLabel("Note: Changes require plugin reload to take effect.", JBColor.GRAY), BorderLayout.SOUTH)
-            border = EmptyBorder(5, 5, 5, 5)
-        }
-
-        fun isModified(): Boolean {
-            return cliPathField.text != settings.cliPath ||
-                    scanScopeField.text != settings.scanScope ||
-                    outputFormatField.text != settings.scanOutputFormat ||
-                    debounceTimeField.text.toLongOrNull() != settings.debounceTime ||
-                    !scanOnSaveCheckBox.isSelected ||
-                    !showWarningsCheckBox.isSelected ||
-                    !showInfoCheckBox.isSelected ||
-                    !autoRefreshCheckBox.isSelected
-        }
-
-        fun applySettings() {
-            settings.cliPath = cliPathField.text.trim()
-            settings.scanScope = scanScopeField.text.trim()
-            settings.scanOutputFormat = outputFormatField.text.trim()
-            settings.debounceTime = debounceTimeField.text.toLongOrNull() ?: 500L
-            settings.scanOnSave = scanOnSaveCheckBox.isSelected
-            settings.showWarnings = showWarningsCheckBox.isSelected
-            settings.showInfo = showInfoCheckBox.isSelected
-            settings.autoRefresh = autoRefreshCheckBox.isSelected
-        }
-
-        fun resetSettings() {
-            cliPathField.text = settings.cliPath
-            scanScopeField.text = settings.scanScope
-            outputFormatField.text = settings.scanOutputFormat
-            debounceTimeField.text = settings.debounceTime.toString()
-            scanOnSaveCheckBox.isSelected = settings.scanOnSave
-            showWarningsCheckBox.isSelected = settings.showWarnings
-            showInfoCheckBox.isSelected = settings.showInfo
-            autoRefreshCheckBox.isSelected = settings.autoRefresh
-        }
+    override fun disposeUIResources() {
+        rootPanel = null
     }
 }

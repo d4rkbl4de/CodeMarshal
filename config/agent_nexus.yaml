@@ -1,0 +1,94 @@
+project:
+  name: "CodeMarshal"
+  architecture: "layered_with_lobs"
+
+constitutional:
+  rules:
+    - "Article 9: Architectural Boundaries"
+    - "Article 10: Layer Independence"
+  boundary_strictness: "strict"
+
+observations:
+  enabled_eyes:
+    - "boundary_sight"
+  boundary_detection:
+    detect_circular: true
+    report_crossings: true
+
+boundaries:
+  - name: "core_layer"
+    type: "layer"
+    pattern: "core/**"
+    description: "Core logic (independent)"
+    allowed_targets: []
+    prohibited: true
+
+  - name: "bridge_layer"
+    type: "layer"
+    pattern: "bridge/**"
+    description: "Bridge integration layer (can access all layers)"
+    allowed_targets:
+      - "core_layer"
+      - "observations_layer"
+      - "inquiry_layer"
+      - "lens_layer"
+      - "storage_layer"
+      - "config_layer"
+      - "integrity_layer"
+    prohibited: false
+
+  - name: "observations_layer"
+    type: "layer"
+    pattern: "observations/**"
+    description: "Observation collection layer (config only)"
+    allowed_targets:
+      - "config_layer"
+    prohibited: true
+
+  - name: "inquiry_layer"
+    type: "layer"
+    pattern: "inquiry/**"
+    description: "Inquiry layer (core, observations, config, storage)"
+    allowed_targets:
+      - "core_layer"
+      - "observations_layer"
+      - "config_layer"
+      - "storage_layer"
+    prohibited: true
+
+  - name: "lens_layer"
+    type: "layer"
+    pattern: "lens/**"
+    description: "Lens views (core, observations, inquiry, config)"
+    allowed_targets:
+      - "core_layer"
+      - "observations_layer"
+      - "inquiry_layer"
+      - "config_layer"
+    prohibited: true
+
+  - name: "storage_layer"
+    type: "layer"
+    pattern: "storage/**"
+    description: "Storage layer (config only)"
+    allowed_targets:
+      - "config_layer"
+    prohibited: true
+
+  - name: "config_layer"
+    type: "layer"
+    pattern: "config/**"
+    description: "Configuration layer (independent)"
+    allowed_targets: []
+    prohibited: true
+
+  - name: "integrity_layer"
+    type: "layer"
+    pattern: "integrity/**"
+    description: "Integrity layer (core, bridge, observations, config)"
+    allowed_targets:
+      - "core_layer"
+      - "bridge_layer"
+      - "observations_layer"
+      - "config_layer"
+    prohibited: true

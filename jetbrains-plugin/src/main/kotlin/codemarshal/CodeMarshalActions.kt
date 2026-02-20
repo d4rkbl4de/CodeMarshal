@@ -2,342 +2,199 @@ package codemarshal
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBTextArea
-import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.popup.JPopupFactory
-import com.intellij.ui.speedSearch.TextComponentSpeedSearch
-import com.intellij.util.ui.UIUtil
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import java.io.File
-import javax.swing.JPanel
-import javax.swing.JSplitPane
 
-abstract class CodeMarshalActionBase(private val title: String) : AnAction(title) {
-    protected fun updateToolWindow(project: Project, output: String) {
-        val textArea = CodeMarshalToolWindowState.get(project) ?: return
-        textArea.text = output
-        textArea.caretPosition = 0
-    }
-
+abstract class CodeMarshalActionBase(private val actionTitle: String) : AnAction(actionTitle) {
     protected fun currentFilePath(project: Project): String? {
         val editor = FileEditorManager.getInstance(project).selectedEditor ?: return null
         return editor.file?.path
     }
 
-    protected fun showError(project: Project, message: String) {
-        updateToolWindow(project, buildErrorOutput(message))
+    protected fun writeOutput(project: Project, output: String) {
+        val textArea = CodeMarshalToolWindowState.get(project) ?: return
+        textArea.text = output
+        textArea.caretPosition = 0
     }
 
-    protected fun buildErrorOutput(message: String): String {
-        return """CodeMarshal Error
-════════════════════════════════════════════════════════════
-$message
-════════════════════════════════════════════════════════════
-"""
+    protected fun writeError(project: Project, message: String) {
+        writeOutput(project, "CodeMarshal Error\n$message")
     }
 
-    protected fun buildSuccessOutput(message: String): String {
-        return """CodeMarshal Success
-════════════════════════════════════════════════════════════
-$message
-════════════════════════════════════════════════════════════
-"""
-    }
-
-    protected fun formatJsonOutput(json: String): String {
-        return try {
-            val parsed = com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
-                .readTree(json)
-            com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
-                .writerWithDefaultPrettyPrinter()
-                .writeValueAsString(parsed)
-        } catch (e: Exception) {
-            json
+    protected fun runCommand(
+        project: Project,
+        taskTitle: String,
+        argsProvider: () -> List<String>,
+        onSuccessMessage: String
+    ) {
+        val cliService = project.getService(CodeMarshalService::class.java)
+        if (!cliService.isValidCliPath()) {
+            writeError(project, "CodeMarshal CLI is not configured or not executable.")
+            return
         }
+
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, taskTitle, true) {
+            override fun run(indicator: ProgressIndicator) {
+                try {
+                    indicator.text = "$taskTitle..."
+                    val output = cliService.runCli(argsProvider()) { line ->
+                        indicator.text = line.take(120)
+                    }
+                    writeOutput(project, formatOutput(output).ifBlank { onSuccessMessage })
+                } catch (e: CodeMarshalException) {
+                    writeError(project, e.message ?: "Unknown CodeMarshal error.")
+                } catch (e: Exception) {
+                    writeError(project, "Unexpected error: ${e.message}")
+                }
+            }
+        })
     }
+
+    private fun formatOutput(text: String): String = text
 }
 
 class CodeMarshalInvestigateAction : CodeMarshalActionBase("CodeMarshal: Investigate") {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val service = project.getService(CodeMarshalService::class.java)
-
-        if (!service.isValidCliPath()) {
-            showError(project, "CodeMarshal CLI is not properly configured. Please check settings.")
-            return
-        }
-
+        val settings = service<CodeMarshalSettings>()
         val filePath = currentFilePath(project)
         val target = filePath?.let { File(it).parentFile?.path } ?: project.basePath
-
-        if (target == null) {
-            showError(project, "No target selected. Please open a file or folder first.")
+        if (target.isNullOrBlank()) {
+            writeError(project, "No target selected. Open a file or folder first.")
             return
         }
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CodeMarshal: Investigating", true) {
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    indicator.text = "CodeMarshal: Running investigation..."
-
-                    val args = listOf(
-                        "investigate",
-                        target,
-                        "--scope=${project.service<CodeMarshalSettings>().scanScope}",
-                        "--intent=initial_scan",
-                        "--output=json"
-                    )
-
-                    val output = service.runCli(args) { line ->
-                        indicator.text = "Processing: $line"
-                    }
-
-                    val formatted = formatJsonOutput(output)
-                    updateToolWindow(project, formatted)
-
-                    if (formatted.contains("error") || formatted.contains("ERROR")) {
-                        showError(project, "Investigation completed with errors. Check output for details.")
-                    } else {
-                        updateToolWindow(project, buildSuccessOutput("Investigation completed successfully."))
-                    }
-                } catch (e: CodeMarshalException) {
-                    updateToolWindow(project, buildErrorOutput(e.message ?: "Unknown error"))
-                } catch (e: Exception) {
-                    updateToolWindow(project, buildErrorOutput("Unexpected error: ${e.message}"))
-                }
-            }
-        })
+        runCommand(
+            project = project,
+            taskTitle = "CodeMarshal: Investigating",
+            argsProvider = {
+                listOf(
+                    "investigate",
+                    target,
+                    "--scope=${settings.scanScope}",
+                    "--intent=initial_scan",
+                    "--output=${settings.scanOutputFormat}"
+                )
+            },
+            onSuccessMessage = "Investigation completed."
+        )
     }
 }
 
 class CodeMarshalPatternScanAction : CodeMarshalActionBase("CodeMarshal: Scan Patterns") {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val service = project.getService(CodeMarshalService::class.java)
-
-        if (!service.isValidCliPath()) {
-            showError(project, "CodeMarshal CLI is not properly configured. Please check settings.")
-            return
-        }
-
+        val settings = service<CodeMarshalSettings>()
         val filePath = currentFilePath(project)
-
-        if (filePath == null) {
-            showError(project, "No file selected. Please open a file to scan.")
+        if (filePath.isNullOrBlank()) {
+            writeError(project, "No file selected. Open a file to scan.")
             return
         }
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CodeMarshal: Scanning", true) {
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    indicator.text = "CodeMarshal: Running pattern scan..."
-
-                    val args = listOf(
-                        "pattern",
-                        "scan",
-                        filePath,
-                        "--output=json",
-                        "--format=${project.service<CodeMarshalSettings>().scanOutputFormat}"
-                    )
-
-                    val output = service.runCli(args) { line ->
-                        indicator.text = "Processing: $line"
-                    }
-
-                    val formatted = formatJsonOutput(output)
-                    updateToolWindow(project, formatted)
-
-                    if (formatted.contains("error") || formatted.contains("ERROR")) {
-                        showError(project, "Scan completed with errors. Check output for details.")
-                    } else {
-                        updateToolWindow(project, buildSuccessOutput("Pattern scan completed successfully."))
-                    }
-                } catch (e: CodeMarshalException) {
-                    updateToolWindow(project, buildErrorOutput(e.message ?: "Unknown error"))
-                } catch (e: Exception) {
-                    updateToolWindow(project, buildErrorOutput("Unexpected error: ${e.message}"))
-                }
-            }
-        })
+        runCommand(
+            project = project,
+            taskTitle = "CodeMarshal: Scanning Patterns",
+            argsProvider = {
+                listOf(
+                    "pattern",
+                    "scan",
+                    filePath,
+                    "--output=${settings.scanOutputFormat}"
+                )
+            },
+            onSuccessMessage = "Pattern scan completed."
+        )
     }
 }
 
 class CodeMarshalObserveAction : CodeMarshalActionBase("CodeMarshal: Observe") {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val service = project.getService(CodeMarshalService::class.java)
-
-        if (!service.isValidCliPath()) {
-            showError(project, "CodeMarshal CLI is not properly configured. Please check settings.")
+        val settings = service<CodeMarshalSettings>()
+        val target = currentFilePath(project) ?: project.basePath
+        if (target.isNullOrBlank()) {
+            writeError(project, "No target selected. Open a file or folder first.")
             return
         }
 
-        val filePath = currentFilePath(project)
-        val target = filePath ?: project.basePath
-
-        if (target == null) {
-            showError(project, "No target selected. Please open a file or folder first.")
-            return
-        }
-
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CodeMarshal: Observing", true) {
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    indicator.text = "CodeMarshal: Running observation..."
-
-                    val args = listOf(
-                        "observe",
-                        target,
-                        "--scope=${project.service<CodeMarshalSettings>().scanScope}",
-                        "--output=json"
-                    )
-
-                    val output = service.runCli(args) { line ->
-                        indicator.text = "Processing: $line"
-                    }
-
-                    val formatted = formatJsonOutput(output)
-                    updateToolWindow(project, formatted)
-
-                    if (formatted.contains("error") || formatted.contains("ERROR")) {
-                        showError(project, "Observation completed with errors. Check output for details.")
-                    } else {
-                        updateToolWindow(project, buildSuccessOutput("Observation completed successfully."))
-                    }
-                } catch (e: CodeMarshalException) {
-                    updateToolWindow(project, buildErrorOutput(e.message ?: "Unknown error"))
-                } catch (e: Exception) {
-                    updateToolWindow(project, buildErrorOutput("Unexpected error: ${e.message}"))
-                }
-            }
-        })
+        runCommand(
+            project = project,
+            taskTitle = "CodeMarshal: Observing",
+            argsProvider = {
+                listOf(
+                    "observe",
+                    target,
+                    "--scope=${settings.scanScope}",
+                    "--output=${settings.scanOutputFormat}"
+                )
+            },
+            onSuccessMessage = "Observation completed."
+        )
     }
 }
 
 class CodeMarshalListPatternsAction : CodeMarshalActionBase("CodeMarshal: List Patterns") {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val service = project.getService(CodeMarshalService::class.java)
-
-        if (!service.isValidCliPath()) {
-            showError(project, "CodeMarshal CLI is not properly configured. Please check settings.")
-            return
-        }
-
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CodeMarshal: Listing Patterns", true) {
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    indicator.text = "CodeMarshal: Fetching pattern list..."
-
-                    val output = service.runCli(listOf("pattern", "list", "--output=json"))
-
-                    updateToolWindow(project, output)
-
-                    if (output.contains("error") || output.contains("ERROR")) {
-                        showError(project, "Failed to list patterns. Check output for details.")
-                    } else {
-                        updateToolWindow(project, buildSuccessOutput("Pattern list retrieved successfully."))
-                    }
-                } catch (e: CodeMarshalException) {
-                    updateToolWindow(project, buildErrorOutput(e.message ?: "Unknown error"))
-                } catch (e: Exception) {
-                    updateToolWindow(project, buildErrorOutput("Unexpected error: ${e.message}"))
-                }
-            }
-        })
+        val settings = service<CodeMarshalSettings>()
+        runCommand(
+            project = project,
+            taskTitle = "CodeMarshal: Listing Patterns",
+            argsProvider = { listOf("pattern", "list", "--output=${settings.scanOutputFormat}") },
+            onSuccessMessage = "Pattern list retrieved."
+        )
     }
 }
 
 class CodeMarshalQueryAction : CodeMarshalActionBase("CodeMarshal: Query") {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val service = project.getService(CodeMarshalService::class.java)
+        val settings = service<CodeMarshalSettings>()
 
-        if (!service.isValidCliPath()) {
-            showError(project, "CodeMarshal CLI is not properly configured. Please check settings.")
+        val queryTarget = Messages.showInputDialog(
+            project,
+            "Enter query target (for example: latest):",
+            "CodeMarshal Query",
+            null,
+            "latest",
+            null
+        )
+        if (queryTarget.isNullOrBlank()) {
+            writeError(project, "Query target cannot be empty.")
             return
         }
 
-        val query = JPopupFactory.getInstance()
-            .createBasicPopupBuilder(
-                JPanel().apply {
-                    add(JBLabel("Enter your query:"))
-                    add(JBTextArea("latest").apply {
-                        columns = 30
-                        rows = 2
-                        preferredSize = UIUtil.size(300, 50)
-                        border = javax.swing.border.EmptyBorder(5, 5, 5, 5)
-                    })
-                }
-            )
-            .setResizable(true)
-            .setMovable(true)
-            .setTitle("CodeMarshal Query")
-            .showInPopup()
-            .selection.data
-
-        if (query.isNullOrEmpty()) {
-            showError(project, "Query cannot be empty.")
+        val question = Messages.showInputDialog(
+            project,
+            "Enter your question:",
+            "CodeMarshal Query",
+            null,
+            "Tell me about this code.",
+            null
+        )
+        if (question.isNullOrBlank()) {
+            writeError(project, "Question cannot be empty.")
             return
         }
 
-        val question = JPopupFactory.getInstance()
-            .createBasicPopupBuilder(
-                JPanel().apply {
-                    add(JBLabel("Enter your question:"))
-                    add(JBTextArea("Tell me about this code").apply {
-                        columns = 30
-                        rows = 3
-                        preferredSize = UIUtil.size(300, 70)
-                        border = javax.swing.border.EmptyBorder(5, 5, 5, 5)
-                    })
-                }
-            )
-            .setResizable(true)
-            .setMovable(true)
-            .setTitle("CodeMarshal Query")
-            .showInPopup()
-            .selection.data
-
-        if (question.isNullOrEmpty()) {
-            showError(project, "Question cannot be empty.")
-            return
-        }
-
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CodeMarshal: Querying", true) {
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    indicator.text = "CodeMarshal: Running query..."
-
-                    val args = listOf(
-                        "query",
-                        query,
-                        "--question=$question",
-                        "--output=json"
-                    )
-
-                    val output = service.runCli(args) { line ->
-                        indicator.text = "Processing: $line"
-                    }
-
-                    val formatted = formatJsonOutput(output)
-                    updateToolWindow(project, formatted)
-
-                    if (formatted.contains("error") || formatted.contains("ERROR")) {
-                        showError(project, "Query completed with errors. Check output for details.")
-                    } else {
-                        updateToolWindow(project, buildSuccessOutput("Query completed successfully."))
-                    }
-                } catch (e: CodeMarshalException) {
-                    updateToolWindow(project, buildErrorOutput(e.message ?: "Unknown error"))
-                } catch (e: Exception) {
-                    updateToolWindow(project, buildErrorOutput("Unexpected error: ${e.message}"))
-                }
-            }
-        })
+        runCommand(
+            project = project,
+            taskTitle = "CodeMarshal: Querying",
+            argsProvider = {
+                listOf(
+                    "query",
+                    queryTarget,
+                    "--question=$question",
+                    "--output=${settings.scanOutputFormat}"
+                )
+            },
+            onSuccessMessage = "Query completed."
+        )
     }
 }

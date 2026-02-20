@@ -72,6 +72,7 @@ test_violations/
 agent_nexus.yaml
 agent_nexus_test.yaml
 agent_nexus_test.log
+!config/agent_nexus.yaml
 
 # Cache
 .mypy_cache/
