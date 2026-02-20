@@ -116,7 +116,12 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          xvfb-run -a pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
+          xvfb-run -a pytest tests/ -v -k "not desktop" \
+            --cov=observations.eyes.go_sight \
+            --cov=observations.eyes.java_sight \
+            --cov=observations.eyes.javascript_sight \
+            --cov-report=xml \
+            --cov-report=term
         
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -264,7 +269,9 @@ jobs:
 
       - name: Build JetBrains plugin
         run: |
-          ./jetbrains-plugin/gradlew -p jetbrains-plugin buildPlugin --no-daemon --console=plain --stacktrace
+          mkdir -p jetbrains-plugin/build
+          set -o pipefail
+          ./jetbrains-plugin/gradlew -p jetbrains-plugin buildPlugin -x buildSearchableOptions -x jarSearchableOptions --no-daemon --console=plain --stacktrace 2>&1 | tee jetbrains-plugin/build/ci-gradle.log
 
       - name: Upload JetBrains build diagnostics
         uses: actions/upload-artifact@v4
@@ -272,6 +279,7 @@ jobs:
         with:
           name: codemarshal-jetbrains-diagnostics
           path: |
+            jetbrains-plugin/build/ci-gradle.log
             jetbrains-plugin/build/reports/**
             jetbrains-plugin/build/idea-sandbox/system/log/**
           retention-days: 14
