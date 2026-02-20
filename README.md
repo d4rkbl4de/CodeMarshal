@@ -2,10 +2,10 @@
 
 Truth-preserving investigation tooling for complex codebases.
 
-## Current Status (February 16, 2026)
+## Current Status (February 20, 2026)
 
 - Phases complete: `0, 1, 2, 3, 4, 5, 6, 7, 8, 9`
-- Release line: `v2.2.0-rc1`
+- Release line: `v2.2.0`
 - Latest local validation run (project `.venv`, `python -m pytest -q`): `274 collected, 274 passed, 0 failed`
 - Coverage policy: `fail_under = 90%` (run `pytest --cov=. --cov-report=term -q` for current value)
 
@@ -108,7 +108,7 @@ On Windows host environments, PDF export still requires GTK runtime/native libra
 - **[CHANGELOG.md](CHANGELOG.md)** - version history and migration guides
 - **[docs/index.md](docs/index.md)** - documentation navigation guide
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** - command usage and workflows
-- **[docs/RELEASE_CHECKLIST_v2.2.0-rc1.md](docs/RELEASE_CHECKLIST_v2.2.0-rc1.md)** - release-candidate gate checklist and results
+- **[docs/RELEASE_CHECKLIST_v2.2.0.md](docs/RELEASE_CHECKLIST_v2.2.0.md)** - GA gate checklist and release evidence
 - **[docs/FEATURES.md](docs/FEATURES.md)** - implemented features and phase mapping
 - **[docs/pattern_library.md](docs/pattern_library.md)** - local marketplace and template workflows
 - **[docs/collaboration.md](docs/collaboration.md)** - team, share, and comment collaboration workflows

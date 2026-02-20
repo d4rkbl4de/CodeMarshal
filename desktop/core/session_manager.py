@@ -1,4 +1,4 @@
-﻿"""Session and desktop state persistence for the GUI."""
+"""Session and desktop state persistence for the GUI."""
 
 from __future__ import annotations
 
@@ -320,16 +320,33 @@ class SessionManager:
     def get_visual_theme_variant(self) -> str:
         with self._lock:
             ui = dict(self._state.get("ui", {}))
-            variant = str(ui.get("visual_theme_variant") or "noir_premium").strip().lower()
+            variant = (
+                str(ui.get("visual_theme_variant") or "noir_premium").strip().lower()
+            )
             return (
                 variant
-                if variant in {"noir_premium", "noir", "ledger", "linen_day", "harbor_light"}
+                if variant
+                in {
+                    "void",
+                    "noir_premium",
+                    "noir",
+                    "ledger",
+                    "linen_day",
+                    "harbor_light",
+                }
                 else "noir_premium"
             )
 
     def set_visual_theme_variant(self, variant: str) -> None:
         normalized = str(variant or "noir_premium").strip().lower()
-        if normalized not in {"noir_premium", "noir", "ledger", "linen_day", "harbor_light"}:
+        if normalized not in {
+            "void",
+            "noir_premium",
+            "noir",
+            "ledger",
+            "linen_day",
+            "harbor_light",
+        }:
             normalized = "noir_premium"
         with self._lock:
             ui = dict(self._state.get("ui", {}))
@@ -443,7 +460,9 @@ class SessionManager:
     def set_knowledge_canvas_filters(self, filters: dict[str, Any]) -> None:
         with self._lock:
             ui = dict(self._state.get("ui", {}))
-            ui["knowledge_canvas_filters"] = dict(filters) if isinstance(filters, dict) else {}
+            ui["knowledge_canvas_filters"] = (
+                dict(filters) if isinstance(filters, dict) else {}
+            )
             self._state["ui"] = ui
             self._save_state()
 

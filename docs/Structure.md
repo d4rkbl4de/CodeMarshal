@@ -1,6 +1,6 @@
 # CodeMarshal Directory Structure
 
-**Version:** 2.2.0-rc1  
+**Version:** 2.2.0  
 **Last Updated:** February 16, 2026
 
 ---

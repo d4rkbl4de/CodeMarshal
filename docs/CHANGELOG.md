@@ -5,6 +5,34 @@ All notable changes to CodeMarshal will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-20
+
+### Summary
+
+General availability release for the 2.2.0 line, promoting `2.2.0-rc1` after release-readiness hardening.
+
+**Test Status:** 274 passed, 0 failed (`1 warning`)  
+**Validation Reference:** `docs/RELEASE_CHECKLIST_v2.2.0.md`
+
+### Added
+
+- Canonical root roadmap document (`ROADMAP.md`) with execution-phase status tracking.
+- GA release checklist with artifact and validation evidence capture.
+- CI JetBrains plugin packaging gate with artifact upload path.
+- VS Code extension packaging support for `.vsix` output.
+
+### Changed
+
+- Package metadata advanced from `2.2.0rc1` to `2.2.0`.
+- JetBrains plugin metadata advanced from `2.2.0-rc1` to `2.2.0`.
+- VS Code extension metadata advanced from `2.2.0-rc.1` to `2.2.0`.
+- Documentation release markers synchronized to GA line (`2.2.0`).
+
+### Known Limitations
+
+1. **PDF Export:** still depends on WeasyPrint native rendering libraries or containerized Linux runtime.
+2. **Semantic quality/performance metrics:** benchmark targets remain environment-dependent and should be validated on representative repositories.
+
 ## [2.2.0-rc1] - 2026-02-16
 
 ### Summary

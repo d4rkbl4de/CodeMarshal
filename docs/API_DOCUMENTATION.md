@@ -1,7 +1,7 @@
 # **CODEMARSHAL API DOCUMENTATION**
 
-**Version:** 2.2.0-rc1  
-**Last Updated:** February 16, 2026
+**Version:** 2.2.0  
+**Last Updated:** February 20, 2026
 
 ---
 
@@ -708,6 +708,6 @@ python -m integrity.validation.complete_constitutional
 
 ---
 
-**API Documentation Version: 2.2.0-rc1**  
-**Last Updated: February 16, 2026**  
+**API Documentation Version: 2.2.0**  
+**Last Updated: February 20, 2026**  
 **Next Update: As needed based on user feedback**

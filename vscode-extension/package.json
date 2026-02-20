@@ -2,7 +2,7 @@
   "name": "codemarshal",
   "displayName": "CodeMarshal",
   "description": "Truth-preserving code investigation in VS Code",
-  "version": "2.2.0-rc.1",
+  "version": "2.2.0",
   "publisher": "codemarshal",
   "engines": {
     "vscode": "^1.85.0"
@@ -163,9 +163,11 @@
   },
   "scripts": {
     "build": "tsc -p .",
-    "watch": "tsc -watch -p ."
+    "watch": "tsc -watch -p .",
+    "package": "npx @vscode/vsce package --out codemarshal.vsix"
   },
   "devDependencies": {
+    "@vscode/vsce": "^3.6.2",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "typescript": "^5.4.0"

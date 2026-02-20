@@ -1,7 +1,7 @@
 # CodeMarshal Feature Matrix
 
-**Version:** 2.2.0-rc1  
-**Last Updated:** February 16, 2026
+**Version:** 2.2.0  
+**Last Updated:** February 20, 2026
 
 ---
 
@@ -132,5 +132,5 @@ v2.2.0 release hardening remains: packaging verification, release metadata, and 
 
 ---
 
-**Feature Matrix Version: 2.2.0-rc1**  
-**Last Updated: February 16, 2026**
+**Feature Matrix Version: 2.2.0**  
+**Last Updated: February 20, 2026**

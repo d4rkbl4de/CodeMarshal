@@ -1,6 +1,6 @@
 # CodeMarshal Architecture Documentation
 
-**Version:** 2.2.0-rc1  
+**Version:** 2.2.0  
 **Last Updated:** February 16, 2026  
 **Document Type:** Architectural Reference
 
@@ -2588,7 +2588,7 @@ codemarshal status
 
 | Property     | Value            |
 | ------------ | ---------------- |
-| Version      | 2.2.0-rc1        |
+| Version      | 2.2.0        |
 | Created      | February 5, 2026 |
 | Last Updated | February 16, 2026 |
 | Authors      | CodeMarshal Team |

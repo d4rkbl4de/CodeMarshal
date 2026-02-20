@@ -3,6 +3,7 @@ name: CodeMarshal Analysis
 on:
   push:
     branches: [main, develop]
+    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:  # Allow manual trigger
@@ -163,4 +164,66 @@ jobs:
         with:
           name: codemarshal-windows-exe
           path: dist/CodeMarshal.exe
+          retention-days: 30
+
+  vscode-package:
+    name: VS Code Extension Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Install extension dependencies
+        working-directory: vscode-extension
+        run: npm ci
+
+      - name: Build extension
+        working-directory: vscode-extension
+        run: npm run build
+
+      - name: Package VSIX
+        working-directory: vscode-extension
+        run: npm run package
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codemarshal-vscode-vsix
+          path: vscode-extension/*.vsix
+          retention-days: 30
+
+  jetbrains-plugin:
+    name: JetBrains Plugin Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build JetBrains plugin
+        run: |
+          gradle -p jetbrains-plugin buildPlugin --no-daemon --console=plain
+
+      - name: Upload JetBrains artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codemarshal-jetbrains-plugin
+          path: jetbrains-plugin/build/distributions/*.zip
           retention-days: 30

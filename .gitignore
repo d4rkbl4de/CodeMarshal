@@ -99,3 +99,5 @@ tmp_local/
 .test_tmp/
 .tools/
 jetbrains-plugin/.gradle/
+vscode-extension/node_modules/
+vscode-extension/*.vsix

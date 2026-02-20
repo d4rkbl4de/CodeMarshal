@@ -1,7 +1,7 @@
 # CodeMarshal Documentation
 
-**Version:** 2.2.0-rc1  
-**Last Updated:** February 16, 2026
+**Version:** 2.2.0  
+**Last Updated:** February 20, 2026
 
 Welcome to the CodeMarshal documentation. This guide helps you navigate all available documentation.
 
@@ -26,7 +26,7 @@ New to CodeMarshal? Start here:
 | [README.md](../README.md) | Project overview, quick start, basic usage | Everyone |
 | [ROADMAP.md](../ROADMAP.md) | Execution status, milestones, phase tracking | Contributors, Project Managers |
 | [CHANGELOG.md](../CHANGELOG.md) | Version history, what's new, migration guides | Users, Developers |
-| [docs/RELEASE_CHECKLIST_v2.2.0-rc1.md](RELEASE_CHECKLIST_v2.2.0-rc1.md) | RC gate results and release hardening checklist | Maintainers, Release Engineers |
+| [docs/RELEASE_CHECKLIST_v2.2.0.md](RELEASE_CHECKLIST_v2.2.0.md) | GA gate results and release hardening checklist | Maintainers, Release Engineers |
 | [docs/USER_GUIDE.md](USER_GUIDE.md) | Complete command reference and tutorials | Users |
 | [docs/FEATURES.md](FEATURES.md) | Feature matrix and capability overview | Users, Evaluators |
 | [docs/collaboration.md](collaboration.md) | Team, share, and encrypted comment workflows | Users, Developers |
@@ -118,7 +118,7 @@ Desktop GUI includes first-run onboarding, accessibility preferences, and in-app
 
 ## Current Status
 
-**Version:** 2.2.0-rc1  
+**Version:** 2.2.0  
 **Completed Phases:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  
 **Latest Local Validation:** 274 collected, 274 passed, 0 failed  
 **Coverage Policy:** `fail_under = 90`
@@ -141,5 +141,5 @@ See [LICENSE](../LICENSE) file for details.
 
 ---
 
-**Documentation Index Version:** 2.2.0-rc1  
-**Last Updated:** February 16, 2026
+**Documentation Index Version:** 2.2.0  
+**Last Updated:** February 20, 2026

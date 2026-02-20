@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "codemarshal"
-version = "2.2.0-rc1"
+version = "2.2.0"
 
 repositories {
     mavenCentral()
@@ -13,11 +13,7 @@ repositories {
 intellij {
     version.set("2023.2")
     type.set("IC")
-}
-
-dependencies {
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
+    downloadSources.set(false)
 }
 
 tasks {
@@ -39,19 +35,26 @@ tasks {
     }
 
     signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
+        // Keep local builds deterministic: only configure signing when CI secrets exist.
+        val certChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        val privateKeyValue = providers.environmentVariable("PRIVATE_KEY")
+        val privateKeyPassword = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        if (certChain.isPresent && privateKeyValue.isPresent && privateKeyPassword.isPresent) {
+            certificateChain.set(certChain.get())
+            privateKey.set(privateKeyValue.get())
+            password.set(privateKeyPassword.get())
+        }
     }
 
     publishPlugin {
-        tokens.set(mapOf(
-            "pomVersion" to "2.2.0-rc1",
-            "versionName" to "2.2.0-rc1"
-        ))
+        // Local build/test should not require publish credentials.
+        val publishToken = providers.environmentVariable("PUBLISH_TOKEN")
+        if (publishToken.isPresent) {
+            token.set(publishToken.get())
+        }
     }
 }
 
 kotlin {
-    jvmToolchain(11)
+    jvmToolchain(17)
 }
