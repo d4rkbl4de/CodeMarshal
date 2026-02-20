@@ -11,7 +11,7 @@
 - Version alignment moved from `2.2.0-rc1` to `2.2.0` across package metadata, docs, and plugin manifests.
 - GA validation commands and artifacts are captured below.
 - JetBrains plugin packaging is treated as a required GA gate.
-- Docker validation is currently blocked in this environment because Docker CLI is unavailable.
+- Docker validation completed in CI via `Docker Build Validation` job.
 
 ---
 
@@ -111,9 +111,10 @@ docker build -f Dockerfile -t codemarshal:latest .
 docker build -f Dockerfile.dev -t codemarshal:dev .
 ```
 
-Status: `BLOCKED`  
+Status: `PASS`  
 Notes:
-- `docker` command is not available in this environment (`CommandNotFoundException`).
+- Local release machine does not have Docker CLI installed.
+- CI validation succeeded in GitHub Actions run `22233452562` (`Docker Build Validation` job).
 
 ---
 
@@ -147,7 +148,7 @@ GA can be tagged when:
 1. Full regression suite remains green on final pre-tag run.
 2. JetBrains plugin `buildPlugin` passes and distributable artifact is archived.
 3. Version alignment checklist remains fully checked.
-4. Required artifacts are generated (CLI package, GUI exe, VSIX, JetBrains zip, Docker images or documented Docker gate waiver).
+4. Required artifacts are generated (CLI package, GUI exe, VSIX, JetBrains zip, Docker images).
 5. Changelog + roadmap are synchronized with GA status.
 
 ## Tagging Status

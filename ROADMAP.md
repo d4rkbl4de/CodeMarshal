@@ -48,7 +48,7 @@
 - [x] VS Code extension build (and VSIX package) passes
 - [x] JetBrains `buildPlugin` passes on network-enabled CI and artifact is archived
 - [x] Windows GUI packaging produces `CodeMarshal.exe`
-- [ ] Docker builds validate runtime dependencies (including PDF path) - blocked: Docker CLI unavailable in this environment
+- [x] Docker builds validate runtime dependencies (including PDF path)
 
 ### Gate C: Release Control
 
