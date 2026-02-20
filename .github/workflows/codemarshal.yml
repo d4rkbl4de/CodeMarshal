@@ -227,3 +227,17 @@ jobs:
           name: codemarshal-jetbrains-plugin
           path: jetbrains-plugin/build/distributions/*.zip
           retention-days: 30
+
+  docker-validate:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build production Docker image
+        run: docker build -f Dockerfile -t codemarshal:latest .
+
+      - name: Build development Docker image
+        run: docker build -f Dockerfile.dev -t codemarshal:dev .

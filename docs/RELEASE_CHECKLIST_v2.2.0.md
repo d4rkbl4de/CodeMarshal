@@ -152,5 +152,10 @@ GA can be tagged when:
 
 ## Tagging Status
 
-- `v2.2.0` tag creation is pending final clean release commit.
-- Planned command: `git tag -a v2.2.0 -m "CodeMarshal v2.2.0 GA"` followed by `git push origin v2.2.0`.
+- `v2.2.0` tag is created and pushed to `origin`.
+- Release tag points to GA commit `0556b2b3d27e7fcdbbbc09292259c2872494b2bd`.
+
+## Follow-up Tracking
+
+- Docker follow-up issue should be opened from `.github/ISSUE_TEMPLATE/docker-ga-validation-v2.2.0.md`.
+- Automated issue creation is not available on this machine (no `gh` CLI and no GitHub API token configured).

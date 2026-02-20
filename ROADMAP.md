@@ -54,7 +54,7 @@
 
 - [x] GA checklist captured with timestamped command evidence
 - [x] Tagging policy applied for GA
-- [ ] `v2.2.0` tag created on validated commit
+- [x] `v2.2.0` tag created on validated commit
 - [x] Release notes published from changelog
 
 ## Tagging Policy (Effective Immediately)
