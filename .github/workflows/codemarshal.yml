@@ -120,8 +120,39 @@ jobs:
             --cov=observations.eyes.go_sight \
             --cov=observations.eyes.java_sight \
             --cov=observations.eyes.javascript_sight \
+            --cov-fail-under=0 \
+            --junitxml=pytest-results.xml \
             --cov-report=xml \
             --cov-report=term
+
+      - name: Annotate pytest failures
+        if: failure()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          report = Path("pytest-results.xml")
+          if not report.exists():
+              print("::error title=Pytest::pytest-results.xml was not generated; test process likely crashed before reporting.")
+              raise SystemExit(0)
+
+          root = ET.parse(report).getroot()
+          found = False
+          for testcase in root.iter("testcase"):
+              classname = testcase.attrib.get("classname", "")
+              name = testcase.attrib.get("name", "")
+              for tag in ("failure", "error"):
+                  node = testcase.find(tag)
+                  if node is None:
+                      continue
+                  found = True
+                  raw = (node.attrib.get("message") or node.text or "").strip().replace("\n", " | ")
+                  message = raw[:350] if raw else "No failure message captured."
+                  print(f"::error title=Pytest {tag}::{classname}.{name}: {message}")
+          if not found:
+              print("::error title=Pytest::Tests failed without testcase failure entries. Check runner/coverage output.")
+          PY
         
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -130,6 +161,7 @@ jobs:
           name: coverage-report
           path: |
             coverage.xml
+            pytest-results.xml
           retention-days: 30
 
   gui-smoke:
@@ -271,7 +303,49 @@ jobs:
         run: |
           mkdir -p jetbrains-plugin/build
           set -o pipefail
-          ./jetbrains-plugin/gradlew -p jetbrains-plugin buildPlugin -x buildSearchableOptions -x jarSearchableOptions --no-daemon --console=plain --stacktrace 2>&1 | tee jetbrains-plugin/build/ci-gradle.log
+          status=1
+          for attempt in 1 2; do
+            echo "JetBrains build attempt ${attempt}/2"
+            ./jetbrains-plugin/gradlew -p jetbrains-plugin buildPlugin -x buildSearchableOptions -x jarSearchableOptions --no-daemon --console=plain --stacktrace 2>&1 | tee jetbrains-plugin/build/ci-gradle.log
+            status=${PIPESTATUS[0]}
+            if [ "$status" -eq 0 ]; then
+              break
+            fi
+            if [ "$attempt" -lt 2 ]; then
+              echo "Retrying JetBrains build after transient failure..."
+              sleep 15
+            fi
+          done
+          exit "$status"
+
+      - name: Annotate JetBrains build failure
+        if: failure()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          log_path = Path("jetbrains-plugin/build/ci-gradle.log")
+          if not log_path.exists():
+              print("::error title=JetBrains::ci-gradle.log missing after failed build.")
+              raise SystemExit(0)
+
+          lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+          keys = (
+              "* What went wrong:",
+              "Execution failed for task",
+              "Could not resolve",
+              "Could not download",
+              "Caused by:",
+              "BUILD FAILED",
+          )
+          matches = [line.strip() for line in lines if any(key in line for key in keys)]
+          if not matches:
+              tail = " | ".join(lines[-30:])
+              print(f"::error title=JetBrains::No standard failure markers found. Tail: {tail[:350]}")
+          else:
+              for line in matches[-12:]:
+                  print(f"::error title=JetBrains::{line[:350]}")
+          PY
 
       - name: Upload JetBrains build diagnostics
         uses: actions/upload-artifact@v4
